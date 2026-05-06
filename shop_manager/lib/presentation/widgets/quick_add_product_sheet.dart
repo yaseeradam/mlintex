@@ -5,14 +5,16 @@ import '../../core/theme/app_theme.dart';
 import 'app_feedback.dart';
 import '../products/product_provider.dart';
 import '../../domain/entities/product.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class QuickAddProductSheet extends ConsumerStatefulWidget {
-  final dynamic existing; // Product entity if editing
+  final dynamic existing;
 
   const QuickAddProductSheet({super.key, this.existing});
 
   @override
-  ConsumerState<QuickAddProductSheet> createState() => _QuickAddProductSheetState();
+  ConsumerState<QuickAddProductSheet> createState() =>
+      _QuickAddProductSheetState();
 }
 
 class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
@@ -53,7 +55,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.surfaceColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Form(
@@ -64,23 +66,34 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
+                    color: AppTheme.surfaceLighter,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-              Text(
-                isEditing ? 'Edit Product' : 'Add Product',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimary,
-                ),
+              Row(
+                children: [
+                  Icon(
+                    isEditing ? PhosphorIconsRegular.pencilSimple : PhosphorIconsRegular.package,
+                    color: AppTheme.primaryLight,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    isEditing ? 'Edit Product' : 'Add Product',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               TextFormField(
                 controller: _nameController,
                 autofocus: !isEditing,
@@ -91,14 +104,18 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                 ),
                 validator: (v) => v!.trim().isEmpty ? 'Name is required' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
                       controller: _priceController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))],
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d+\.?\d{0,2}'))
+                      ],
                       decoration: const InputDecoration(
                         labelText: 'Price *',
                         hintText: '0.00',
@@ -126,7 +143,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Consumer(
                 builder: (context, ref, child) {
                   final productsAsync = ref.watch(productsProvider);
@@ -139,24 +156,27 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                       [];
 
                   return Autocomplete<String>(
-                    initialValue: TextEditingValue(text: _categoryController.text),
-                    optionsBuilder: (TextEditingValue textEditingValue) {
+                    initialValue:
+                        TextEditingValue(text: _categoryController.text),
+                    optionsBuilder:
+                        (TextEditingValue textEditingValue) {
                       if (textEditingValue.text == '') {
                         return const Iterable<String>.empty();
                       }
                       return categories.where((String option) {
-                        return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                        return option.toLowerCase().contains(
+                            textEditingValue.text.toLowerCase());
                       });
                     },
                     onSelected: (String selection) {
                       _categoryController.text = selection;
                     },
-                    fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-                      // Keep controllers in sync so the submit button gets the typed text
+                    fieldViewBuilder: (context, textEditingController,
+                        focusNode, onFieldSubmitted) {
                       textEditingController.addListener(() {
                         _categoryController.text = textEditingController.text;
                       });
-                      
+
                       return TextFormField(
                         controller: textEditingController,
                         focusNode: focusNode,
@@ -167,14 +187,17 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                         ),
                       );
                     },
-                    optionsViewBuilder: (context, onSelected, options) {
+                    optionsViewBuilder:
+                        (context, onSelected, options) {
                       return Align(
                         alignment: Alignment.topLeft,
                         child: Material(
                           elevation: 4,
                           borderRadius: BorderRadius.circular(12),
+                          color: AppTheme.surfaceColor,
                           child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 200, maxWidth: 300),
+                            constraints: const BoxConstraints(
+                                maxHeight: 200, maxWidth: 300),
                             child: ListView.builder(
                               padding: EdgeInsets.zero,
                               shrinkWrap: true,
@@ -194,15 +217,20 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                   );
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               SizedBox(
                 width: double.infinity,
                 height: 52,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   onPressed: _submit,
-                  child: Text(
+                  icon: Icon(
+                    isEditing ? PhosphorIconsFill.floppyDisk : PhosphorIconsFill.plus,
+                    size: 18,
+                  ),
+                  label: Text(
                     isEditing ? 'Update Product' : 'Add Product',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -215,7 +243,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     AppFeedback.showLoading(context);
 
     try {
@@ -227,7 +255,9 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
             name: _nameController.text.trim(),
             price: double.parse(_priceController.text),
             quantity: int.parse(_quantityController.text),
-            category: _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim(),
+            category: _categoryController.text.trim().isEmpty
+                ? null
+                : _categoryController.text.trim(),
             updatedAt: DateTime.now(),
             isSynced: false,
           ),
@@ -237,13 +267,16 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
           name: _nameController.text.trim(),
           price: double.parse(_priceController.text),
           quantity: int.parse(_quantityController.text),
-          category: _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim(),
+          category: _categoryController.text.trim().isEmpty
+              ? null
+              : _categoryController.text.trim(),
         );
       }
       if (mounted) {
         AppFeedback.hideLoading(context);
         Navigator.pop(context);
-        AppFeedback.showSuccess(context, 'Success', widget.existing != null ? 'Product updated.' : 'Product added.');
+        AppFeedback.showSuccess(context, 'Success',
+            widget.existing != null ? 'Product updated.' : 'Product added.');
       }
     } catch (e) {
       if (mounted) {

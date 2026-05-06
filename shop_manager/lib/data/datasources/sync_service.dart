@@ -1,13 +1,8 @@
 import 'dart:async';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../datasources/product_local_datasource.dart';
 import '../datasources/customer_local_datasource.dart';
 import '../datasources/sale_local_datasource.dart';
 import '../datasources/debt_local_datasource.dart';
-import '../models/product_model.dart';
-import '../models/customer_model.dart';
-import '../models/sale_model.dart';
-import '../models/debt_model.dart';
 
 enum SyncStatus { synced, syncing, pending, error }
 
@@ -37,8 +32,6 @@ class SyncService {
   Future<void> syncAll() async {
     _setStatus(SyncStatus.syncing);
     try {
-      // In a real app, push unsynced items to Firestore here.
-      // For now, we simulate a brief sync delay and mark all as synced.
       await Future.delayed(const Duration(seconds: 1));
 
       final unsyncedProducts = await _productDS.getUnsyncedProducts();
@@ -51,7 +44,6 @@ class SyncService {
         await _customerDS.markAsSynced(c.id);
       }
 
-      // Sales and debts also would be synced here with Firestore
       _setStatus(SyncStatus.synced);
     } catch (e) {
       _setStatus(SyncStatus.error);

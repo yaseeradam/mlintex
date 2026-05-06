@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import 'app_feedback.dart';
 import '../customers/customer_provider.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class QuickAddCustomerSheet extends ConsumerStatefulWidget {
   const QuickAddCustomerSheet({super.key});
 
   @override
-  ConsumerState<QuickAddCustomerSheet> createState() => _QuickAddCustomerSheetState();
+  ConsumerState<QuickAddCustomerSheet> createState() =>
+      _QuickAddCustomerSheetState();
 }
 
 class _QuickAddCustomerSheetState extends ConsumerState<QuickAddCustomerSheet> {
@@ -32,7 +34,7 @@ class _QuickAddCustomerSheetState extends ConsumerState<QuickAddCustomerSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.surfaceColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Form(
@@ -43,16 +45,34 @@ class _QuickAddCustomerSheetState extends ConsumerState<QuickAddCustomerSheet> {
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceLighter,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'Add Customer',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+              Row(
+                children: [
+                  Icon(
+                    PhosphorIconsRegular.userPlus,
+                    color: AppTheme.warningColor,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Add Customer',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               TextFormField(
                 controller: _nameController,
                 autofocus: true,
@@ -63,7 +83,7 @@ class _QuickAddCustomerSheetState extends ConsumerState<QuickAddCustomerSheet> {
                 ),
                 validator: (v) => v!.trim().isEmpty ? 'Name is required' : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
@@ -72,7 +92,7 @@ class _QuickAddCustomerSheetState extends ConsumerState<QuickAddCustomerSheet> {
                   hintText: '+1 234 567 8900',
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _addressController,
                 textCapitalization: TextCapitalization.sentences,
@@ -81,13 +101,16 @@ class _QuickAddCustomerSheetState extends ConsumerState<QuickAddCustomerSheet> {
                   hintText: 'Customer address',
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               SizedBox(
                 width: double.infinity,
                 height: 52,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   onPressed: _submit,
-                  child: const Text('Add Customer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  icon: const Icon(PhosphorIconsFill.userPlus, size: 18),
+                  label: const Text('Add Customer',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -102,14 +125,19 @@ class _QuickAddCustomerSheetState extends ConsumerState<QuickAddCustomerSheet> {
     AppFeedback.showLoading(context);
     try {
       await ref.read(customerNotifierProvider.notifier).addCustomer(
-        name: _nameController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-      );
+            name: _nameController.text.trim(),
+            phone: _phoneController.text.trim().isEmpty
+                ? null
+                : _phoneController.text.trim(),
+            address: _addressController.text.trim().isEmpty
+                ? null
+                : _addressController.text.trim(),
+          );
       if (mounted) {
         AppFeedback.hideLoading(context);
         Navigator.pop(context);
-        AppFeedback.showSuccess(context, 'Success', 'Customer added successfully.');
+        AppFeedback.showSuccess(
+            context, 'Success', 'Customer added successfully.');
       }
     } catch (e) {
       if (mounted) {

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/providers/theme_provider.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../data/datasources/sync_service.dart';
@@ -24,10 +25,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppTheme.backgroundStart : const Color(0xFFF1F5F9);
+    final surfaceLight = isDark ? AppTheme.surfaceLight.withOpacity(0.3) : const Color(0xFFE2E8F0);
+    final titleColor = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+
     return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.backgroundColor,
-      ),
+      color: bgColor,
       child: SafeArea(
         child: Column(
           children: [
@@ -36,34 +40,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     'More',
                     style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
-                      letterSpacing: -0.5,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: titleColor,
+                      letterSpacing: -1,
                     ),
                   ),
                 ],
               ),
             ),
-            
+
             // Segmented Control
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: AppTheme.textSecondary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  color: surfaceLight,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
                   children: [
                     Expanded(
                       child: _SegmentButton(
                         title: 'Settings',
-                        icon: Icons.settings_rounded,
+                        icon: PhosphorIconsRegular.gear,
                         isSelected: _selectedTab == 0,
                         onTap: () => setState(() => _selectedTab = 0),
                       ),
@@ -71,7 +75,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Expanded(
                       child: _SegmentButton(
                         title: 'Reports',
-                        icon: Icons.bar_chart_rounded,
+                        icon: PhosphorIconsRegular.chartBar,
                         isSelected: _selectedTab == 1,
                         onTap: () => setState(() => _selectedTab = 1),
                       ),
@@ -80,11 +84,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
 
             // Content
             Expanded(
-              child: _selectedTab == 0 ? const _SettingsContent() : const _ReportsContent(),
+              child: _selectedTab == 0
+                  ? const _SettingsContent()
+                  : const _ReportsContent(),
             ),
           ],
         ),
@@ -108,20 +114,25 @@ class _SegmentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selectedBg = isDark ? AppTheme.surfaceColor : Colors.white;
+    final activeColor = isDark ? AppTheme.primaryLight : AppTheme.primaryColor;
+    final inactiveColor = isDark ? AppTheme.textMuted : const Color(0xFF94A3B8);
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? selectedBg : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 6,
                     offset: const Offset(0, 2),
                   )
                 ]
@@ -132,16 +143,16 @@ class _SegmentButton extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 18,
-              color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
+              size: 16,
+              color: isSelected ? activeColor : inactiveColor,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Text(
               title,
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? activeColor : inactiveColor,
               ),
             ),
           ],
@@ -159,7 +170,6 @@ class _SettingsContent extends ConsumerStatefulWidget {
 }
 
 class _SettingsContentState extends ConsumerState<_SettingsContent> {
-  bool _biometricEnabled = false;
   bool _notificationsEnabled = true;
 
   @override
@@ -167,6 +177,9 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
     final syncStatus = ref.watch(syncStatusProvider);
     final isSyncing = syncStatus.value == SyncStatus.syncing;
     final authState = ref.watch(authProvider);
+    final initial = authState.shopName.isNotEmpty
+        ? authState.shopName[0].toUpperCase()
+        : 'S';
 
     return ListView(
       physics: const BouncingScrollPhysics(),
@@ -175,36 +188,35 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
         // Profile Card
         GestureDetector(
           onTap: () => context.push('/profile'),
-          child: Container(
+          child: ModernCard(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.withOpacity(0.1)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ],
-            ),
             child: Row(
               children: [
                 Container(
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppTheme.primaryColor.withOpacity(0.2),
+                        AppTheme.accentColor.withOpacity(0.1),
+                      ],
+                    ),
                     shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppTheme.primaryColor.withOpacity(0.3),
+                      width: 1.5,
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: Text(
-                    authState.shopName.isNotEmpty ? authState.shopName[0].toUpperCase() : 'S',
+                    initial,
                     style: const TextStyle(
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.primaryLight,
                       fontSize: 24,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
@@ -216,23 +228,53 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
                       Text(
                         authState.shopName,
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 17,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
                         authState.email,
-                        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                        style: TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary, size: 20),
+                Icon(
+                  PhosphorIconsRegular.caretRight,
+                  color: AppTheme.textMuted,
+                  size: 20,
+                ),
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 24),
+
+        _SectionHeader('Appearance'),
+        _SettingsGroup(
+          children: [
+            _ActionTile(
+              icon: ref.watch(themeProvider) == ThemeMode.dark
+                  ? PhosphorIconsRegular.moon
+                  : PhosphorIconsRegular.sun,
+              iconColor: ref.watch(themeProvider) == ThemeMode.dark
+                  ? const Color(0xFF8B5CF6)
+                  : AppTheme.warningColor,
+              title: ref.watch(themeProvider) == ThemeMode.dark ? 'Dark Mode' : 'Light Mode',
+              trailing: Switch.adaptive(
+                value: ref.watch(themeProvider) == ThemeMode.dark,
+                onChanged: (val) => ref
+                    .read(themeProvider.notifier)
+                    .setMode(val ? ThemeMode.dark : ThemeMode.light),
+                activeColor: AppTheme.primaryColor,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 24),
 
@@ -240,16 +282,8 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
         _SettingsGroup(
           children: [
             _ToggleTile(
-              icon: PhosphorIconsRegular.fingerprint,
-              iconColor: const Color(0xFF8B5CF6),
-              title: 'Biometric Login',
-              value: _biometricEnabled,
-              onChanged: (v) => setState(() => _biometricEnabled = v),
-            ),
-            const Divider(height: 1, indent: 56, color: Color(0xFFF3F4F6)),
-            _ToggleTile(
               icon: PhosphorIconsRegular.bell,
-              iconColor: const Color(0xFFF59E0B),
+              iconColor: AppTheme.warningColor,
               title: 'Notifications',
               value: _notificationsEnabled,
               onChanged: (v) => setState(() => _notificationsEnabled = v),
@@ -263,7 +297,7 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
           children: [
             _ActionTile(
               icon: PhosphorIconsRegular.cloudArrowUp,
-              iconColor: const Color(0xFF10B981),
+              iconColor: AppTheme.successColor,
               title: 'Manual Sync',
               trailing: isSyncing
                   ? const SizedBox(
@@ -271,7 +305,8 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Icon(PhosphorIconsRegular.caretRight, color: AppTheme.textSecondary, size: 20),
+                  : Icon(PhosphorIconsRegular.caretRight,
+                      color: AppTheme.textMuted, size: 20),
               onTap: isSyncing ? null : () => ref.read(syncServiceProvider).syncAll(),
             ),
           ],
@@ -299,12 +334,13 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w800)),
-        content: const Text('Are you sure you want to sign out? Your offline data will be kept safe.'),
+        title: const Text('Sign Out'),
+        content: const Text(
+            'Are you sure you want to sign out? Your offline data will be kept safe.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -313,7 +349,8 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.errorColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             child: const Text('Sign Out'),
           ),
@@ -337,17 +374,28 @@ class _ReportsContent extends ConsumerWidget {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
       children: [
-        const _SectionHeader('Revenue Overview'),
+        _SectionHeader('Revenue Overview'),
         salesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Text('Error: $e'),
           data: (sales) {
             final now = DateTime.now();
-            final todaySales = sales.where((s) => s.saleDate.day == now.day && s.saleDate.month == now.month && s.saleDate.year == now.year).toList();
-            final monthSales = sales.where((s) => s.saleDate.month == now.month && s.saleDate.year == now.year).toList();
+            final todaySales = sales
+                .where((s) =>
+                    s.saleDate.day == now.day &&
+                    s.saleDate.month == now.month &&
+                    s.saleDate.year == now.year)
+                .toList();
+            final monthSales = sales
+                .where((s) =>
+                    s.saleDate.month == now.month &&
+                    s.saleDate.year == now.year)
+                .toList();
 
-            final todayTotal = todaySales.fold<double>(0, (sum, s) => sum + s.totalAmount);
-            final monthTotal = monthSales.fold<double>(0, (sum, s) => sum + s.totalAmount);
+            final todayTotal =
+                todaySales.fold<double>(0, (sum, s) => sum + s.totalAmount);
+            final monthTotal =
+                monthSales.fold<double>(0, (sum, s) => sum + s.totalAmount);
 
             return Row(
               children: [
@@ -356,8 +404,11 @@ class _ReportsContent extends ConsumerWidget {
                     title: 'Today',
                     amount: currency.format(todayTotal),
                     subtitle: '${todaySales.length} transactions',
-                    colors: const [Color(0xFF6366F1), Color(0xFF4F46E5)],
-                    icon: Icons.today_rounded,
+                    colors: const [
+                      Color(0xFF6366F1),
+                      Color(0xFF4F46E5),
+                    ],
+                    icon: PhosphorIconsFill.calendar,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -366,8 +417,11 @@ class _ReportsContent extends ConsumerWidget {
                     title: 'This Month',
                     amount: currency.format(monthTotal),
                     subtitle: '${monthSales.length} transactions',
-                    colors: const [Color(0xFF10B981), Color(0xFF059669)],
-                    icon: Icons.calendar_month_rounded,
+                    colors: const [
+                      Color(0xFF10B981),
+                      Color(0xFF059669),
+                    ],
+                    icon: PhosphorIconsFill.chartBar,
                   ),
                 ),
               ],
@@ -376,13 +430,14 @@ class _ReportsContent extends ConsumerWidget {
         ),
         const SizedBox(height: 24),
 
-        const _SectionHeader('Inventory & Debts'),
+        _SectionHeader('Inventory & Debts'),
         debtsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => const SizedBox(),
           data: (debts) {
             final unpaid = debts.where((d) => !d.isPaid).toList();
-            final totalOwed = unpaid.fold<double>(0, (sum, d) => sum + d.remainingAmount);
+            final totalOwed = unpaid.fold<double>(
+                0, (sum, d) => sum + d.remainingAmount);
 
             return Row(
               children: [
@@ -391,23 +446,31 @@ class _ReportsContent extends ConsumerWidget {
                     title: 'Unpaid Debts',
                     amount: currency.format(totalOwed),
                     subtitle: '${unpaid.length} customers',
-                    colors: const [Color(0xFFF43F5E), Color(0xFFE11D48)],
-                    icon: Icons.money_off_rounded,
+                    colors: const [
+                      Color(0xFFF43F5E),
+                      Color(0xFFE11D48),
+                    ],
+                    icon: PhosphorIconsFill.receipt,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: productsAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (e, _) => const SizedBox(),
                     data: (products) {
-                      final lowStock = products.where((p) => p.quantity < 5).length;
+                      final lowStock =
+                          products.where((p) => p.quantity < 5).length;
                       return _StatCardPremium(
                         title: 'Low Stock',
                         amount: lowStock.toString(),
                         subtitle: 'Items to restock',
-                        colors: const [Color(0xFFF59E0B), Color(0xFFD97706)],
-                        icon: Icons.warning_rounded,
+                        colors: const [
+                          Color(0xFFF59E0B),
+                          Color(0xFFD97706),
+                        ],
+                        icon: PhosphorIconsFill.warning,
                       );
                     },
                   ),
@@ -417,62 +480,103 @@ class _ReportsContent extends ConsumerWidget {
           },
         ),
         const SizedBox(height: 24),
-        
-        const _SectionHeader('Top Selling Items'),
+
+        _SectionHeader('Top Selling Items'),
         salesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => const SizedBox(),
           data: (sales) {
             if (sales.isEmpty) {
-              return const GlassContainer(
-                padding: EdgeInsets.all(16),
-                child: Text('No sales yet.', style: TextStyle(color: AppTheme.textSecondary)),
+              return ModernCard(
+                padding: const EdgeInsets.all(20),
+                child: const Center(
+                  child: Text(
+                    'No sales yet.',
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                ),
               );
             }
-            
+
             // Calculate top selling
             final Map<String, int> productSales = {};
             final Map<String, String> productNames = {};
-            
+
             for (final sale in sales) {
               for (final item in sale.items) {
-                productSales[item.productId] = (productSales[item.productId] ?? 0) + item.quantity;
+                productSales[item.productId] =
+                    (productSales[item.productId] ?? 0) + item.quantity;
                 productNames[item.productId] = item.productName;
               }
             }
-            
+
             final sortedKeys = productSales.keys.toList()
-              ..sort((a, b) => productSales[b]!.compareTo(productSales[a]!));
-              
+              ..sort(
+                  (a, b) => productSales[b]!.compareTo(productSales[a]!));
+
             final top3 = sortedKeys.take(3).toList();
-            
+
             return Column(
-              children: top3.map((id) {
+              children: top3.asMap().entries.map((entry) {
+                final index = entry.key;
+                final id = entry.value;
+                final medals = [
+                  PhosphorIconsFill.trophy,
+                  PhosphorIconsFill.medal,
+                  PhosphorIconsFill.star,
+                ];
+                final medalColors = [
+                  const Color(0xFFFBBF24),
+                  const Color(0xFF94A3B8),
+                  const Color(0xFFCD7F32),
+                ];
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  child: GlassContainer(
-                    padding: const EdgeInsets.all(16),
+                  child: ModernCard(
+                    padding: const EdgeInsets.all(14),
                     child: Row(
                       children: [
                         Container(
-                          width: 40,
-                          height: 40,
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFDE68A),
+                            color: medalColors[index].withOpacity(0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.star_rounded, color: Color(0xFFD97706), size: 20),
+                          child: Icon(
+                            medals[index],
+                            color: medalColors[index],
+                            size: 22,
+                          ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: Text(
                             productNames[id]!,
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppTheme.textPrimary),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              color: AppTheme.textPrimary,
+                            ),
                           ),
                         ),
-                        Text(
-                          '${productSales[id]} sold',
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppTheme.primaryColor),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${productSales[id]} sold',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: AppTheme.primaryLight,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -493,11 +597,15 @@ class _SettingsGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? AppTheme.surfaceColor : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.15)),
+        border: Border.all(
+          color: isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0),
+          width: 1,
+        ),
       ),
       child: Column(
         children: children,
@@ -506,22 +614,87 @@ class _SettingsGroup extends StatelessWidget {
   }
 }
 
-// ─── Reusable Components ───────────────────────────────────────────────────
-
 class _SectionHeader extends StatelessWidget {
   final String title;
   const _SectionHeader(this.title);
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      padding: const EdgeInsets.only(left: 4, bottom: 12, top: 4),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16,
-          fontWeight: FontWeight.w800,
-          color: AppTheme.textPrimary,
+          fontWeight: FontWeight.w700,
+          color: isDark ? AppTheme.textPrimary : const Color(0xFF0F172A),
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeToggleTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _ThemeToggleTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  color: textColor,
+                ),
+              ),
+            ),
+            if (isActive)
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  PhosphorIconsFill.check,
+                  color: AppTheme.primaryLight,
+                  size: 16,
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -536,30 +709,58 @@ class _ToggleTile extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
 
-  const _ToggleTile({required this.icon, required this.iconColor, required this.title, this.subtitle, required this.value, required this.onChanged});
+  const _ToggleTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+    final mutedColor = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          Icon(icon, color: iconColor, size: 24),
+          Icon(icon, color: iconColor, size: 22),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: AppTheme.textPrimary)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: textColor,
+                  ),
+                ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
-                  Text(subtitle!, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  Text(
+                    subtitle!,
+                    style: TextStyle(
+                      color: mutedColor,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ],
             ),
           ),
-          Switch.adaptive(value: value, onChanged: onChanged, activeColor: iconColor),
+          Switch.adaptive(
+            value: value,
+            onChanged: onChanged,
+            activeColor: iconColor,
+          ),
         ],
       ),
     );
@@ -575,28 +776,53 @@ class _ActionTile extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
 
-  const _ActionTile({required this.icon, required this.iconColor, required this.title, this.subtitle, this.titleColor, this.trailing, this.onTap});
+  const _ActionTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    this.subtitle,
+    this.titleColor,
+    this.trailing,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final defaultTextColor = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+    final mutedColor = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, color: iconColor, size: 24),
+            Icon(icon, color: iconColor, size: 22),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: titleColor ?? AppTheme.textPrimary)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: titleColor ?? defaultTextColor,
+                    ),
+                  ),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
-                    Text(subtitle!, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                    Text(
+                      subtitle!,
+                      style: TextStyle(
+                        color: mutedColor,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -616,31 +842,71 @@ class _StatCardPremium extends StatelessWidget {
   final List<Color> colors;
   final IconData icon;
 
-  const _StatCardPremium({required this.title, required this.amount, required this.subtitle, required this.colors, required this.icon});
+  const _StatCardPremium({
+    required this.title,
+    required this.amount,
+    required this.subtitle,
+    required this.colors,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: colors.first.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
+        gradient: LinearGradient(
+          colors: colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: colors.first.withOpacity(0.25),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: Colors.white, size: 20),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: Colors.white, size: 18),
           ),
-          const SizedBox(height: 16),
-          Text(title, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.85),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(amount, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+          Text(
+            amount,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11)),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.75),
+              fontSize: 11,
+            ),
+          ),
         ],
       ),
     );

@@ -1,31 +1,34 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
-import 'glass_container.dart';
 
 class AppFeedback {
   static void showLoading(BuildContext context) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.3),
+      barrierColor: Colors.black.withOpacity(0.6),
       builder: (ctx) => Center(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 28),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(24),
+              color: AppTheme.surfaceColor.withOpacity(0.95),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: AppTheme.cardBorder,
+                width: 1,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryColor.withOpacity(0.15),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  blurRadius: 40,
+                  spreadRadius: 4,
                 ),
               ],
             ),
-            child: const Column(
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
@@ -36,11 +39,11 @@ class AppFeedback {
                     color: AppTheme.primaryColor,
                   ),
                 ),
-                SizedBox(height: 16),
-                Text(
+                const SizedBox(height: 16),
+                const Text(
                   'Processing...',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
                     decoration: TextDecoration.none,
@@ -87,22 +90,24 @@ class AppFeedback {
   }) {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.4),
+      barrierColor: Colors.black.withOpacity(0.7),
       builder: (ctx) => Center(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Material(
             color: Colors.transparent,
             child: Container(
-              width: MediaQuery.of(context).size.width * 0.85,
+              width: MediaQuery.of(context).size.width * 0.82,
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.surfaceColor.withOpacity(0.95),
                 borderRadius: BorderRadius.circular(32),
+                border: Border.all(color: AppTheme.cardBorder, width: 1),
                 boxShadow: [
                   BoxShadow(
-                    color: color.withOpacity(0.2),
-                    blurRadius: 40,
+                    color: color.withOpacity(0.15),
+                    blurRadius: 50,
+                    spreadRadius: 4,
                     offset: const Offset(0, 20),
                   ),
                 ],
@@ -111,12 +116,12 @@ class AppFeedback {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      shape: BoxShape.circle,
+                      color: color.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Icon(icon, color: color, size: 48),
+                    child: Icon(icon, color: color, size: 44),
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -127,19 +132,21 @@ class AppFeedback {
                       fontWeight: FontWeight.w800,
                       color: AppTheme.textPrimary,
                       letterSpacing: -0.5,
+                      decoration: TextDecoration.none,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Text(
                     message,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       color: AppTheme.textSecondary,
                       height: 1.5,
+                      decoration: TextDecoration.none,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

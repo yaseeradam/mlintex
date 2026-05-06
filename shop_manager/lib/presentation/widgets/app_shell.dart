@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -9,6 +8,7 @@ import '../settings/settings_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../data/datasources/sync_service.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class _TabNotifier extends Notifier<int> {
   @override
@@ -35,127 +35,208 @@ class AppShell extends ConsumerWidget {
     final currentTab = ref.watch(_currentTabProvider);
 
     return Scaffold(
-      body: IndexedStack(
-        index: currentTab,
-        children: _screens,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.05),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          );
+        },
+        child: IndexedStack(
+          key: ValueKey(currentTab),
+          index: currentTab,
+          children: _screens,
+        ),
       ),
-      bottomNavigationBar: _GlassBottomNav(
+      bottomNavigationBar: _ModernBottomNav(
         currentIndex: currentTab,
         onTap: (i) => ref.read(_currentTabProvider.notifier).setTab(i),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 }
 
-class _GlassBottomNav extends ConsumerWidget {
+class _ModernBottomNav extends ConsumerWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _GlassBottomNav({required this.currentIndex, required this.onTap});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final syncStatus = ref.watch(syncStatusProvider);
-    final isOnline = syncStatus.value == SyncStatus.synced;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-      height: 68,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.85),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.6),
-                width: 1.5,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavItem(icon: Icons.dashboard_rounded, label: 'Home', index: 0, currentIndex: currentIndex, onTap: onTap),
-                _NavItem(icon: Icons.point_of_sale_rounded, label: 'Sales', index: 1, currentIndex: currentIndex, onTap: onTap),
-                _NavItem(icon: Icons.inventory_2_rounded, label: 'Products', index: 2, currentIndex: currentIndex, onTap: onTap),
-                _NavItem(icon: Icons.people_rounded, label: 'Customers', index: 3, currentIndex: currentIndex, onTap: onTap),
-                _NavItem(icon: Icons.more_horiz_rounded, label: 'More', index: 4, currentIndex: currentIndex, onTap: onTap),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final int index;
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.index,
+  const _ModernBottomNav({
     required this.currentIndex,
     required this.onTap,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final isSelected = index == currentIndex;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onTap(index),
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.primaryColor.withOpacity(0.12) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  size: 22,
-                  color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                  color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
-                ),
-              ),
-            ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final syncStatus = ref.watch(syncStatusProvider);
+    final hasPending = syncStatus.value == SyncStatus.pending ||
+        syncStatus.value == SyncStatus.syncing;
+
+    final items = [
+      _NavItemData(
+        icon: PhosphorIconsRegular.house,
+        activeIcon: PhosphorIconsFill.house,
+        label: 'Home',
+      ),
+      _NavItemData(
+        icon: PhosphorIconsRegular.receipt,
+        activeIcon: PhosphorIconsFill.receipt,
+        label: 'Sales',
+      ),
+      _NavItemData(
+        icon: PhosphorIconsRegular.package,
+        activeIcon: PhosphorIconsFill.package,
+        label: 'Products',
+      ),
+      _NavItemData(
+        icon: PhosphorIconsRegular.users,
+        activeIcon: PhosphorIconsFill.users,
+        label: 'Customers',
+      ),
+      _NavItemData(
+        icon: PhosphorIconsRegular.dotsThreeCircle,
+        activeIcon: PhosphorIconsFill.dotsThreeCircle,
+        label: 'More',
+      ),
+    ];
+
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      color: colorScheme.surface,
+      padding: EdgeInsets.fromLTRB(12, 8, 12, bottomPadding + 12),
+      child: Container(
+        height: 68,
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.surfaceColor : Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0),
+            width: 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: List.generate(items.length, (i) {
+            final item = items[i];
+            final isSelected = i == currentIndex;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onTap(i),
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Active indicator background
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            width: isSelected ? 40 : 0,
+                            height: isSelected ? 28 : 0,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          // Icon with sync badge
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 200),
+                                child: Icon(
+                                  isSelected ? item.activeIcon : item.icon,
+                                  key: ValueKey(isSelected),
+                                  size: 22,
+                                  color: isSelected
+                                      ? AppTheme.primaryColor
+                                      : isDark
+                                          ? AppTheme.textMuted
+                                          : const Color(0xFF94A3B8),
+                                ),
+                              ),
+                              // Sync status dot on home tab
+                              if (i == 0 && hasPending)
+                                Positioned(
+                                  right: -2,
+                                  top: -2,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.warningColor,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: AppTheme.surfaceColor,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 250),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected
+                              ? AppTheme.primaryColor
+                              : isDark
+                                  ? AppTheme.textMuted
+                                  : const Color(0xFF94A3B8),
+                          letterSpacing: -0.2,
+                        ),
+                        child: Text(item.label),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
         ),
       ),
     );
   }
+}
+
+class _NavItemData {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+
+  const _NavItemData({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
 }

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
@@ -12,7 +11,9 @@ import 'debt_provider.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/quick_add_product_sheet.dart';
 import '../widgets/quick_add_customer_sheet.dart';
+import '../widgets/add_debt_sheet.dart';
 import 'package:intl/intl.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -26,19 +27,23 @@ class DashboardScreen extends ConsumerWidget {
     final syncStatus = ref.watch(syncStatusProvider);
 
     final currency = NumberFormat.currency(symbol: '₦', decimalDigits: 0);
+    final isSyncing = syncStatus.value == SyncStatus.syncing;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.backgroundColor,
-      ),
+      color: isDark ? AppTheme.backgroundStart : const Color(0xFFF1F5F9),
       child: SafeArea(
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                child: const _Header(),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: _Header(
+                  onSyncTap: isSyncing ? null : () => ref.read(syncServiceProvider).syncAll(),
+                  isSyncing: isSyncing,
+                  syncStatus: syncStatus.value,
+                ),
               ),
             ),
             SliverToBoxAdapter(
@@ -55,13 +60,13 @@ class DashboardScreen extends ConsumerWidget {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                 child: _QuickActions(ref: ref),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                 child: _RecentActivity(ref: ref),
               ),
             ),
@@ -74,118 +79,146 @@ class DashboardScreen extends ConsumerWidget {
 }
 
 class _Header extends ConsumerWidget {
-  const _Header();
+  final VoidCallback? onSyncTap;
+  final bool isSyncing;
+  final SyncStatus? syncStatus;
+
+  const _Header({
+    this.onSyncTap,
+    required this.isSyncing,
+    this.syncStatus,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
-    final syncStatus = ref.watch(syncStatusProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+    final textMuted = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
 
     final now = DateTime.now();
-    final greeting = now.hour < 12 ? 'Good Morning' : now.hour < 17 ? 'Good Afternoon' : 'Good Evening';
-    final isPending = syncStatus.value == SyncStatus.pending ||
-        syncStatus.value == SyncStatus.syncing;
+    final greeting = now.hour < 12
+        ? 'Good Morning'
+        : now.hour < 17
+            ? 'Good Afternoon'
+            : 'Good Evening';
+    final isPending =
+        syncStatus == SyncStatus.pending || syncStatus == SyncStatus.syncing;
 
-    final initial = authState.shopName.isNotEmpty ? authState.shopName[0].toUpperCase() : 'S';
+    final initial = authState.shopName.isNotEmpty
+        ? authState.shopName[0].toUpperCase()
+        : 'S';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              // User Avatar Profile
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  initial,
-                  style: const TextStyle(
-                    color: AppTheme.primaryColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    greeting,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.textSecondary.withOpacity(0.8),
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  Text(
-                    authState.shopName.isEmpty ? 'My Shop' : authState.shopName,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          // Sync Status Indicator
-          GestureDetector(
-            onTap: () => ref.read(syncServiceProvider).syncAll(),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: (isPending ? AppTheme.errorColor : AppTheme.successColor).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.primaryColor.withOpacity(0.2),
+                    AppTheme.accentColor.withOpacity(0.1),
+                  ],
+                ),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppTheme.primaryColor.withOpacity(0.3),
+                  width: 1.5,
+                ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 500),
+              alignment: Alignment.center,
+              child: Text(
+                initial,
+                style: const TextStyle(
+                  color: AppTheme.primaryLight,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  greeting,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  authState.shopName.isEmpty ? 'My Shop' : authState.shopName,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: textPrimary,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        GestureDetector(
+          onTap: onSyncTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: (isPending ? AppTheme.warningColor : AppTheme.successColor)
+                  .withOpacity(0.1),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: (isPending ? AppTheme.warningColor : AppTheme.successColor)
+                    .withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isSyncing)
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.warningColor),
+                    ),
+                  )
+                else
+                  Container(
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: isPending ? AppTheme.errorColor : AppTheme.successColor,
+                      color: isPending ? AppTheme.warningColor : AppTheme.successColor,
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: (isPending ? AppTheme.errorColor : AppTheme.successColor).withOpacity(0.5),
-                          blurRadius: 6,
-                        ),
-                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    syncStatus.value == SyncStatus.syncing
-                        ? 'Syncing'
-                        : isPending
-                            ? 'Pending'
-                            : 'Synced',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: isPending ? AppTheme.errorColor : AppTheme.successColor,
-                    ),
+                const SizedBox(width: 8),
+                Text(
+                  isSyncing ? 'Syncing...' : isPending ? 'Pending' : 'Synced',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isPending ? AppTheme.warningColor : AppTheme.successColor,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -213,102 +246,33 @@ class _SummaryGrid extends StatelessWidget {
       mainAxisSpacing: 12,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.45,
+      childAspectRatio: 1.3,
       children: [
-        _StatCard(
+        StatBadge(
           label: "Today's Sales",
           value: currency.format(todayRevenue),
-          icon: Icons.trending_up_rounded,
-          colors: const [Color(0xFF10B981), Color(0xFF059669)],
+          icon: PhosphorIconsFill.trendUp,
+          iconColor: AppTheme.successColor,
         ),
-        _StatCard(
+        StatBadge(
           label: 'Products',
           value: productCount.toString(),
-          icon: Icons.inventory_2_rounded,
-          colors: const [Color(0xFF6366F1), Color(0xFF4F46E5)],
+          icon: PhosphorIconsFill.package,
+          iconColor: AppTheme.primaryColor,
         ),
-        _StatCard(
+        StatBadge(
           label: 'Customers',
           value: customerCount.toString(),
-          icon: Icons.people_rounded,
-          colors: const [Color(0xFFF59E0B), Color(0xFFD97706)],
+          icon: PhosphorIconsFill.users,
+          iconColor: AppTheme.warningColor,
         ),
-        _StatCard(
+        StatBadge(
           label: 'Total Debts',
           value: currency.format(totalDebt),
-          icon: Icons.account_balance_wallet_rounded,
-          colors: const [Color(0xFFF43F5E), Color(0xFFE11D48)],
+          icon: PhosphorIconsFill.receipt,
+          iconColor: AppTheme.errorColor,
         ),
       ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final List<Color> colors;
-
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.colors,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: colors.first.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: Colors.white, size: 20),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
@@ -319,25 +283,32 @@ class _QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Quick Actions',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
+            color: textPrimary,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Row(
           children: [
             Expanded(
               child: _ActionButton(
                 label: 'Add Product',
-                icon: Icons.add_box_rounded,
-                color: AppTheme.primaryColor,
+                icon: PhosphorIconsFill.package,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppTheme.primaryColor, AppTheme.primaryDark],
+                ),
                 onTap: () => showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
@@ -350,8 +321,12 @@ class _QuickActions extends StatelessWidget {
             Expanded(
               child: _ActionButton(
                 label: 'Add Customer',
-                icon: Icons.person_add_rounded,
-                color: const Color(0xFFF59E0B),
+                icon: PhosphorIconsFill.userPlus,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppTheme.warningColor, const Color(0xFFD97706)],
+                ),
                 onTap: () => showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
@@ -364,9 +339,18 @@ class _QuickActions extends StatelessWidget {
             Expanded(
               child: _ActionButton(
                 label: 'New Debt',
-                icon: Icons.receipt_long_rounded,
-                color: const Color(0xFFEF4444),
-                onTap: () {},
+                icon: PhosphorIconsFill.receipt,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppTheme.errorColor, const Color(0xFFE11D48)],
+                ),
+                onTap: () => showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => const AddDebtSheet(),
+                ),
               ),
             ),
           ],
@@ -379,13 +363,13 @@ class _QuickActions extends StatelessWidget {
 class _ActionButton extends StatelessWidget {
   final String label;
   final IconData icon;
-  final Color color;
+  final Gradient gradient;
   final VoidCallback onTap;
 
   const _ActionButton({
     required this.label,
     required this.icon,
-    required this.color,
+    required this.gradient,
     required this.onTap,
   });
 
@@ -393,19 +377,30 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: GlassContainer(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: (gradient as LinearGradient).colors.first.withOpacity(0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 26),
-            const SizedBox(height: 6),
+            Icon(icon, color: Colors.white, size: 24),
+            const SizedBox(height: 8),
             Text(
               label,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: Colors.white,
               ),
             ),
           ],
@@ -422,31 +417,67 @@ class _RecentActivity extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final salesAsync = ref.watch(salesProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+    final textMuted = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Recent Sales',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Recent Sales',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: textPrimary,
+              ),
+            ),
+            TextButton(
+              onPressed: () {},
+              child: const Text(
+                'View All',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primaryLight,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         salesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text('Error: $e'),
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(),
+            ),
+          ),
+          error: (e, _) => Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.errorColor.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.errorColor.withOpacity(0.2)),
+            ),
+            child: Text('Error: $e', style: const TextStyle(color: AppTheme.errorColor)),
+          ),
           data: (sales) {
             if (sales.isEmpty) {
-              return GlassContainer(
-                padding: const EdgeInsets.all(24),
-                child: const Center(
-                  child: Text(
-                    'No sales yet. Start selling!',
-                    style: TextStyle(color: AppTheme.textSecondary),
-                  ),
+              return ModernCard(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  children: [
+                    Icon(PhosphorIconsRegular.receipt, size: 48, color: textMuted.withOpacity(0.5)),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No sales yet. Start selling!',
+                      style: TextStyle(color: textMuted, fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                  ],
                 ),
               );
             }
@@ -460,49 +491,47 @@ class _RecentActivity extends ConsumerWidget {
                 final sale = recent[i];
                 final fmt = NumberFormat.currency(symbol: '₦', decimalDigits: 0);
                 final timeFmt = DateFormat('h:mm a').format(sale.saleDate);
-                return GlassContainer(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                return ModernCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Row(
                     children: [
                       Container(
-                        width: 40,
-                        height: 40,
+                        width: 44,
+                        height: 44,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE0E7FF),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppTheme.primaryColor.withOpacity(0.2),
+                              AppTheme.accentColor.withOpacity(0.1),
+                            ],
+                          ),
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
                         ),
-                        child: const Icon(Icons.receipt_rounded, color: AppTheme.primaryColor, size: 20),
+                        child: Icon(PhosphorIconsFill.receipt, color: AppTheme.primaryLight, size: 20),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               sale.customerName ?? 'Walk-in Customer',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
-                                fontSize: 14,
-                              ),
+                              style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 14),
                             ),
+                            const SizedBox(height: 3),
                             Text(
                               '${sale.items.length} item(s) • $timeFmt',
-                              style: const TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 12,
-                              ),
+                              style: TextStyle(color: textMuted, fontSize: 12),
                             ),
                           ],
                         ),
                       ),
                       Text(
                         fmt.format(sale.totalAmount),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.successColor,
-                          fontSize: 16,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.successColor, fontSize: 16),
                       ),
                     ],
                   ),

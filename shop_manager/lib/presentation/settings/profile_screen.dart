@@ -38,19 +38,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final initial = authState.shopName.isNotEmpty
+        ? authState.shopName[0].toUpperCase()
+        : 'S';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.backgroundColor,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppTheme.backgroundStart,
+              AppTheme.backgroundMid,
+            ],
+          ),
         ),
         child: SafeArea(
           child: Column(
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 16),
                 child: Row(
                   children: [
                     GestureDetector(
@@ -58,13 +69,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppTheme.surfaceColor,
                           shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
-                          ],
+                          border: Border.all(
+                            color: AppTheme.cardBorder,
+                            width: 1,
+                          ),
                         ),
-                        child: Icon(PhosphorIconsRegular.caretLeft, color: AppTheme.textPrimary, size: 20),
+                        child: Icon(PhosphorIconsRegular.caretLeft,
+                            color: AppTheme.textPrimary, size: 20),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -82,43 +95,72 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                   physics: const BouncingScrollPhysics(),
                   children: [
                     // Avatar
                     Center(
                       child: GestureDetector(
                         onTap: () {
-                          AppFeedback.showError(context, 'Notice', 'Uploading custom profile pictures requires Firebase Storage. Coming soon!');
+                          AppFeedback.showError(context, 'Notice',
+                              'Uploading custom profile pictures requires Firebase Storage. Coming soon!');
                         },
                         child: Stack(
                           alignment: Alignment.bottomRight,
                           children: [
                             Container(
-                              width: 96,
-                              height: 96,
+                              width: 100,
+                              height: 100,
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryColor.withOpacity(0.1),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    AppTheme.primaryColor.withOpacity(0.2),
+                                    AppTheme.accentColor.withOpacity(0.1),
+                                  ],
+                                ),
                                 shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppTheme.primaryColor.withOpacity(0.3),
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        AppTheme.primaryColor.withOpacity(0.15),
+                                    blurRadius: 24,
+                                    spreadRadius: 4,
+                                  ),
+                                ],
                               ),
                               alignment: Alignment.center,
                               child: Text(
-                                authState.shopName.isNotEmpty ? authState.shopName[0].toUpperCase() : 'S',
+                                initial,
                                 style: const TextStyle(
-                                  color: AppTheme.primaryColor,
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.primaryLight,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.all(6),
+                              padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryColor,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    AppTheme.primaryColor,
+                                    AppTheme.primaryDark,
+                                  ],
+                                ),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
+                                border: Border.all(
+                                    color: AppTheme.surfaceColor, width: 2),
                               ),
-                              child: Icon(PhosphorIconsRegular.camera, size: 14, color: Colors.white),
+                              child: Icon(PhosphorIconsRegular.camera,
+                                  size: 16, color: Colors.white),
                             ),
                           ],
                         ),
@@ -127,64 +169,93 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 32),
 
                     // Details
-                    Container(
+                    ModernCard(
                       padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.grey.withOpacity(0.15)),
-                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Personal Information', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                          Row(
+                            children: [
+                              Icon(PhosphorIconsRegular.storefront,
+                                  color: AppTheme.primaryLight, size: 20),
+                              const SizedBox(width: 10),
+                              const Text(
+                                'Personal Information',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 20),
                           TextFormField(
                             controller: _nameController,
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               labelText: 'Shop / Profile Name',
-                              prefixIcon: Icon(PhosphorIconsRegular.storefront),
+                              prefixIcon:
+                                  Icon(PhosphorIconsRegular.storefront),
                             ),
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _emailController,
-                            enabled: false, // Wait for Firebase
-                            decoration: InputDecoration(
+                            enabled: false,
+                            decoration: const InputDecoration(
                               labelText: 'Email Address',
                               prefixIcon: Icon(PhosphorIconsRegular.envelope),
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text('Email cannot be changed locally.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+                          Text(
+                            'Email cannot be changed locally.',
+                            style: TextStyle(
+                              color: AppTheme.textMuted,
+                              fontSize: 11,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
 
                     // Security
-                    Container(
+                    ModernCard(
                       padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.grey.withOpacity(0.15)),
-                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Security', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                          Row(
+                            children: [
+                              Icon(PhosphorIconsRegular.shieldCheck,
+                                  color: AppTheme.successColor, size: 20),
+                              const SizedBox(width: 10),
+                              const Text(
+                                'Security',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 20),
                           TextFormField(
                             controller: _passwordController,
                             obscureText: true,
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               labelText: 'New Password',
                               prefixIcon: Icon(PhosphorIconsRegular.lockKey),
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text('Leave blank to keep current password.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+                          Text(
+                            'Leave blank to keep current password.',
+                            style: TextStyle(
+                              color: AppTheme.textMuted,
+                              fontSize: 11,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -193,9 +264,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     SizedBox(
                       width: double.infinity,
                       height: 52,
-                      child: ElevatedButton(
+                      child: ElevatedButton.icon(
                         onPressed: _saveProfile,
-                        child: const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        icon: const Icon(PhosphorIconsFill.floppyDisk, size: 18),
+                        label: const Text('Save Changes',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -214,13 +293,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (newName.isNotEmpty) {
       ref.read(authProvider.notifier).updateShopName(newName);
     }
-    
+
     if (_passwordController.text.isNotEmpty) {
-      AppFeedback.showError(context, 'Notice', 'Password resets require Firebase Authentication. Coming soon!');
+      AppFeedback.showError(context, 'Notice',
+          'Password resets require Firebase Authentication. Coming soon!');
       return;
     }
 
-    AppFeedback.showSuccess(context, 'Profile Updated', 'Your profile details have been saved successfully.');
+    AppFeedback.showSuccess(context, 'Profile Updated',
+        'Your profile details have been saved successfully.');
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) context.pop();
     });

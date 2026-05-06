@@ -6,6 +6,7 @@ import '../widgets/quick_add_product_sheet.dart';
 import '../widgets/app_feedback.dart';
 import '../../core/utils/product_style_util.dart';
 import 'product_provider.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
@@ -14,12 +15,24 @@ class ProductsScreen extends ConsumerStatefulWidget {
   ConsumerState<ProductsScreen> createState() => _ProductsScreenState();
 }
 
-class _ProductsScreenState extends ConsumerState<ProductsScreen> {
+class _ProductsScreenState extends ConsumerState<ProductsScreen>
+    with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
+  late AnimationController _animController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _animController.dispose();
     super.dispose();
   }
 
@@ -27,25 +40,28 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   Widget build(BuildContext context) {
     final productsAsync = ref.watch(productsProvider);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppTheme.backgroundStart : const Color(0xFFF1F5F9);
+    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+
     return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.backgroundColor,
-      ),
+      color: bg,
       child: SafeArea(
         child: Column(
           children: [
+            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Products',
                     style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
-                      letterSpacing: -0.5,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: textPrimary,
+                      letterSpacing: -1,
                     ),
                   ),
                   GestureDetector(
@@ -56,32 +72,53 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       builder: (_) => const QuickAddProductSheet(),
                     ),
                     child: Container(
-                      padding: const EdgeInsets.all(8),
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppTheme.primaryColor,
+                            AppTheme.primaryDark,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
                         ],
                       ),
-                      child: const Icon(Icons.add_rounded, color: AppTheme.primaryColor, size: 24),
+                      child: const Icon(
+                        PhosphorIconsFill.plus,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
+
+            // Search
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: TextField(
                 controller: _searchController,
                 onChanged: (val) =>
                     ref.read(productSearchProvider.notifier).update(val),
                 decoration: InputDecoration(
                   hintText: 'Search products…',
-                  prefixIcon: const Icon(Icons.search_rounded),
+                  prefixIcon: const Icon(
+                    PhosphorIconsRegular.magnifyingGlass,
+                    color: AppTheme.textMuted,
+                  ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear),
+                          icon: const Icon(PhosphorIconsRegular.x, color: AppTheme.textMuted),
                           onPressed: () {
                             _searchController.clear();
                             ref.read(productSearchProvider.notifier).update('');
@@ -91,27 +128,72 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+
+            const SizedBox(height: 16),
+
+            // Product list
             Expanded(
               child: productsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
+                loading: () => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+                error: (e, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          PhosphorIconsRegular.warning,
+                          size: 48,
+                          color: AppTheme.errorColor.withOpacity(0.5),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Error: $e',
+                          style: const TextStyle(color: AppTheme.errorColor),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 data: (products) {
                   final query = ref.watch(productSearchProvider).toLowerCase();
                   final filtered = query.isEmpty
                       ? products
-                      : products.where((p) => p.name.toLowerCase().contains(query)).toList();
+                      : products
+                          .where((p) =>
+                              p.name.toLowerCase().contains(query))
+                          .toList();
 
                   if (filtered.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.inventory_2_outlined, size: 64, color: AppTheme.textSecondary.withOpacity(0.4)),
+                          Icon(
+                            PhosphorIconsRegular.package,
+                            size: 64,
+                            color: AppTheme.textMuted.withOpacity(0.4),
+                          ),
                           const SizedBox(height: 16),
-                          const Text('No products yet', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
-                          const SizedBox(height: 8),
-                          const Text('Tap + to add your first product', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                          const Text(
+                            'No products found',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Tap + to add a new product',
+                            style: TextStyle(
+                              color: AppTheme.textMuted,
+                              fontSize: 13,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -120,7 +202,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                     itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (_, i) {
                       final product = filtered[i];
                       return _ProductListItem(
@@ -129,11 +211,21 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                           context: context,
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
-                          builder: (_) => QuickAddProductSheet(existing: product),
+                          builder: (_) => QuickAddProductSheet(
+                            existing: product,
+                          ),
                         ),
-                        onDelete: () => _showDeleteDialog(context, product.id, product.name),
-                        onIncrease: () => ref.read(productNotifierProvider.notifier).updateQuantity(product.id, 1),
-                        onDecrease: () => ref.read(productNotifierProvider.notifier).updateQuantity(product.id, -1),
+                        onDelete: () => _showDeleteDialog(
+                          context,
+                          product.id,
+                          product.name,
+                        ),
+                        onIncrease: () => ref
+                            .read(productNotifierProvider.notifier)
+                            .updateQuantity(product.id, 1),
+                        onDecrease: () => ref
+                            .read(productNotifierProvider.notifier)
+                            .updateQuantity(product.id, -1),
                       );
                     },
                   );
@@ -162,9 +254,16 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
             onPressed: () {
               ref.read(productNotifierProvider.notifier).deleteProduct(id);
               Navigator.pop(context);
-              AppFeedback.showSuccess(context, 'Deleted', 'Product "$name" has been deleted.');
+              AppFeedback.showSuccess(
+                context,
+                'Deleted',
+                'Product "$name" has been deleted.',
+              );
             },
-            child: const Text('Delete', style: TextStyle(color: AppTheme.errorColor)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: AppTheme.errorColor),
+            ),
           ),
         ],
       ),
@@ -191,28 +290,32 @@ class _ProductListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLowStock = product.quantity < 5;
     final style = ProductStyleUtil.getStyle(product.category, product.name);
-    
-    return GlassContainer(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+
+    return ModernCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: style.colors,
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               boxShadow: [
-                BoxShadow(color: style.colors.first.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+                BoxShadow(
+                  color: style.colors.first.withOpacity(0.25),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: Icon(style.icon, color: Colors.white, size: 22),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,12 +328,39 @@ class _ProductListItem extends StatelessWidget {
                     color: AppTheme.textPrimary,
                   ),
                 ),
-                Text(
-                  '₦${product.price.toStringAsFixed(2)} ${product.category != null ? "• ${product.category}" : ""}',
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                  ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Text(
+                      '₦${product.price.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        color: AppTheme.primaryLight,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (product.category != null) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceLighter.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          product.category!,
+                          style: TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -239,7 +369,7 @@ class _ProductListItem extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _QuantityButton(icon: Icons.remove, onTap: onDecrease),
+              _QuantityButton(icon: PhosphorIconsRegular.minus, onTap: onDecrease),
               Container(
                 width: 36,
                 alignment: Alignment.center,
@@ -248,24 +378,43 @@ class _ProductListItem extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     color: isLowStock ? AppTheme.errorColor : AppTheme.textPrimary,
-                    fontSize: 14,
+                    fontSize: 15,
                   ),
                 ),
               ),
-              _QuantityButton(icon: Icons.add, onTap: onIncrease),
+              _QuantityButton(icon: PhosphorIconsRegular.plus, onTap: onIncrease),
             ],
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary, size: 20),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            icon: Icon(PhosphorIconsRegular.dotsThreeVertical, color: AppTheme.textMuted, size: 20),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            color: AppTheme.surfaceColor,
             onSelected: (val) {
               if (val == 'edit') onEdit();
               if (val == 'delete') onDelete();
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 8), Text('Edit')])),
-              const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_rounded, size: 18, color: AppTheme.errorColor), SizedBox(width: 8), Text('Delete', style: TextStyle(color: AppTheme.errorColor))])),
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(PhosphorIconsRegular.pencilSimple, size: 18),
+                    SizedBox(width: 10),
+                    Text('Edit'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(PhosphorIconsRegular.trash, size: 18, color: AppTheme.errorColor),
+                    const SizedBox(width: 10),
+                    const Text('Delete', style: TextStyle(color: AppTheme.errorColor)),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
@@ -285,13 +434,13 @@ class _QuantityButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 28,
-        height: 28,
+        width: 30,
+        height: 30,
         decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withOpacity(0.1),
+          color: AppTheme.primaryColor.withOpacity(0.12),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, size: 16, color: AppTheme.primaryColor),
+        child: Icon(icon, size: 16, color: AppTheme.primaryLight),
       ),
     );
   }
