@@ -50,6 +50,8 @@ class CustomerLocalDataSource {
           address: c.address,
           updatedAt: c.updatedAt,
           isSynced: true,
+          avatarPath: c.avatarPath,
+          shopNumber: c.shopNumber,
         ),
       );
     }

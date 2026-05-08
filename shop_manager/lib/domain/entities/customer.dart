@@ -3,6 +3,8 @@ class Customer {
   final String name;
   final String? phone;
   final String? address;
+  final String? shopNumber;
+  final String? avatarPath;
   final DateTime updatedAt;
   final bool isSynced;
 
@@ -11,6 +13,8 @@ class Customer {
     required this.name,
     this.phone,
     this.address,
+    this.shopNumber,
+    this.avatarPath,
     required this.updatedAt,
     this.isSynced = false,
   });
@@ -20,6 +24,8 @@ class Customer {
     String? name,
     String? phone,
     String? address,
+    String? shopNumber,
+    String? avatarPath,
     DateTime? updatedAt,
     bool? isSynced,
   }) {
@@ -28,6 +34,8 @@ class Customer {
       name: name ?? this.name,
       phone: phone ?? this.phone,
       address: address ?? this.address,
+      shopNumber: shopNumber ?? this.shopNumber,
+      avatarPath: avatarPath ?? this.avatarPath,
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,
     );

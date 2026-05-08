@@ -2,10 +2,6 @@
 
 part of 'customer_model.dart';
 
-// **************************************************************************
-// TypeAdapterGenerator
-// **************************************************************************
-
 class CustomerModelAdapter extends TypeAdapter<CustomerModel> {
   @override
   final int typeId = 1;
@@ -23,13 +19,15 @@ class CustomerModelAdapter extends TypeAdapter<CustomerModel> {
       address: fields[3] as String?,
       updatedAt: fields[4] as DateTime,
       isSynced: fields[5] as bool,
+      avatarPath: fields[6] as String?,
+      shopNumber: fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, CustomerModel obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +39,11 @@ class CustomerModelAdapter extends TypeAdapter<CustomerModel> {
       ..writeByte(4)
       ..write(obj.updatedAt)
       ..writeByte(5)
-      ..write(obj.isSynced);
+      ..write(obj.isSynced)
+      ..writeByte(6)
+      ..write(obj.avatarPath)
+      ..writeByte(7)
+      ..write(obj.shopNumber);
   }
 
   @override

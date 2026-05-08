@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../sales/sales_screen.dart';
+import '../sales_ledger/sales_ledger_screen.dart';
 import '../products/products_screen.dart';
 import '../customers/customers_screen.dart';
+import '../receive/receive_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
@@ -24,7 +26,8 @@ class AppShell extends ConsumerWidget {
 
   static const _screens = [
     DashboardScreen(),
-    SalesScreen(),
+    SalesLedgerScreen(),
+    ReceiveScreen(),
     ProductsScreen(),
     CustomersScreen(),
     SettingsScreen(),
@@ -82,31 +85,12 @@ class _ModernBottomNav extends ConsumerWidget {
         syncStatus.value == SyncStatus.syncing;
 
     final items = [
-      _NavItemData(
-        icon: PhosphorIconsRegular.house,
-        activeIcon: PhosphorIconsFill.house,
-        label: 'Home',
-      ),
-      _NavItemData(
-        icon: PhosphorIconsRegular.receipt,
-        activeIcon: PhosphorIconsFill.receipt,
-        label: 'Sales',
-      ),
-      _NavItemData(
-        icon: PhosphorIconsRegular.package,
-        activeIcon: PhosphorIconsFill.package,
-        label: 'Products',
-      ),
-      _NavItemData(
-        icon: PhosphorIconsRegular.users,
-        activeIcon: PhosphorIconsFill.users,
-        label: 'Customers',
-      ),
-      _NavItemData(
-        icon: PhosphorIconsRegular.dotsThreeCircle,
-        activeIcon: PhosphorIconsFill.dotsThreeCircle,
-        label: 'More',
-      ),
+      _NavItemData(icon: PhosphorIconsRegular.house, activeIcon: PhosphorIconsFill.house, label: 'Home'),
+      _NavItemData(icon: PhosphorIconsRegular.receipt, activeIcon: PhosphorIconsFill.receipt, label: 'Sales'),
+      _NavItemData(icon: PhosphorIconsRegular.arrowCircleDown, activeIcon: PhosphorIconsFill.arrowCircleDown, label: 'Receive'),
+      _NavItemData(icon: PhosphorIconsRegular.package, activeIcon: PhosphorIconsFill.package, label: 'Products'),
+      _NavItemData(icon: PhosphorIconsRegular.users, activeIcon: PhosphorIconsFill.users, label: 'Customers'),
+      _NavItemData(icon: PhosphorIconsRegular.dotsThreeCircle, activeIcon: PhosphorIconsFill.dotsThreeCircle, label: 'More'),
     ];
 
     final bottomPadding = MediaQuery.of(context).padding.bottom;

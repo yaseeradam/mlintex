@@ -35,16 +35,20 @@ class AuthNotifier extends Notifier<AuthState> {
     final box = Hive.box(_boxName);
     await box.put(_keyLoggedIn, true);
     await box.put(_keyEmail, email.trim());
-    // Derive shop name from email for demo
+    // Derive shop name from email for demo — default to M Lin Tex
     final name = email.contains('@')
         ? email.split('@').first
             .split('.')
             .map((s) => s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : s)
             .join(' ')
-        : 'My Shop';
-    await box.put(_keyName, name);
+        : 'M Lin Tex';
+    // If derived name looks generic (admin, user, test), use app name
+    final shopName = ['admin', 'user', 'test', 'shop'].contains(name.toLowerCase())
+        ? 'M Lin Tex'
+        : name;
+    await box.put(_keyName, shopName);
 
-    state = AuthState.authenticated(email: email.trim(), shopName: name);
+    state = AuthState.authenticated(email: email.trim(), shopName: shopName);
     return true;
   }
 

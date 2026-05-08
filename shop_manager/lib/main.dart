@@ -10,6 +10,9 @@ import 'data/models/customer_model.dart';
 import 'data/models/sale_model.dart';
 import 'data/models/debt_model.dart';
 import 'data/datasources/mock_data_seeder.dart';
+import 'domain/entities/ledger_entry.dart';
+import 'presentation/receive/receive_screen.dart';
+import 'presentation/sales_ledger/sales_ledger_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +26,21 @@ Future<void> main() async {
 
   await Hive.openBox('auth');
   await Hive.openBox('settings');
+
+  // Clear corrupted customer data if adapter changed
+  final customerBox = await Hive.openBox<CustomerModel>('customers');
+  if (customerBox.isNotEmpty) {
+    final names = customerBox.values.map((c) => c.name).toSet();
+    if (names.length == 1) await customerBox.clear(); // all same name = corrupted
+  }
+
+  // Ledger boxes
+  Hive.registerAdapter(LedgerEntryAdapter());
+  Hive.registerAdapter(ReceiveEntryAdapter());
+  Hive.registerAdapter(SalesLedgerEntryAdapter());
+  await Hive.openBox<LedgerEntry>('ledger_entries');
+  await Hive.openBox<ReceiveEntry>('receive_entries');
+  await Hive.openBox<SalesLedgerEntry>('sales_ledger');
 
   await NotificationService.init();
 

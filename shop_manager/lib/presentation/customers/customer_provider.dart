@@ -40,6 +40,8 @@ class CustomerNotifier extends Notifier<AsyncValue<void>> {
     required String name,
     String? phone,
     String? address,
+    String? shopNumber,
+    String? avatarPath,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -48,6 +50,8 @@ class CustomerNotifier extends Notifier<AsyncValue<void>> {
         name: name,
         phone: phone,
         address: address,
+        shopNumber: shopNumber,
+        avatarPath: avatarPath,
         updatedAt: DateTime.now(),
         isSynced: false,
       );

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/utils/currency_formatter.dart';
 import '../customers/customer_provider.dart';
 import '../widgets/app_feedback.dart';
 import '../dashboard/debt_provider.dart';
@@ -63,7 +64,7 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
 
     final debtId = const Uuid().v4();
     final note = _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
-    final amount = double.parse(_amountController.text.trim());
+    final amount = CurrencyInputFormatter.parse(_amountController.text.trim());
 
     await ref.read(debtNotifierProvider.notifier).addDebt(
           customerId: _selectedCustomerId!,
@@ -187,11 +188,11 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
               TextFormField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [CurrencyInputFormatter()],
                 decoration: const InputDecoration(hintText: '0.00', prefixText: '₦ '),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Amount is required';
-                  if (double.tryParse(v.trim()) == null) return 'Enter a valid number';
-                  if (double.parse(v.trim()) <= 0) return 'Amount must be greater than 0';
+                  if (CurrencyInputFormatter.parse(v.trim()) <= 0) return 'Amount must be greater than 0';
                   return null;
                 },
               ),

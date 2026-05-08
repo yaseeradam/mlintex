@@ -1,10 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../core/theme/app_theme.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/quick_add_customer_sheet.dart';
 import '../dashboard/debt_provider.dart';
 import '../widgets/app_feedback.dart';
+import '../ledger/customer_ledger_screen.dart';
 import 'customer_provider.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -15,43 +18,94 @@ class CustomersScreen extends ConsumerStatefulWidget {
   ConsumerState<CustomersScreen> createState() => _CustomersScreenState();
 }
 
-class _CustomersScreenState extends ConsumerState<CustomersScreen> {
+class _CustomersScreenState extends ConsumerState<CustomersScreen>
+    with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
+  bool _isGridView = false;
+  late AnimationController _fabAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _fabAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _fabAnim.forward();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _fabAnim.dispose();
     super.dispose();
   }
+
+  static const List<Color> _avatarColors = [
+    AppTheme.primaryColor,
+    AppTheme.accentColor,
+    AppTheme.successColor,
+    AppTheme.warningColor,
+    AppTheme.errorColor,
+    Color(0xFF8B5CF6),
+    Color(0xFFEC4899),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final customersAsync = ref.watch(customersProvider);
-
+    final debtsAsync = ref.watch(debtsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppTheme.backgroundStart : const Color(0xFFF1F5F9);
     final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+    final textMuted = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
+    final cardBg = isDark ? AppTheme.surfaceColor : Colors.white;
+    final borderColor = isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0);
 
     return Container(
       color: bg,
       child: SafeArea(
         child: Column(
           children: [
-            // Header
+            // ── Header ──────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Customers',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      color: textPrimary,
-                      letterSpacing: -1,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Customers',
+                            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: textPrimary, letterSpacing: -1)),
+                        customersAsync.when(
+                          data: (c) => Text('${c.length} total',
+                              style: TextStyle(fontSize: 13, color: textMuted, fontWeight: FontWeight.w500)),
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, __) => const SizedBox.shrink(),
+                        ),
+                      ],
                     ),
                   ),
+                  // Grid/List toggle
+                  Container(
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      _ViewToggleBtn(
+                        icon: PhosphorIconsRegular.list,
+                        active: !_isGridView,
+                        onTap: () => setState(() => _isGridView = false),
+                      ),
+                      _ViewToggleBtn(
+                        icon: PhosphorIconsRegular.squaresFour,
+                        active: _isGridView,
+                        onTap: () => setState(() => _isGridView = true),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(width: 10),
+                  // Add button
                   GestureDetector(
                     onTap: () => showModalBottomSheet(
                       context: context,
@@ -60,58 +114,61 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                       builder: (_) => const QuickAddCustomerSheet(),
                     ),
                     child: Container(
-                      width: 44,
-                      height: 44,
+                      width: 44, height: 44,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
+                        gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            AppTheme.warningColor,
-                            const Color(0xFFD97706),
-                          ],
+                          colors: [AppTheme.warningColor, Color(0xFFD97706)],
                         ),
                         borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.warningColor.withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        boxShadow: [BoxShadow(color: AppTheme.warningColor.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
                       ),
-                      child: const Icon(
-                        PhosphorIconsFill.userPlus,
-                        color: Colors.white,
-                        size: 22,
-                      ),
+                      child: const Icon(PhosphorIconsFill.userPlus, color: Colors.white, size: 20),
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Search
+            // ── Stats bar ────────────────────────────────────────────
+            customersAsync.when(
+              data: (customers) {
+                final totalDebts = debtsAsync.value?.where((d) => !d.isPaid).length ?? 0;
+                final fmt = NumberFormat('#,##0', 'en_US');
+                final totalOwed = debtsAsync.value
+                    ?.where((d) => !d.isPaid)
+                    .fold<double>(0, (s, d) => s + d.remainingAmount) ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                  child: Row(children: [
+                    _StatPill(label: 'Customers', value: '${customers.length}', color: AppTheme.primaryColor, isDark: isDark),
+                    const SizedBox(width: 8),
+                    _StatPill(label: 'With Debt', value: '$totalDebts', color: AppTheme.errorColor, isDark: isDark),
+                    const SizedBox(width: 8),
+                    _StatPill(label: 'Total Owed', value: '₦${fmt.format(totalOwed)}', color: AppTheme.warningColor, isDark: isDark, flex: 2),
+                  ]),
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+
+            // ── Search ───────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
               child: TextField(
                 controller: _searchController,
-                onChanged: (val) =>
-                    ref.read(customerSearchProvider.notifier).update(val),
+                onChanged: (val) => ref.read(customerSearchProvider.notifier).update(val),
                 decoration: InputDecoration(
-                  hintText: 'Search customers…',
-                  prefixIcon: const Icon(
-                    PhosphorIconsRegular.magnifyingGlass,
-                    color: AppTheme.textMuted,
-                  ),
+                  hintText: 'Search by name, phone or shop…',
+                  prefixIcon: const Icon(PhosphorIconsRegular.magnifyingGlass, color: AppTheme.textMuted, size: 18),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(PhosphorIconsRegular.x, color: AppTheme.textMuted),
+                          icon: const Icon(PhosphorIconsRegular.x, color: AppTheme.textMuted, size: 16),
                           onPressed: () {
                             _searchController.clear();
-                            ref
-                                .read(customerSearchProvider.notifier)
-                                .update('');
+                            ref.read(customerSearchProvider.notifier).update('');
                           },
                         )
                       : null,
@@ -121,51 +178,52 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
 
             const SizedBox(height: 14),
 
-            // Customer list
+            // ── List / Grid ──────────────────────────────────────────
             Expanded(
               child: customersAsync.when(
-                loading: () => const Center(
-                  child: CircularProgressIndicator(),
-                ),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(child: Text('Error: $e')),
                 data: (customers) {
                   final query = ref.watch(customerSearchProvider).toLowerCase();
                   final filtered = query.isEmpty
                       ? customers
-                      : customers
-                          .where((c) =>
-                              c.name.toLowerCase().contains(query) ||
-                              (c.phone?.contains(query) ?? false))
-                          .toList();
+                      : customers.where((c) =>
+                          c.name.toLowerCase().contains(query) ||
+                          (c.phone?.contains(query) ?? false) ||
+                          (c.shopNumber?.toLowerCase().contains(query) ?? false)).toList();
 
                   if (filtered.isEmpty) {
                     return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            PhosphorIconsRegular.users,
-                            size: 64,
-                            color: AppTheme.textMuted.withOpacity(0.4),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'No customers found',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Tap + to add your first customer',
-                            style: TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(PhosphorIconsRegular.users, size: 64, color: AppTheme.textMuted.withOpacity(0.3)),
+                        const SizedBox(height: 16),
+                        Text(query.isEmpty ? 'No customers yet' : 'No results for "$query"',
+                            style: TextStyle(color: textMuted, fontSize: 16, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 6),
+                        if (query.isEmpty)
+                          Text('Tap + to add your first customer',
+                              style: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13)),
+                      ]),
+                    );
+                  }
+
+                  if (_isGridView) {
+                    return GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.92,
+                      ),
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) => _CustomerGridCard(
+                        customer: filtered[i],
+                        avatarColor: _avatarColors[filtered[i].name.hashCode % _avatarColors.length],
+                        debts: debtsAsync.value ?? [],
+                        isDark: isDark,
+                        onTap: () => _openLedger(context, filtered[i]),
+                        onEdit: () => _openEdit(context, filtered[i]),
                       ),
                     );
                   }
@@ -174,99 +232,16 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                     itemCount: filtered.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) {
-                      final customer = filtered[i];
-                      final initial = customer.name.isNotEmpty
-                          ? customer.name[0].toUpperCase()
-                          : '?';
-                      final colorIndex =
-                          customer.name.hashCode % _avatarColors.length;
-                      final avatarColor = _avatarColors[colorIndex];
-
-                      return GestureDetector(
-                        onTap: () =>
-                            _showCustomerDetail(context, customer, ref),
-                        child: ModernCard(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      avatarColor.withOpacity(0.2),
-                                      avatarColor.withOpacity(0.1),
-                                    ],
-                                  ),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: avatarColor.withOpacity(0.3),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: Text(
-                                  initial,
-                                  style: TextStyle(
-                                    color: avatarColor,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      customer.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                        color: AppTheme.textPrimary,
-                                      ),
-                                    ),
-                                    if (customer.phone != null) ...[
-                                      const SizedBox(height: 3),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            PhosphorIconsRegular.phone,
-                                            size: 13,
-                                            color: AppTheme.textMuted,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            customer.phone!,
-                                            style: TextStyle(
-                                              color: AppTheme.textMuted,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              Icon(
-                                PhosphorIconsRegular.caretRight,
-                                color: AppTheme.textMuted,
-                                size: 18,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                    itemBuilder: (_, i) => _CustomerListCard(
+                      customer: filtered[i],
+                      avatarColor: _avatarColors[filtered[i].name.hashCode % _avatarColors.length],
+                      debts: debtsAsync.value ?? [],
+                      isDark: isDark,
+                      textPrimary: textPrimary,
+                      textMuted: textMuted,
+                      onTap: () => _openLedger(context, filtered[i]),
+                      onEdit: () => _openEdit(context, filtered[i]),
+                    ),
                   );
                 },
               ),
@@ -277,305 +252,312 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
     );
   }
 
-  void _showCustomerDetail(
-      BuildContext context, dynamic customer, WidgetRef ref) {
+  void _openLedger(BuildContext context, dynamic customer) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => CustomerLedgerScreen(
+        customerId: customer.id,
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        customerAddress: customer.address,
+        customerShopNumber: customer.shopNumber,
+      ),
+    ));
+  }
+
+  void _openEdit(BuildContext context, dynamic customer) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _CustomerDetailSheet(customer: customer),
+      builder: (_) => QuickAddCustomerSheet(existing: customer),
     );
   }
-
-  static const List<Color> _avatarColors = [
-    AppTheme.primaryColor,
-    AppTheme.accentColor,
-    AppTheme.successColor,
-    AppTheme.warningColor,
-    AppTheme.errorColor,
-  ];
 }
 
-class _CustomerDetailSheet extends ConsumerWidget {
-  final dynamic customer;
-  const _CustomerDetailSheet({required this.customer});
+// ── View Toggle Button ───────────────────────────────────────────────────────
+
+class _ViewToggleBtn extends StatelessWidget {
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+  const _ViewToggleBtn({required this.icon, required this.active, required this.onTap});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final debtsAsync = ref.watch(debtsProvider);
-    final initial = customer.name.isNotEmpty
-        ? customer.name[0].toUpperCase()
-        : '?';
-    final colorIndex = customer.name.hashCode % _avatarColors.length;
-    final avatarColor = _avatarColors[colorIndex];
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      builder: (_, controller) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: AppTheme.surfaceColor,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceLighter,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  controller: controller,
-                  padding: const EdgeInsets.all(24),
-                  children: [
-                    // Profile header
-                    Row(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                avatarColor.withOpacity(0.25),
-                                avatarColor.withOpacity(0.1),
-                              ],
-                            ),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: avatarColor.withOpacity(0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              initial,
-                              style: TextStyle(
-                                color: avatarColor,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 24,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                customer.name,
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.textPrimary,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                              if (customer.phone != null) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      PhosphorIconsRegular.phone,
-                                      size: 14,
-                                      color: AppTheme.textMuted,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      customer.phone!,
-                                      style: TextStyle(
-                                        color: AppTheme.textMuted,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 28),
-
-                    // Debts section
-                    const Text(
-                      'Outstanding Debts',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    debtsAsync.when(
-                      loading: () => const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                      error: (e, _) => Text(
-                        'Error: $e',
-                        style: const TextStyle(color: AppTheme.errorColor),
-                      ),
-                      data: (debts) {
-                        final customerDebts = debts
-                            .where((d) =>
-                                d.customerId == customer.id && !d.isPaid)
-                            .toList();
-                        if (customerDebts.isEmpty) {
-                          return ModernCard(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  PhosphorIconsRegular.checkCircle,
-                                  size: 40,
-                                  color: AppTheme.successColor
-                                      .withOpacity(0.5),
-                                ),
-                                const SizedBox(height: 10),
-                                const Text(
-                                  'No outstanding debts',
-                                  style: TextStyle(
-                                    color: AppTheme.textSecondary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                        return Column(
-                          children: customerDebts.map((d) {
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              child: ModernCard(
-                                padding: const EdgeInsets.all(14),
-                                bgColor: d.isOverdue
-                                    ? AppTheme.errorColor.withOpacity(0.06)
-                                    : AppTheme.surfaceColor,
-                                border: Border.all(
-                                  color: d.isOverdue
-                                      ? AppTheme.errorColor.withOpacity(0.2)
-                                      : AppTheme.cardBorder,
-                                  width: 1,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            d.note ?? 'Debt',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Due: ${d.dueDate.day}/${d.dueDate.month}/${d.dueDate.year}',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: d.isOverdue
-                                                  ? AppTheme.errorColor
-                                                  : AppTheme.textMuted,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          '₦${d.remainingAmount.toStringAsFixed(2)}',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                            color: AppTheme.errorColor,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        GestureDetector(
-                                          onTap: () async {
-                                            AppFeedback.showLoading(context);
-                                            await ref
-                                                .read(debtNotifierProvider
-                                                    .notifier)
-                                                .markAsPaid(d.id);
-                                            if (context.mounted) {
-                                              AppFeedback.hideLoading(
-                                                  context);
-                                              AppFeedback.showSuccess(
-                                                context,
-                                                'Debt Paid',
-                                                'The debt has been marked as paid.',
-                                              );
-                                            }
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets
-                                                .symmetric(
-                                              horizontal: 12,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppTheme.successColor
-                                                  .withOpacity(0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            child: const Text(
-                                              'Mark Paid',
-                                              style: TextStyle(
-                                                color: AppTheme.successColor,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 36, height: 36,
+        decoration: BoxDecoration(
+          color: active ? AppTheme.primaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, size: 16, color: active ? Colors.white : AppTheme.textMuted),
+      ),
     );
   }
+}
 
-  static const List<Color> _avatarColors = [
-    AppTheme.primaryColor,
-    AppTheme.accentColor,
-    AppTheme.successColor,
-    AppTheme.warningColor,
-    AppTheme.errorColor,
-  ];
+// ── Stat Pill ────────────────────────────────────────────────────────────────
+
+class _StatPill extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  final bool isDark;
+  final int flex;
+  const _StatPill({required this.label, required this.value, required this.color, required this.isDark, this.flex = 1});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(isDark ? 0.12 : 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color)),
+          const SizedBox(height: 1),
+          Text(label, style: TextStyle(fontSize: 10, color: color.withOpacity(0.8), fontWeight: FontWeight.w500)),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── List Card ────────────────────────────────────────────────────────────────
+
+class _CustomerListCard extends StatelessWidget {
+  final dynamic customer;
+  final Color avatarColor;
+  final List<dynamic> debts;
+  final bool isDark;
+  final Color textPrimary;
+  final Color textMuted;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+
+  const _CustomerListCard({
+    required this.customer,
+    required this.avatarColor,
+    required this.debts,
+    required this.isDark,
+    required this.textPrimary,
+    required this.textMuted,
+    required this.onTap,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?';
+    final unpaidDebts = debts.where((d) => d.customerId == customer.id && !d.isPaid).toList();
+    final totalOwed = unpaidDebts.fold<double>(0, (s, d) => s + d.remainingAmount);
+    final fmt = NumberFormat('#,##0', 'en_US');
+
+    return GestureDetector(
+      onTap: onTap,
+      child: ModernCard(
+        padding: const EdgeInsets.all(14),
+        child: Row(children: [
+          // Avatar
+          _Avatar(avatarPath: customer.avatarPath, initial: initial, color: avatarColor, size: 52),
+          const SizedBox(width: 14),
+          // Info
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(customer.name,
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: textPrimary)),
+              const SizedBox(height: 3),
+              if (customer.shopNumber != null)
+                Row(children: [
+                  Icon(Icons.store_rounded, size: 12, color: AppTheme.primaryColor),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(customer.shopNumber!, style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
+                ]),
+              if (customer.phone != null) ...[
+                const SizedBox(height: 2),
+                Row(children: [
+                  Icon(PhosphorIconsRegular.phone, size: 12, color: textMuted),
+                  const SizedBox(width: 4),
+                  Text(customer.phone!, style: TextStyle(fontSize: 12, color: textMuted)),
+                ]),
+              ],
+              if (unpaidDebts.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.errorColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('₦\${fmt.format(totalOwed)}',
+                      style: const TextStyle(fontSize: 11, color: AppTheme.errorColor, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ]),
+          ),
+          // Actions
+          Column(mainAxisSize: MainAxisSize.min, children: [
+            GestureDetector(
+              onTap: onEdit,
+              child: Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.edit_rounded, size: 15, color: AppTheme.primaryColor),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Icon(PhosphorIconsRegular.caretRight, size: 16, color: textMuted),
+          ]),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Grid Card ────────────────────────────────────────────────────────────────
+
+class _CustomerGridCard extends StatelessWidget {
+  final dynamic customer;
+  final Color avatarColor;
+  final List<dynamic> debts;
+  final bool isDark;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+
+  const _CustomerGridCard({
+    required this.customer,
+    required this.avatarColor,
+    required this.debts,
+    required this.isDark,
+    required this.onTap,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?';
+    final unpaidDebts = debts.where((d) => d.customerId == customer.id && !d.isPaid).toList();
+    final totalOwed = unpaidDebts.fold<double>(0, (s, d) => s + d.remainingAmount);
+    final fmt = NumberFormat('#,##0', 'en_US');
+    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+    final textMuted = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: ModernCard(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: GestureDetector(
+                onTap: onEdit,
+                child: Container(
+                  width: 26, height: 26,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: const Icon(Icons.edit_rounded, size: 13, color: AppTheme.primaryColor),
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            _Avatar(avatarPath: customer.avatarPath, initial: initial, color: avatarColor, size: 50),
+            const SizedBox(height: 6),
+            Text(
+              customer.name,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textPrimary),
+            ),
+            if (customer.shopNumber != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                customer.shopNumber!,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.w500),
+              ),
+            ],
+            if (customer.phone != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                customer.phone!,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10, color: textMuted),
+              ),
+            ],
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              decoration: BoxDecoration(
+                color: unpaidDebts.isNotEmpty
+                    ? AppTheme.errorColor.withOpacity(0.1)
+                    : AppTheme.successColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                unpaidDebts.isNotEmpty ? '\u20a6${fmt.format(totalOwed)}' : 'No debt',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: unpaidDebts.isNotEmpty ? AppTheme.errorColor : AppTheme.successColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  final String? avatarPath;
+  final String initial;
+  final Color color;
+  final double size;
+
+  const _Avatar({required this.avatarPath, required this.initial, required this.color, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: avatarPath == null ? LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withOpacity(0.25), color.withOpacity(0.1)],
+        ) : null,
+        border: Border.all(color: color.withOpacity(0.35), width: 2),
+        image: avatarPath != null
+            ? DecorationImage(image: FileImage(File(avatarPath!)), fit: BoxFit.cover)
+            : null,
+      ),
+      child: avatarPath == null
+          ? Center(child: Text(initial, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: size * 0.35)))
+          : null,
+    );
+  }
 }

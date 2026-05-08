@@ -23,6 +23,12 @@ class CustomerModel extends HiveObject {
   @HiveField(5)
   final bool isSynced;
 
+  @HiveField(6)
+  final String? avatarPath;
+
+  @HiveField(7)
+  final String? shopNumber;
+
   CustomerModel({
     required this.id,
     required this.name,
@@ -30,6 +36,8 @@ class CustomerModel extends HiveObject {
     this.address,
     required this.updatedAt,
     this.isSynced = false,
+    this.avatarPath,
+    this.shopNumber,
   });
 
   factory CustomerModel.fromEntity(Customer customer) => CustomerModel(
@@ -39,6 +47,8 @@ class CustomerModel extends HiveObject {
         address: customer.address,
         updatedAt: customer.updatedAt,
         isSynced: customer.isSynced,
+        avatarPath: customer.avatarPath,
+        shopNumber: customer.shopNumber,
       );
 
   Customer toEntity() => Customer(
@@ -48,6 +58,8 @@ class CustomerModel extends HiveObject {
         address: address,
         updatedAt: updatedAt,
         isSynced: isSynced,
+        avatarPath: avatarPath,
+        shopNumber: shopNumber,
       );
 
   factory CustomerModel.fromMap(Map<String, dynamic> map) => CustomerModel(

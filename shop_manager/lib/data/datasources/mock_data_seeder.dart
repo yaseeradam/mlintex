@@ -22,7 +22,22 @@ class MockDataSeeder {
   /// Seeds Hive with realistic retail mock data. Skips if data already exists.
   Future<void> seedIfEmpty() async {
     final existing = await _productDS.getAllProducts();
-    if (existing.isNotEmpty) return;
+    if (existing.isNotEmpty) {
+      // Re-check customers — if they have corrupted names (e.g. all same name)
+      // clear and re-seed customers only
+      final customers = await _customerDS.getAllCustomers();
+      if (customers.isNotEmpty) {
+        final names = customers.map((c) => c.name).toSet();
+        // If all customers have the same name, data is corrupted — re-seed
+        if (names.length == 1) {
+          for (final c in customers) {
+            await _customerDS.deleteCustomer(c.id);
+          }
+          await _seedCustomers();
+        }
+      }
+      return;
+    }
 
     await _seedProducts();
     final customers = await _seedCustomers();
