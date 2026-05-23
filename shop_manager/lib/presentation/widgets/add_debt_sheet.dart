@@ -108,12 +108,11 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppTheme.surfaceColor : Colors.white;
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final textMuted = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
-    final borderColor = isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0);
-    final fieldBg = isDark ? AppTheme.surfaceLight.withOpacity(0.5) : const Color(0xFFF8FAFC);
+    const bg = Colors.white;
+    const textPrimary = Color(0xFF0F172A);
+    const textMuted = Color(0xFF64748B);
+    const borderColor = Color(0xFFE2E8F0);
+    const fieldBg = Color(0xFFF8FAFC);
     final customersAsync = ref.watch(customersProvider);
 
     return Container(

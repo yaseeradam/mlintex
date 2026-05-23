@@ -105,14 +105,9 @@ class ModernCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final radius = borderRadius ?? BorderRadius.circular(20);
-    final effectiveBorder = border ??
-        Border.all(
-          color: isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0),
-          width: 1,
-        );
-    final defaultBg = isDark ? AppTheme.surfaceColor : Colors.white;
+    const radius = BorderRadius.all(Radius.circular(20));
+    const effectiveBorder = Border.fromBorderSide(BorderSide(color: Color(0xFFE2E8F0), width: 1));
+    const defaultBg = Colors.white;
 
     return GestureDetector(
       onTap: onTap,
@@ -123,8 +118,8 @@ class ModernCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: bgColor ?? defaultBg,
           gradient: gradient,
-          borderRadius: radius,
-          border: effectiveBorder,
+          borderRadius: borderRadius ?? radius,
+          border: border ?? effectiveBorder,
           boxShadow: shadows,
         ),
         child: child,
@@ -155,9 +150,8 @@ class StatBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final textSecondary = isDark ? AppTheme.textSecondary : const Color(0xFF64748B);
+    const textPrimary = Color(0xFF0F172A);
+    const textSecondary = Color(0xFF64748B);
 
     return GestureDetector(
       onTap: onTap,

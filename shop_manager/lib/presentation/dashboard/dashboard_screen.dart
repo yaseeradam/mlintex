@@ -4,12 +4,10 @@ import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../data/datasources/sync_service.dart';
-import '../products/product_provider.dart';
 import '../customers/customer_provider.dart';
 import '../sales/sale_provider.dart';
 import 'debt_provider.dart';
 import '../widgets/glass_container.dart';
-import '../widgets/quick_add_product_sheet.dart';
 import '../widgets/quick_add_customer_sheet.dart';
 import '../widgets/add_debt_sheet.dart';
 import 'package:intl/intl.dart';
@@ -20,7 +18,6 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final productsAsync = ref.watch(productsProvider);
     final customersAsync = ref.watch(customersProvider);
     final todayRevenue = ref.watch(todayRevenueProvider);
     final totalDebt = ref.watch(totalOutstandingProvider);
@@ -29,8 +26,7 @@ class DashboardScreen extends ConsumerWidget {
 
     final currency = NumberFormat('#,##0', 'en_US');
     final isSyncing = syncStatus.value == SyncStatus.syncing;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppTheme.backgroundStart : const Color(0xFFF1F5F9);
+    const bg = Color(0xFFF1F5F9);
 
     return Container(
       color: bg,
@@ -56,19 +52,11 @@ class DashboardScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Row(children: [
                   Expanded(child: _StatCard(
-                    label: 'Products',
-                    value: (productsAsync.value?.length ?? 0).toString(),
-                    icon: PhosphorIconsFill.package,
-                    color: AppTheme.primaryColor,
-                    bg: AppTheme.primaryColor.withOpacity(isDark ? 0.15 : 0.08),
-                  )),
-                  const SizedBox(width: 12),
-                  Expanded(child: _StatCard(
                     label: 'Customers',
                     value: (customersAsync.value?.length ?? 0).toString(),
                     icon: PhosphorIconsFill.users,
                     color: AppTheme.warningColor,
-                    bg: AppTheme.warningColor.withOpacity(isDark ? 0.15 : 0.08),
+                    bg: AppTheme.warningColor.withOpacity(0.08),
                   )),
                   const SizedBox(width: 12),
                   Expanded(child: _StatCard(
@@ -76,7 +64,7 @@ class DashboardScreen extends ConsumerWidget {
                     value: '₦${currency.format(totalDebt.value ?? 0)}',
                     icon: PhosphorIconsFill.receipt,
                     color: AppTheme.errorColor,
-                    bg: AppTheme.errorColor.withOpacity(isDark ? 0.15 : 0.08),
+                    bg: AppTheme.errorColor.withOpacity(0.08),
                     small: true,
                   )),
                 ]),
@@ -264,11 +252,10 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? AppTheme.surfaceColor : Colors.white;
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final textMuted = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
-    final borderColor = isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0);
+    const cardBg = Colors.white;
+    const textPrimary = Color(0xFF0F172A);
+    const textMuted = Color(0xFF64748B);
+    const borderColor = Color(0xFFE2E8F0);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -276,7 +263,7 @@ class _StatCard extends StatelessWidget {
         color: cardBg,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: borderColor),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.15 : 0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,8 +301,7 @@ class _QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+    const textPrimary = Color(0xFF0F172A);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,14 +309,6 @@ class _QuickActions extends StatelessWidget {
         Text('Quick Actions', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textPrimary)),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: _ActionTile(
-            label: 'Add Product',
-            icon: PhosphorIconsFill.package,
-            color: AppTheme.primaryColor,
-            onTap: () => showModalBottomSheet(context: context, isScrollControlled: true,
-                backgroundColor: Colors.transparent, builder: (_) => const QuickAddProductSheet()),
-          )),
-          const SizedBox(width: 10),
           Expanded(child: _ActionTile(
             label: 'Add Customer',
             icon: PhosphorIconsFill.userPlus,
@@ -362,10 +340,9 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? AppTheme.surfaceColor : Colors.white;
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final borderColor = isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0);
+    const cardBg = Colors.white;
+    const textPrimary = Color(0xFF0F172A);
+    const borderColor = Color(0xFFE2E8F0);
 
     return GestureDetector(
       onTap: onTap,
@@ -375,7 +352,7 @@ class _ActionTile extends StatelessWidget {
           color: cardBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: borderColor),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.12 : 0.04), blurRadius: 8, offset: const Offset(0, 3))],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 3))],
         ),
         child: Column(children: [
           Container(
@@ -403,10 +380,9 @@ class _RecentActivity extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    const textPrimary = Color(0xFF0F172A);
+    const textMuted = Color(0xFF64748B);
     final salesAsync = ref.watch(salesProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final textMuted = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -436,7 +412,7 @@ class _RecentActivity extends ConsumerWidget {
                 ]),
               );
             }
-            final recent = sales.take(5).toList();
+            final recent = sales.reversed.take(5).toList();
             return ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),

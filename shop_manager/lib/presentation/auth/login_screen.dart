@@ -85,10 +85,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: Container(
-        color: isDark ? AppTheme.backgroundStart : const Color(0xFFF1F5F9),
+        color: const Color(0xFFF1F5F9),
         child: SafeArea(
           child: Stack(
             children: [
@@ -144,9 +143,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Widget _buildHeader() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final textSecondary = isDark ? AppTheme.textSecondary : const Color(0xFF64748B);
+    const textPrimary = Color(0xFF0F172A);
+    const textSecondary = Color(0xFF64748B);
 
     return Column(
       children: [
@@ -204,10 +202,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Widget _buildForm() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final cardBg = isDark ? AppTheme.surfaceColor.withOpacity(0.6) : Colors.white;
-    final cardBorder = isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0);
+    const textPrimary = Color(0xFF0F172A);
+    const cardBg = Colors.white;
+    const cardBorder = Color(0xFFE2E8F0);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -217,7 +214,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         border: Border.all(color: cardBorder, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.06 : 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 40,
             spreadRadius: 8,
           ),
@@ -306,8 +303,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     bool obscureText = false,
     String? Function(String?)? validator,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final labelColor = isDark ? AppTheme.textSecondary : const Color(0xFF64748B);
+    const labelColor = Color(0xFF64748B);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

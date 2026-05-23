@@ -22,7 +22,28 @@ class MockDataSeeder {
   /// Seeds Hive with realistic retail mock data. Skips if data already exists.
   Future<void> seedIfEmpty() async {
     final existing = await _productDS.getAllProducts();
-    if (existing.isNotEmpty) {
+    
+    // Check if the database contains the old generic/grocery mock data (e.g. beverages)
+    final bool isOldGroceryData = existing.isNotEmpty && existing.any((p) => p.category == 'Beverages' || p.price < 50);
+    
+    if (isOldGroceryData) {
+      // Clean up old data to allow a clean transition to premium textile items!
+      for (final p in existing) {
+        await _productDS.deleteProduct(p.id);
+      }
+      final customers = await _customerDS.getAllCustomers();
+      for (final c in customers) {
+        await _customerDS.deleteCustomer(c.id);
+      }
+      final sales = await _saleDS.getAllSales();
+      for (final s in sales) {
+        await _saleDS.deleteSale(s.id);
+      }
+      final debts = await _debtDS.getAllDebts();
+      for (final d in debts) {
+        await _debtDS.deleteDebt(d.id);
+      }
+    } else if (existing.isNotEmpty) {
       // Re-check customers — if they have corrupted names (e.g. all same name)
       // clear and re-seed customers only
       final customers = await _customerDS.getAllCustomers();
@@ -49,31 +70,26 @@ class MockDataSeeder {
 
   Future<void> _seedProducts() async {
     final items = [
-      _product('Coca-Cola 500ml', 1.50, 120, 'Beverages'),
-      _product('Pepsi 500ml', 1.50, 85, 'Beverages'),
-      _product('Fanta Orange 500ml', 1.50, 60, 'Beverages'),
-      _product('Bottled Water 1L', 0.80, 200, 'Beverages'),
-      _product('Energy Drink 250ml', 2.00, 45, 'Beverages'),
-      _product('Bread Loaf', 2.50, 30, 'Bakery'),
-      _product('White Rice 5kg', 8.00, 20, 'Grains'),
-      _product('Spaghetti 500g', 1.80, 55, 'Grains'),
-      _product('Vegetable Oil 1L', 4.50, 15, 'Cooking'),
-      _product('Tomato Paste 400g', 1.20, 40, 'Cooking'),
-      _product('Sugar 1kg', 1.50, 25, 'Cooking'),
-      _product('Salt 500g', 0.60, 50, 'Cooking'),
-      _product('Biscuits Assorted', 0.80, 80, 'Snacks'),
-      _product('Chips Large Pack', 1.20, 65, 'Snacks'),
-      _product('Chocolate Bar', 1.00, 90, 'Snacks'),
-      _product('Milk 500ml', 1.80, 35, 'Dairy'),
-      _product('Yoghurt Cup', 1.20, 28, 'Dairy'),
-      _product('Eggs (Dozen)', 3.50, 18, 'Dairy'),
-      _product('Laundry Soap Bar', 0.90, 70, 'Household'),
-      _product('Dish Soap 500ml', 2.00, 22, 'Household'),
-      _product('Toothpaste 100ml', 1.50, 33, 'Personal Care'),
-      _product('Shampoo 200ml', 3.00, 20, 'Personal Care'),
-      _product('Maggi Seasoning', 0.40, 100, 'Seasoning'),
-      _product('Ketchup 300ml', 2.20, 25, 'Condiments'),
-      _product('Mayonnaise 200g', 2.50, 18, 'Condiments'),
+      _product('Swiss Voile Lace (Swiss Blue)', 45000, 25, 'Lace'),
+      _product('Heavy Beaded Cord Lace (Coral)', 65000, 12, 'Lace'),
+      _product('French Organza Lace (Gold)', 38000, 18, 'Lace'),
+      _product('Sequined Tulle Lace (Silver)', 28000, 30, 'Lace'),
+      _product('Premium Vlisco Ankara (Classic)', 22000, 40, 'Ankara'),
+      _product('High Target Wax Ankara (Vibrant)', 8500, 75, 'Ankara'),
+      _product('Gold Metallic Ankara (Royal)', 12500, 50, 'Ankara'),
+      _product('Da Viva Expression Wax (Teal)', 14000, 35, 'Ankara'),
+      _product('Super Guinea Brocade (White)', 35000, 20, 'Brocade'),
+      _product('Soft Cashmere Atiku (Navy)', 25000, 45, 'Atiku'),
+      _product('Imperial Jacquard Brocade (Grey)', 40000, 15, 'Brocade'),
+      _product('German Wool Atiku (Black)', 32000, 28, 'Atiku'),
+      _product('Pure Mulberry Silk (Emerald)', 18000, 60, 'Silk'),
+      _product('Premium Royal Velvet (Burgundy)', 15000, 40, 'Velvet'),
+      _product('Floral Silk Chiffon (Multi)', 7500, 80, 'Chiffon'),
+      _product('Crushed Silk Satin (Rose)', 9000, 100, 'Silk'),
+      _product('Premium Wool Suiting (Charcoal)', 20000, 35, 'Wool'),
+      _product('Soft Polish Cotton (Sky Blue)', 6000, 120, 'Cotton'),
+      _product('Pure Italian Linen (Beige)', 16500, 50, 'Linen'),
+      _product('Classic Crepe Fabric (Peach)', 5000, 150, 'Polyester'),
     ];
     for (final p in items) {
       await _productDS.saveProduct(p);
@@ -152,10 +168,10 @@ class MockDataSeeder {
         id: _uuid.v4(),
         customerId: customers[0].id,
         customerName: customers[0].name,
-        amount: 45.00,
-        paidAmount: 20.00,
+        amount: 180000.00,
+        paidAmount: 80000.00,
         dueDate: now.add(const Duration(days: 5)),
-        note: 'Monthly grocery tab',
+        note: 'Swiss Voile Lace purchase balance',
         isPaid: false,
         updatedAt: now.subtract(const Duration(days: 3)),
         isSynced: true,
@@ -164,10 +180,10 @@ class MockDataSeeder {
         id: _uuid.v4(),
         customerId: customers[1].id,
         customerName: customers[1].name,
-        amount: 22.50,
+        amount: 85000.00,
         paidAmount: 0,
         dueDate: now.subtract(const Duration(days: 2)),
-        note: 'Beverages order',
+        note: 'High Target Wax Ankara order',
         isPaid: false,
         updatedAt: now.subtract(const Duration(days: 8)),
         isSynced: true,
@@ -176,10 +192,10 @@ class MockDataSeeder {
         id: _uuid.v4(),
         customerId: customers[2].id,
         customerName: customers[2].name,
-        amount: 78.00,
-        paidAmount: 78.00,
+        amount: 150000.00,
+        paidAmount: 150000.00,
         dueDate: now.subtract(const Duration(days: 10)),
-        note: 'Fully settled',
+        note: 'Super Guinea Brocade fully settled',
         isPaid: true,
         updatedAt: now.subtract(const Duration(days: 1)),
         isSynced: true,
@@ -188,10 +204,10 @@ class MockDataSeeder {
         id: _uuid.v4(),
         customerId: customers[3].id,
         customerName: customers[3].name,
-        amount: 33.00,
+        amount: 95000.00,
         paidAmount: 0,
         dueDate: now.add(const Duration(days: 12)),
-        note: 'Household items',
+        note: 'Imperial Jacquard Brocade order',
         isPaid: false,
         updatedAt: now.subtract(const Duration(days: 2)),
         isSynced: true,
@@ -200,10 +216,10 @@ class MockDataSeeder {
         id: _uuid.v4(),
         customerId: customers[4].id,
         customerName: customers[4].name,
-        amount: 15.60,
+        amount: 45000.00,
         paidAmount: 0,
         dueDate: now.subtract(const Duration(days: 1)),
-        note: 'Snacks & drinks',
+        note: 'Premium Royal Velvet yards balance',
         isPaid: false,
         updatedAt: now.subtract(const Duration(days: 5)),
         isSynced: true,

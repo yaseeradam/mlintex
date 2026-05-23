@@ -32,9 +32,8 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     final productsAsync = ref.watch(productsProvider);
     final saleState = ref.watch(saleNotifierProvider);
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppTheme.backgroundStart : const Color(0xFFF1F5F9);
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+    const bg = Color(0xFFF1F5F9);
+    const textPrimary = Color(0xFF0F172A);
 
     return Container(
       color: bg,

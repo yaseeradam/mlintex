@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/providers/theme_provider.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../data/datasources/sync_service.dart';
@@ -25,10 +24,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppTheme.backgroundStart : const Color(0xFFF1F5F9);
-    final surfaceLight = isDark ? AppTheme.surfaceLight.withOpacity(0.3) : const Color(0xFFE2E8F0);
-    final titleColor = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+    const bgColor = Color(0xFFF1F5F9);
+    const surfaceLight = Color(0xFFE2E8F0);
+    const titleColor = Color(0xFF0F172A);
 
     return Container(
       color: bgColor,
@@ -114,10 +112,9 @@ class _SegmentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final selectedBg = isDark ? AppTheme.surfaceColor : Colors.white;
-    final activeColor = isDark ? AppTheme.primaryLight : AppTheme.primaryColor;
-    final inactiveColor = isDark ? AppTheme.textMuted : const Color(0xFF94A3B8);
+    const selectedBg = Colors.white;
+    const activeColor = AppTheme.primaryColor;
+    const inactiveColor = Color(0xFF94A3B8);
 
     return GestureDetector(
       onTap: onTap,
@@ -252,29 +249,6 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
               ],
             ),
           ),
-        ),
-        const SizedBox(height: 24),
-
-        _SectionHeader('Appearance'),
-        _SettingsGroup(
-          children: [
-            _ActionTile(
-              icon: ref.watch(themeProvider) == ThemeMode.dark
-                  ? PhosphorIconsRegular.moon
-                  : PhosphorIconsRegular.sun,
-              iconColor: ref.watch(themeProvider) == ThemeMode.dark
-                  ? const Color(0xFF8B5CF6)
-                  : AppTheme.warningColor,
-              title: ref.watch(themeProvider) == ThemeMode.dark ? 'Dark Mode' : 'Light Mode',
-              trailing: Switch.adaptive(
-                value: ref.watch(themeProvider) == ThemeMode.dark,
-                onChanged: (val) => ref
-                    .read(themeProvider.notifier)
-                    .setMode(val ? ThemeMode.dark : ThemeMode.light),
-                activeColor: AppTheme.primaryColor,
-              ),
-            ),
-          ],
         ),
         const SizedBox(height: 24),
 
@@ -597,13 +571,12 @@ class _SettingsGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppTheme.surfaceColor : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0),
+          color: const Color(0xFFE2E8F0),
           width: 1,
         ),
       ),
@@ -620,81 +593,14 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 12, top: 4),
       child: Text(
         title,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
-          color: isDark ? AppTheme.textPrimary : const Color(0xFF0F172A),
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemeToggleTile extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _ThemeToggleTile({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: iconColor, size: 20),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                  color: textColor,
-                ),
-              ),
-            ),
-            if (isActive)
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  PhosphorIconsFill.check,
-                  color: AppTheme.primaryLight,
-                  size: 16,
-                ),
-              ),
-          ],
+          color: Color(0xFF0F172A),
         ),
       ),
     );
@@ -720,10 +626,6 @@ class _ToggleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final mutedColor = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
@@ -737,18 +639,18 @@ class _ToggleTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
-                    color: textColor,
+                    color: Color(0xFF0F172A),
                   ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    style: TextStyle(
-                      color: mutedColor,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
                       fontSize: 12,
                     ),
                   ),
@@ -788,10 +690,6 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final defaultTextColor = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final mutedColor = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -811,15 +709,15 @@ class _ActionTile extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
-                      color: titleColor ?? defaultTextColor,
+                      color: titleColor ?? const Color(0xFF0F172A),
                     ),
                   ),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: TextStyle(
-                        color: mutedColor,
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
                         fontSize: 12,
                       ),
                     ),

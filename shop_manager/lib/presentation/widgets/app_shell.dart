@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../dashboard/dashboard_screen.dart';
-import '../sales/sales_screen.dart';
 import '../sales_ledger/sales_ledger_screen.dart';
-import '../products/products_screen.dart';
 import '../customers/customers_screen.dart';
 import '../receive/receive_screen.dart';
+import '../products/products_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
@@ -28,8 +27,8 @@ class AppShell extends ConsumerWidget {
     DashboardScreen(),
     SalesLedgerScreen(),
     ReceiveScreen(),
-    ProductsScreen(),
     CustomersScreen(),
+    ProductsScreen(),
     SettingsScreen(),
   ];
 
@@ -88,30 +87,28 @@ class _ModernBottomNav extends ConsumerWidget {
       _NavItemData(icon: PhosphorIconsRegular.house, activeIcon: PhosphorIconsFill.house, label: 'Home'),
       _NavItemData(icon: PhosphorIconsRegular.receipt, activeIcon: PhosphorIconsFill.receipt, label: 'Sales'),
       _NavItemData(icon: PhosphorIconsRegular.arrowCircleDown, activeIcon: PhosphorIconsFill.arrowCircleDown, label: 'Receive'),
-      _NavItemData(icon: PhosphorIconsRegular.package, activeIcon: PhosphorIconsFill.package, label: 'Products'),
       _NavItemData(icon: PhosphorIconsRegular.users, activeIcon: PhosphorIconsFill.users, label: 'Customers'),
-      _NavItemData(icon: PhosphorIconsRegular.dotsThreeCircle, activeIcon: PhosphorIconsFill.dotsThreeCircle, label: 'More'),
+      _NavItemData(icon: PhosphorIconsRegular.storefront, activeIcon: PhosphorIconsFill.storefront, label: 'Shop'),
+      _NavItemData(icon: PhosphorIconsRegular.gear, activeIcon: PhosphorIconsFill.gear, label: 'Settings'),
     ];
 
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      color: colorScheme.surface,
+      color: Theme.of(context).colorScheme.surface,
       padding: EdgeInsets.fromLTRB(12, 8, 12, bottomPadding + 12),
       child: Container(
         height: 68,
         decoration: BoxDecoration(
-          color: isDark ? AppTheme.surfaceColor : Colors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0),
+            color: const Color(0xFFE2E8F0),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -143,7 +140,7 @@ class _ModernBottomNav extends ConsumerWidget {
                             width: isSelected ? 40 : 0,
                             height: isSelected ? 28 : 0,
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.12),
+                              color: AppTheme.primaryColor.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
@@ -159,9 +156,7 @@ class _ModernBottomNav extends ConsumerWidget {
                                   size: 22,
                                   color: isSelected
                                       ? AppTheme.primaryColor
-                                      : isDark
-                                          ? AppTheme.textMuted
-                                          : const Color(0xFF94A3B8),
+                                      : const Color(0xFF94A3B8),
                                 ),
                               ),
                               // Sync status dot on home tab
@@ -194,9 +189,7 @@ class _ModernBottomNav extends ConsumerWidget {
                           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                           color: isSelected
                               ? AppTheme.primaryColor
-                              : isDark
-                                  ? AppTheme.textMuted
-                                  : const Color(0xFF94A3B8),
+                              : const Color(0xFF94A3B8),
                           letterSpacing: -0.2,
                         ),
                         child: Text(item.label),

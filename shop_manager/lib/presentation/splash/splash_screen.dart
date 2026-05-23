@@ -95,15 +95,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF1F5F9),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.backgroundStart,
-              AppTheme.backgroundMid,
-              const Color(0xFF2D1B69).withOpacity(0.3),
+              Color(0xFFF1F5F9),
+              Color(0xFFE0E7FF),
+              Color(0xFFF1F5F9),
             ],
           ),
         ),
@@ -182,7 +183,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       style: TextStyle(
                         fontSize: 42,
                         fontWeight: FontWeight.w900,
-                        color: AppTheme.textPrimary,
+                        color: Color(0xFF0F172A),
                         letterSpacing: -2,
                       ),
                     ),
@@ -203,7 +204,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       'Retail Management System',
                       style: TextStyle(
                         fontSize: 15,
-                        color: AppTheme.textSecondary,
+                        color: Color(0xFF64748B),
                         fontWeight: FontWeight.w500,
                         letterSpacing: 0.5,
                       ),

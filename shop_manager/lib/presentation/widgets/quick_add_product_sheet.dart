@@ -55,7 +55,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
         decoration: const BoxDecoration(
-          color: AppTheme.surfaceColor,
+          color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Form(
@@ -69,7 +69,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppTheme.surfaceLighter,
+                    color: const Color(0xFFE2E8F0),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -79,7 +79,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                 children: [
                   Icon(
                     isEditing ? PhosphorIconsRegular.pencilSimple : PhosphorIconsRegular.package,
-                    color: AppTheme.primaryLight,
+                    color: AppTheme.primaryColor,
                     size: 22,
                   ),
                   const SizedBox(width: 10),
@@ -88,7 +88,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
                 ],
@@ -194,7 +194,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                         child: Material(
                           elevation: 4,
                           borderRadius: BorderRadius.circular(12),
-                          color: AppTheme.surfaceColor,
+                          color: Colors.white,
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(
                                 maxHeight: 200, maxWidth: 300),

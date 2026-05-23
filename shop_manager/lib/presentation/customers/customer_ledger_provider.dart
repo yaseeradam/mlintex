@@ -4,12 +4,29 @@ import '../../domain/entities/customer_ledger_entry.dart';
 import '../../domain/repositories/customer_ledger_repository.dart';
 import '../../core/providers/repository_providers.dart';
 
-/// Watch all ledger entries for a specific customer
-final customerLedgerProvider = StreamProviderFamily<List<CustomerLedgerEntry>, String>(
+List<CustomerLedgerEntry> _computeBalances(List<CustomerLedgerEntry> entries) {
+  double balance = 0;
+  final result = <CustomerLedgerEntry>[];
+  for (final e in entries) {
+    // OUT (goods given on credit) → balance increases
+    // IN (payment received) → balance decreases
+    if (e.outDescription != null && e.outDescription!.isNotEmpty) {
+      balance += e.totalAmount;
+    } else {
+      balance -= e.totalAmount;
+    }
+    result.add(e.copyWith(totalBalance: balance));
+  }
+  return result;
+}
+
+final customerLedgerProvider =
+    StreamProvider.family<List<CustomerLedgerEntry>, String>(
   (ref, customerId) {
     return ref
         .watch(customerLedgerRepositoryProvider)
-        .watchEntriesForCustomer(customerId);
+        .watchEntriesForCustomer(customerId)
+        .map(_computeBalances);
   },
 );
 
@@ -22,42 +39,24 @@ class CustomerLedgerNotifier extends Notifier<AsyncValue<void>> {
   CustomerLedgerRepository get _repo =>
       ref.read(customerLedgerRepositoryProvider);
 
-  /// Adds a new entry and recalculates the running balance.
-  Future<void> addEntry({
+  Future<void> addSaleEntry({
     required String customerId,
-    required DateTime date,
-    String? inDescription,
-    String? outDescription,
-    String? price,
-    int? quantity,
-    required double totalAmount,
+    required String itemName,
+    required double price,
+    required int quantity,
   }) async {
     state = const AsyncValue.loading();
     try {
-      // Get current entries to compute running balance
-      final existing = await _repo.getEntriesForCustomer(customerId);
-      final lastBalance =
-          existing.isEmpty ? 0.0 : existing.last.totalBalance;
-
-      // Balance increases on OUT (goods given / credit), decreases on IN (payment)
-      double newBalance;
-      if (inDescription != null && inDescription.isNotEmpty) {
-        newBalance = lastBalance - totalAmount;
-      } else {
-        newBalance = lastBalance + totalAmount;
-      }
-
       final entry = CustomerLedgerEntry(
         id: _uuid.v4(),
         customerId: customerId,
-        date: date,
-        inDescription: inDescription?.isEmpty == true ? null : inDescription,
-        outDescription:
-            outDescription?.isEmpty == true ? null : outDescription,
-        price: price?.isEmpty == true ? null : price,
+        date: DateTime.now(),
+        inDescription: null,
+        outDescription: itemName,
+        price: price.toString(),
         quantity: quantity,
-        totalAmount: totalAmount,
-        totalBalance: newBalance,
+        totalAmount: price * quantity,
+        totalBalance: 0, // recomputed by stream
         updatedAt: DateTime.now(),
       );
       await _repo.addEntry(entry);
@@ -67,22 +66,49 @@ class CustomerLedgerNotifier extends Notifier<AsyncValue<void>> {
     }
   }
 
-  Future<void> deleteEntry(String entryId, String customerId) async {
-    await _repo.deleteEntry(entryId);
-    // Recalculate balances for remaining entries
-    await _recalculateBalances(customerId);
+  Future<void> addPaymentEntry({
+    required String customerId,
+    required String bankOrCash,
+    required double amount,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final entry = CustomerLedgerEntry(
+        id: _uuid.v4(),
+        customerId: customerId,
+        date: DateTime.now(),
+        inDescription: bankOrCash,
+        outDescription: null,
+        price: amount.toString(),
+        quantity: null,
+        totalAmount: amount,
+        totalBalance: 0, // recomputed by stream
+        updatedAt: DateTime.now(),
+      );
+      await _repo.addEntry(entry);
+      state = const AsyncValue.data(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
   }
 
-  Future<void> _recalculateBalances(String customerId) async {
-    final entries = await _repo.getEntriesForCustomer(customerId);
-    double running = 0.0;
-    for (final e in entries) {
-      if (e.inDescription != null && e.inDescription!.isNotEmpty) {
-        running -= e.totalAmount;
-      } else {
-        running += e.totalAmount;
-      }
-      await _repo.updateEntry(e.copyWith(totalBalance: running));
+  Future<void> updateEntry(CustomerLedgerEntry updated) async {
+    state = const AsyncValue.loading();
+    try {
+      await _repo.updateEntry(updated.copyWith(updatedAt: DateTime.now()));
+      state = const AsyncValue.data(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> deleteEntry(String entryId) async {
+    state = const AsyncValue.loading();
+    try {
+      await _repo.deleteEntry(entryId);
+      state = const AsyncValue.data(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
     }
   }
 }

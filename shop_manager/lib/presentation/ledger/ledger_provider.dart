@@ -25,9 +25,13 @@ List<LedgerEntry> _entriesFor(Box<LedgerEntry> box, String customerId) {
     ..sort((a, b) => a.date.compareTo(b.date));
   double balance = 0;
   for (final e in entries) {
-    e.type == LedgerEntryType.sale
-        ? balance += e.totalAmount
-        : balance -= e.totalAmount;
+    // IN (sale) = customer owes more → balance increases
+    // OUT (payment) = customer paid → balance decreases
+    if (e.type == LedgerEntryType.sale) {
+      balance += e.totalAmount;
+    } else {
+      balance -= e.totalAmount;
+    }
     e.runningBalance = balance;
   }
   return entries;
@@ -68,7 +72,10 @@ class LedgerNotifier extends Notifier<void> {
       id: _uuid.v4(),
       customerId: customerId,
       date: DateTime.now(),
+      inItem: null,
       outItem: bankOrCash,
+      price: amount,
+      quantity: null,
       totalAmount: amount,
       typeIndex: LedgerEntryType.payment.index,
     );

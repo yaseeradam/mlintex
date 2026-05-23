@@ -52,12 +52,11 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen>
   Widget build(BuildContext context) {
     final customersAsync = ref.watch(customersProvider);
     final debtsAsync = ref.watch(debtsProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppTheme.backgroundStart : const Color(0xFFF1F5F9);
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final textMuted = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
-    final cardBg = isDark ? AppTheme.surfaceColor : Colors.white;
-    final borderColor = isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0);
+    const bg = Color(0xFFF1F5F9);
+    const textPrimary = Color(0xFF0F172A);
+    const textMuted = Color(0xFF64748B);
+    const cardBg = Colors.white;
+    const borderColor = Color(0xFFE2E8F0);
 
     return Container(
       color: bg,
@@ -142,11 +141,11 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen>
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                   child: Row(children: [
-                    _StatPill(label: 'Customers', value: '${customers.length}', color: AppTheme.primaryColor, isDark: isDark),
+                    _StatPill(label: 'Customers', value: '${customers.length}', color: AppTheme.primaryColor),
                     const SizedBox(width: 8),
-                    _StatPill(label: 'With Debt', value: '$totalDebts', color: AppTheme.errorColor, isDark: isDark),
+                    _StatPill(label: 'With Debt', value: '$totalDebts', color: AppTheme.errorColor),
                     const SizedBox(width: 8),
-                    _StatPill(label: 'Total Owed', value: '₦${fmt.format(totalOwed)}', color: AppTheme.warningColor, isDark: isDark, flex: 2),
+                    _StatPill(label: 'Total Owed', value: '₦${fmt.format(totalOwed)}', color: AppTheme.warningColor, flex: 2),
                   ]),
                 );
               },
@@ -221,7 +220,6 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen>
                         customer: filtered[i],
                         avatarColor: _avatarColors[filtered[i].name.hashCode % _avatarColors.length],
                         debts: debtsAsync.value ?? [],
-                        isDark: isDark,
                         onTap: () => _openLedger(context, filtered[i]),
                         onEdit: () => _openEdit(context, filtered[i]),
                       ),
@@ -236,9 +234,6 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen>
                       customer: filtered[i],
                       avatarColor: _avatarColors[filtered[i].name.hashCode % _avatarColors.length],
                       debts: debtsAsync.value ?? [],
-                      isDark: isDark,
-                      textPrimary: textPrimary,
-                      textMuted: textMuted,
                       onTap: () => _openLedger(context, filtered[i]),
                       onEdit: () => _openEdit(context, filtered[i]),
                     ),
@@ -260,6 +255,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen>
         customerPhone: customer.phone,
         customerAddress: customer.address,
         customerShopNumber: customer.shopNumber,
+        customerAvatarPath: customer.avatarPath,
       ),
     ));
   }
@@ -305,9 +301,8 @@ class _StatPill extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-  final bool isDark;
   final int flex;
-  const _StatPill({required this.label, required this.value, required this.color, required this.isDark, this.flex = 1});
+  const _StatPill({required this.label, required this.value, required this.color, this.flex = 1});
 
   @override
   Widget build(BuildContext context) {
@@ -316,7 +311,7 @@ class _StatPill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: color.withOpacity(isDark ? 0.12 : 0.08),
+          color: color.withOpacity(0.08),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withOpacity(0.2)),
         ),
@@ -336,9 +331,6 @@ class _CustomerListCard extends StatelessWidget {
   final dynamic customer;
   final Color avatarColor;
   final List<dynamic> debts;
-  final bool isDark;
-  final Color textPrimary;
-  final Color textMuted;
   final VoidCallback onTap;
   final VoidCallback onEdit;
 
@@ -346,9 +338,6 @@ class _CustomerListCard extends StatelessWidget {
     required this.customer,
     required this.avatarColor,
     required this.debts,
-    required this.isDark,
-    required this.textPrimary,
-    required this.textMuted,
     required this.onTap,
     required this.onEdit,
   });
@@ -372,7 +361,7 @@ class _CustomerListCard extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(customer.name,
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: textPrimary)),
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF0F172A))),
               const SizedBox(height: 3),
               if (customer.shopNumber != null)
                 Row(children: [
@@ -383,9 +372,9 @@ class _CustomerListCard extends StatelessWidget {
               if (customer.phone != null) ...[
                 const SizedBox(height: 2),
                 Row(children: [
-                  Icon(PhosphorIconsRegular.phone, size: 12, color: textMuted),
+                  const Icon(PhosphorIconsRegular.phone, size: 12, color: Color(0xFF64748B)),
                   const SizedBox(width: 4),
-                  Text(customer.phone!, style: TextStyle(fontSize: 12, color: textMuted)),
+                  Text(customer.phone!, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                 ]),
               ],
               if (unpaidDebts.isNotEmpty) ...[
@@ -396,7 +385,7 @@ class _CustomerListCard extends StatelessWidget {
                     color: AppTheme.errorColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text('₦\${fmt.format(totalOwed)}',
+                  child: Text('₦${fmt.format(totalOwed)}',
                       style: const TextStyle(fontSize: 11, color: AppTheme.errorColor, fontWeight: FontWeight.w700)),
                 ),
               ],
@@ -416,7 +405,7 @@ class _CustomerListCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Icon(PhosphorIconsRegular.caretRight, size: 16, color: textMuted),
+            const Icon(PhosphorIconsRegular.caretRight, size: 16, color: Color(0xFF64748B)),
           ]),
         ]),
       ),
@@ -430,7 +419,6 @@ class _CustomerGridCard extends StatelessWidget {
   final dynamic customer;
   final Color avatarColor;
   final List<dynamic> debts;
-  final bool isDark;
   final VoidCallback onTap;
   final VoidCallback onEdit;
 
@@ -438,7 +426,6 @@ class _CustomerGridCard extends StatelessWidget {
     required this.customer,
     required this.avatarColor,
     required this.debts,
-    required this.isDark,
     required this.onTap,
     required this.onEdit,
   });
@@ -449,8 +436,8 @@ class _CustomerGridCard extends StatelessWidget {
     final unpaidDebts = debts.where((d) => d.customerId == customer.id && !d.isPaid).toList();
     final totalOwed = unpaidDebts.fold<double>(0, (s, d) => s + d.remainingAmount);
     final fmt = NumberFormat('#,##0', 'en_US');
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final textMuted = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
+    const textPrimary = Color(0xFF0F172A);
+    const textMuted = Color(0xFF64748B);
 
     return GestureDetector(
       onTap: onTap,

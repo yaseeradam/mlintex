@@ -114,11 +114,10 @@ class _QuickAddCustomerSheetState extends ConsumerState<QuickAddCustomerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppTheme.surfaceColor : Colors.white;
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
-    final textMuted = isDark ? AppTheme.textMuted : const Color(0xFF64748B);
-    final borderColor = isDark ? AppTheme.cardBorder : const Color(0xFFE2E8F0);
+    const bg = Colors.white;
+    const textPrimary = Color(0xFF0F172A);
+    const textMuted = Color(0xFF64748B);
+    const borderColor = Color(0xFFE2E8F0);
 
     return DraggableScrollableSheet(
       expand: false,
@@ -270,9 +269,8 @@ class _QuickAddCustomerSheetState extends ConsumerState<QuickAddCustomerSheet> {
 class _ImageSourceSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppTheme.surfaceColor : Colors.white;
-    final textPrimary = isDark ? AppTheme.textPrimary : const Color(0xFF0F172A);
+    const bg = Colors.white;
+    const textPrimary = Color(0xFF0F172A);
 
     return Container(
       decoration: BoxDecoration(
