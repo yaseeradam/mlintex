@@ -289,10 +289,10 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
       padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       child: pw.Text(t, style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
     );
-    pw.Widget dCell(String t, {bool bold = false, pw.Alignment alignment = pw.Alignment.centerLeft}) => pw.Container(
+    pw.Widget dCell(String t, {bool bold = false, pw.Alignment alignment = pw.Alignment.centerLeft, pw.Widget? child}) => pw.Container(
       alignment: alignment,
       padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      child: pw.Text(t, style: pw.TextStyle(fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+      child: child ?? pw.Text(t, style: pw.TextStyle(fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
     );
 
     double totalIn = 0;
@@ -357,21 +357,25 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
           pw.Table(
             border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
             columnWidths: {
-              0: const pw.FixedColumnWidth(110), // Date
-              1: const pw.FlexColumnWidth(3),   // Description (includes Item price x qty or Payment received)
-              2: const pw.FlexColumnWidth(1.5), // Goods Total (IN)
-              3: const pw.FlexColumnWidth(1.5), // Payment Received (OUT)
-              4: const pw.FlexColumnWidth(1.8), // Running Balance
+              0: const pw.FixedColumnWidth(80),   // Date
+              1: const pw.FlexColumnWidth(2.5),  // Item/Desc
+              2: const pw.FlexColumnWidth(1.2),  // Price (₦)
+              3: const pw.FlexColumnWidth(0.8),  // Qty
+              4: const pw.FlexColumnWidth(1.3),  // IN (₦)
+              5: const pw.FlexColumnWidth(1.3),  // OUT (₦)
+              6: const pw.FlexColumnWidth(1.5),  // Balance (₦)
             },
             children: [
               pw.TableRow(
                 decoration: const pw.BoxDecoration(color: PdfColors.grey200),
                 children: [
                   hCell('Date'),
-                  hCell('Description'),
-                  hCell('Goods Total (IN)', alignment: pw.Alignment.centerRight),
-                  hCell('Payment Out (OUT)', alignment: pw.Alignment.centerRight),
-                  hCell('Running Balance', alignment: pw.Alignment.centerRight),
+                  hCell('Item/Desc'),
+                  hCell('Price (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Qty', alignment: pw.Alignment.center),
+                  hCell('IN (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('OUT (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Balance (₦)', alignment: pw.Alignment.centerRight),
                 ],
               ),
               ...entries.asMap().entries.map((e) {
@@ -380,20 +384,48 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
                 final isSale = entry.type == LedgerEntryType.sale;
                 final rowColor = i.isOdd ? PdfColors.grey50 : PdfColors.white;
                 
-                final desc = isSale 
-                    ? '${entry.inItem ?? 'Sale'} (${PdfTheme.naira}${fmt.format(entry.price)} x ${entry.quantity} Bll)'
-                    : (entry.outItem ?? 'PAYMENT');
-                
-                final goodsTotal = isSale ? '${PdfTheme.naira}${fmt.format(entry.totalAmount)}' : '';
-                final paymentReceived = !isSale ? '${PdfTheme.naira}${fmt.format(entry.totalAmount)}' : '';
+                final desc = isSale ? (entry.inItem ?? '') : 'PAYMENT';
+                final priceStr = isSale ? fmt.format(entry.price) : '—';
+                final qtyStr = isSale ? entry.quantity?.toString() ?? '1' : '—';
+                final goodsTotal = isSale ? '${PdfTheme.naira}${fmt.format(entry.totalAmount)}' : '—';
+                final paymentReceived = !isSale ? fmt.format(entry.totalAmount) : '—';
                 
                 return pw.TableRow(
                   decoration: pw.BoxDecoration(color: rowColor),
                   children: [
                     dCell(dateFmt.format(entry.date)),
                     dCell(desc, bold: true),
+                    dCell(priceStr, alignment: pw.Alignment.centerRight),
+                    dCell(qtyStr, alignment: pw.Alignment.center),
                     dCell(goodsTotal, bold: isSale, alignment: pw.Alignment.centerRight),
-                    dCell(paymentReceived, bold: !isSale, alignment: pw.Alignment.centerRight),
+                    dCell(
+                      !isSale ? '' : '—',
+                      bold: !isSale,
+                      alignment: pw.Alignment.centerRight,
+                      child: !isSale
+                          ? pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.end,
+                              children: [
+                                pw.Text(
+                                  entry.outItem ?? 'PAYMENT',
+                                  style: pw.TextStyle(
+                                    fontSize: 6.5,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.grey600,
+                                  ),
+                                ),
+                                pw.SizedBox(height: 1),
+                                pw.Text(
+                                  '${PdfTheme.naira}$paymentReceived',
+                                  style: pw.TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : null,
+                    ),
                     dCell('${PdfTheme.naira}${fmt.format(entry.runningBalance)}', bold: true, alignment: pw.Alignment.centerRight),
                   ],
                 );
@@ -571,6 +603,7 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
       bool showRightDivider = true,
       double fontSize = 11,
       EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      Widget? child,
     }) {
       return Container(
         width: width,
@@ -582,7 +615,7 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
               ? const Border(right: BorderSide(color: Color(0xFFE2E8F0), width: 0.8))
               : null,
         ),
-        child: Text(
+        child: child ?? Text(
           text,
           style: TextStyle(
             fontSize: fontSize,
@@ -762,7 +795,7 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
                                   final balColor = entry.runningBalance > 0 ? balancePosColor : balanceNegColor;
                                   
                                   final dateStr = DateFormat('dd/MM/yy').format(entry.date);
-                                  final descStr = isSale ? (entry.inItem ?? '') : (entry.outItem ?? 'PAYMENT');
+                                  final descStr = isSale ? (entry.inItem ?? '') : 'PAYMENT';
                                   final priceStr = isSale ? fmt.format(entry.price) : '—';
                                   final qtyStr = isSale ? entry.quantity?.toString() ?? '1' : '—';
                                   final outStr = !isSale ? fmt.format(entry.totalAmount) : '—';
@@ -781,7 +814,36 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
                                         buildStaticCell(descStr, width: itemWidth, bold: true),
                                         buildStaticCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
                                         buildStaticCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
-                                        buildStaticCell(outStr, width: outWidth, alignment: Alignment.centerRight),
+                                        buildStaticCell(
+                                          !isSale ? '' : outStr,
+                                          width: outWidth,
+                                          alignment: Alignment.centerRight,
+                                          child: !isSale
+                                              ? Column(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                                  children: [
+                                                    Text(
+                                                      entry.outItem ?? 'PAYMENT',
+                                                      style: const TextStyle(
+                                                        fontSize: 9,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: Color(0xFF64748B),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      '₦$outStr',
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: Color(0xFF10B981),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                )
+                                              : null,
+                                        ),
                                         buildStaticCell(
                                           balStr,
                                           width: balWidth,
@@ -945,18 +1007,17 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
       padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 5),
       child: pw.Text(t, style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
     );
-    pw.Widget dCell(String t, {bool bold = false, pw.Alignment alignment = pw.Alignment.centerLeft}) => pw.Container(
+    pw.Widget dCell(String t, {bool bold = false, pw.Alignment alignment = pw.Alignment.centerLeft, pw.Widget? child}) => pw.Container(
       alignment: alignment,
       padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-      child: pw.Text(t, style: pw.TextStyle(fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+      child: child ?? pw.Text(t, style: pw.TextStyle(fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
     );
 
-    final desc = isSale 
-        ? '${entry.inItem ?? 'Sale'} (${PdfTheme.naira}${fmt.format(entry.price)} x ${entry.quantity} Bll)'
-        : (entry.outItem ?? 'PAYMENT');
-    
-    final goodsTotal = isSale ? '${PdfTheme.naira}${fmt.format(entry.totalAmount)}' : '';
-    final paymentReceived = !isSale ? '${PdfTheme.naira}${fmt.format(entry.totalAmount)}' : '';
+    final desc = isSale ? (entry.inItem ?? '') : 'PAYMENT';
+    final priceStr = isSale ? fmt.format(entry.price) : '—';
+    final qtyStr = isSale ? entry.quantity?.toString() ?? '1' : '—';
+    final goodsTotal = isSale ? '${PdfTheme.naira}${fmt.format(entry.totalAmount)}' : '—';
+    final paymentReceived = !isSale ? fmt.format(entry.totalAmount) : '—';
 
     pdf.addPage(pw.Page(
       pageFormat: PdfPageFormat.a4.landscape,
@@ -979,29 +1040,62 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
           pw.Table(
             border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
             columnWidths: {
-              0: const pw.FixedColumnWidth(110), // Date
-              1: const pw.FlexColumnWidth(3),   // Description
-              2: const pw.FlexColumnWidth(1.5), // Goods Total
-              3: const pw.FlexColumnWidth(1.5), // Payment Received
-              4: const pw.FlexColumnWidth(1.8), // Running Balance
+              0: const pw.FixedColumnWidth(80),   // Date
+              1: const pw.FlexColumnWidth(2.5),  // Item/Desc
+              2: const pw.FlexColumnWidth(1.2),  // Price (₦)
+              3: const pw.FlexColumnWidth(0.8),  // Qty
+              4: const pw.FlexColumnWidth(1.3),  // IN (₦)
+              5: const pw.FlexColumnWidth(1.3),  // OUT (₦)
+              6: const pw.FlexColumnWidth(1.5),  // Balance (₦)
             },
             children: [
               pw.TableRow(
                 decoration: const pw.BoxDecoration(color: PdfColors.grey200),
                 children: [
                   hCell('Date'),
-                  hCell('Description'),
-                  hCell('Goods Total (IN)', alignment: pw.Alignment.centerRight),
-                  hCell('Payment Out (OUT)', alignment: pw.Alignment.centerRight),
-                  hCell('Running Balance', alignment: pw.Alignment.centerRight),
+                  hCell('Item/Desc'),
+                  hCell('Price (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Qty', alignment: pw.Alignment.center),
+                  hCell('IN (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('OUT (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Balance (₦)', alignment: pw.Alignment.centerRight),
                 ],
               ),
               pw.TableRow(
                 children: [
                   dCell(dateFmt.format(entry.date)),
                   dCell(desc, bold: true),
+                  dCell(priceStr, alignment: pw.Alignment.centerRight),
+                  dCell(qtyStr, alignment: pw.Alignment.center),
                   dCell(goodsTotal, bold: isSale, alignment: pw.Alignment.centerRight),
-                  dCell(paymentReceived, bold: !isSale, alignment: pw.Alignment.centerRight),
+                  dCell(
+                    !isSale ? '' : '—',
+                    bold: !isSale,
+                    alignment: pw.Alignment.centerRight,
+                    child: !isSale
+                        ? pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.end,
+                            children: [
+                              pw.Text(
+                                entry.outItem ?? 'PAYMENT',
+                                style: pw.TextStyle(
+                                  fontSize: 6.5,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.grey600,
+                                ),
+                              ),
+                              pw.SizedBox(height: 1),
+                              pw.Text(
+                                '${PdfTheme.naira}$paymentReceived',
+                                style: pw.TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          )
+                        : null,
+                  ),
                   dCell('${PdfTheme.naira}${fmt.format(entry.runningBalance)}', bold: true, alignment: pw.Alignment.centerRight),
                 ],
               ),
@@ -1436,6 +1530,7 @@ class _LedgerFeed extends StatelessWidget {
     bool showRightDivider = true,
     double fontSize = 11,
     EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+    Widget? child,
   }) {
     return Container(
       width: width,
@@ -1447,7 +1542,7 @@ class _LedgerFeed extends StatelessWidget {
             ? const Border(right: BorderSide(color: Color(0xFFE2E8F0), width: 0.8))
             : null,
       ),
-      child: Text(
+      child: child ?? Text(
         text,
         style: TextStyle(
           fontSize: fontSize,
@@ -1769,7 +1864,7 @@ class _LedgerFeed extends StatelessWidget {
                           final balColor = entry.runningBalance > 0 ? balancePosColor : balanceNegColor;
                           
                           final dateStr = DateFormat('dd/MM/yy').format(entry.date);
-                          final descStr = isSale ? (entry.inItem ?? '') : (entry.outItem ?? 'PAYMENT');
+                          final descStr = isSale ? (entry.inItem ?? '') : 'PAYMENT';
                           final priceStr = isSale ? fmt.format(entry.price) : '—';
                           final qtyStr = isSale ? entry.quantity?.toString() ?? '1' : '—';
                           final outStr = !isSale ? fmt.format(entry.totalAmount) : '—';
@@ -1791,7 +1886,36 @@ class _LedgerFeed extends StatelessWidget {
                                     _buildCell(descStr, width: itemWidth, bold: true),
                                     _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
                                     _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
-                                    _buildCell(outStr, width: outWidth, alignment: Alignment.centerRight),
+                                    _buildCell(
+                                      !isSale ? '' : outStr,
+                                      width: outWidth,
+                                      alignment: Alignment.centerRight,
+                                      child: !isSale
+                                          ? Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  entry.outItem ?? 'PAYMENT',
+                                                  style: const TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xFF64748B),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  '₦$outStr',
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xFF10B981),
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : null,
+                                    ),
                                     _buildCell(
                                       balStr,
                                       width: balWidth,
