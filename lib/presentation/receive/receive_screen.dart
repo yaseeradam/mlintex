@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -1431,6 +1432,7 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
   final _priceCtrl = TextEditingController();
   final _qtyCtrl = TextEditingController();
   final _totalCtrl = TextEditingController();
+  final _balanceCtrl = TextEditingController();
 
   final _numFmt = NumberFormat('#,##0.##', 'en_US');
 
@@ -1444,22 +1446,38 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
       _priceCtrl.text = _numFmt.format(e.price);
       _qtyCtrl.text = e.quantity.toString();
       _totalCtrl.text = _numFmt.format(e.totalAmount);
+      final balance = e.totalAmount - (e.payment ?? 0.0);
+      _balanceCtrl.text = _numFmt.format(balance < 0 ? 0 : balance);
     } else {
       _paymentCtrl.text = '0';
+      _balanceCtrl.text = '0';
     }
+    _paymentCtrl.addListener(_updateBalance);
   }
 
   @override
   void dispose() {
     _productCtrl.dispose(); _paymentCtrl.dispose();
     _priceCtrl.dispose(); _qtyCtrl.dispose(); _totalCtrl.dispose();
+    _balanceCtrl.dispose();
     super.dispose();
   }
 
   void _updateTotal() {
     final p = CurrencyInputFormatter.parse(_priceCtrl.text);
     final q = int.tryParse(_qtyCtrl.text) ?? 0;
-    if (p > 0 && q > 0) _totalCtrl.text = NumberFormat('#,##0', 'en_US').format(p * q);
+    if (p > 0 && q > 0) {
+      _totalCtrl.text = NumberFormat('#,##0', 'en_US').format(p * q);
+    }
+    _updateBalance();
+  }
+
+  void _updateBalance() {
+    final total = CurrencyInputFormatter.parse(_totalCtrl.text);
+    final paid = CurrencyInputFormatter.parse(_paymentCtrl.text);
+    final balance = total - paid;
+    _balanceCtrl.text = NumberFormat('#,##0', 'en_US').format(balance < 0 ? 0 : balance);
+    if (mounted) setState(() {});
   }
 
   Future<void> _submit() async {
@@ -1493,6 +1511,13 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
     const textPrimary = Color(0xFF0F172A);
     const textMuted = Color(0xFF64748B);
     const borderColor = Color(0xFFE2E8F0);
+    const accentGreen = Color(0xFF10B981);
+    const accentRed = Color(0xFFEF4444);
+
+    final total = CurrencyInputFormatter.parse(_totalCtrl.text);
+    final paid = CurrencyInputFormatter.parse(_paymentCtrl.text);
+    final balance = total - paid;
+    final isFullyPaid = balance <= 0;
 
     return Container(
       decoration: const BoxDecoration(color: bg, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
@@ -1501,48 +1526,212 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
         key: _formKey,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Handle bar
             Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: borderColor, borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 20),
-            Text(widget.existing != null ? 'Edit Received Item' : 'Record Received Item',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: textPrimary)),
-            const SizedBox(height: 16),
+
+            // Title row
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accentGreen.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.arrow_circle_down_rounded, color: accentGreen, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                widget.existing != null ? 'Edit Received Item' : 'Record Received Item',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: textPrimary),
+              ),
+            ]),
+            const SizedBox(height: 20),
+
+            // Product Name
             _label('Product Name', textMuted),
-            TextFormField(controller: _productCtrl, decoration: const InputDecoration(hintText: 'e.g. LIN ROMAN 150y'), validator: (v) => v!.trim().isEmpty ? 'Required' : null),
+            TextFormField(
+              controller: _productCtrl,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(hintText: 'e.g. LIN ROMAN 150y'),
+              validator: (v) => v!.trim().isEmpty ? 'Required' : null,
+            ),
             const SizedBox(height: 14),
+
+            // Price & Quantity
             Row(children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _label('Price (₦)', textMuted),
-                TextFormField(controller: _priceCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [CurrencyInputFormatter()],
-                    decoration: const InputDecoration(hintText: '0.00'), onChanged: (_) => setState(_updateTotal),
-                    validator: (v) => v!.trim().isEmpty ? 'Required' : null),
+                TextFormField(
+                  controller: _priceCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [CurrencyInputFormatter()],
+                  decoration: const InputDecoration(hintText: '0.00', prefixText: '₦ '),
+                  onChanged: (_) => setState(_updateTotal),
+                  validator: (v) => v!.trim().isEmpty ? 'Required' : null,
+                ),
               ])),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _label('Quantity', textMuted),
-                TextFormField(controller: _qtyCtrl, keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(hintText: '0'), onChanged: (_) => setState(_updateTotal),
-                    validator: (v) => v!.trim().isEmpty ? 'Required' : null),
+                TextFormField(
+                  controller: _qtyCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(hintText: '0'),
+                  onChanged: (_) => setState(_updateTotal),
+                  validator: (v) => v!.trim().isEmpty ? 'Required' : null,
+                ),
               ])),
             ]),
             const SizedBox(height: 14),
+
+            // Total Amount (read-only)
             _label('Total Amount (₦)', textMuted),
-            TextFormField(controller: _totalCtrl, readOnly: true,
-                decoration: const InputDecoration(hintText: '0.00', prefixText: '₦ ',
-                    filled: true, fillColor: Color(0xFFF1F5F9))),
-            const SizedBox(height: 14),
-            _label('Payment Made (₦)', textMuted),
-            TextFormField(controller: _paymentCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [CurrencyInputFormatter()],
-                decoration: const InputDecoration(hintText: '0.00'),
-                validator: (v) => v!.trim().isEmpty ? 'Required' : null),
+            TextFormField(
+              controller: _totalCtrl,
+              readOnly: true,
+              decoration: const InputDecoration(
+                hintText: '0.00',
+                prefixText: '₦ ',
+                filled: true,
+                fillColor: Color(0xFFF1F5F9),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Payment & Balance Card ────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: accentGreen.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: accentGreen.withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Section header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: accentGreen.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.payments_rounded, size: 16, color: accentGreen),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Payment & Balance',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: textPrimary),
+                      ),
+                      const Spacer(),
+                      // Paid status badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isFullyPaid
+                              ? accentGreen.withOpacity(0.12)
+                              : accentRed.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          isFullyPaid ? '✓ Fully Paid' : 'Balance Due',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: isFullyPaid ? accentGreen : accentRed,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Payment Made & Balance side by side
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _label('Payment Made (₦)', textMuted),
+                            TextFormField(
+                              controller: _paymentCtrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [CurrencyInputFormatter()],
+                              decoration: InputDecoration(
+                                hintText: '0.00',
+                                prefixText: '₦ ',
+                                filled: true,
+                                fillColor: accentGreen.withOpacity(0.06),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: accentGreen, width: 1.5),
+                                ),
+                              ),
+                              validator: (v) => v!.trim().isEmpty ? 'Required' : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _label('Balance (₦)', textMuted),
+                            TextFormField(
+                              controller: _balanceCtrl,
+                              readOnly: true,
+                              decoration: InputDecoration(
+                                hintText: '0.00',
+                                prefixText: '₦ ',
+                                filled: true,
+                                fillColor: isFullyPaid
+                                    ? accentGreen.withOpacity(0.06)
+                                    : accentRed.withOpacity(0.06),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                    color: isFullyPaid
+                                        ? accentGreen.withOpacity(0.3)
+                                        : accentRed.withOpacity(0.3),
+                                  ),
+                                ),
+                              ),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: isFullyPaid ? accentGreen : accentRed,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
-            SizedBox(width: double.infinity, height: 54,
-              child: ElevatedButton(
+
+            // Save button
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton.icon(
                 onPressed: _submit,
-                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                child: Text(widget.existing != null ? 'Update' : 'Save', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+                icon: const Icon(Icons.save_rounded, size: 18),
+                label: Text(
+                  widget.existing != null ? 'Update Entry' : 'Save Entry',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentGreen,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
               ),
             ),
           ]),
