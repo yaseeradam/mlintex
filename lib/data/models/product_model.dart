@@ -29,6 +29,9 @@ class ProductModel extends HiveObject {
   @HiveField(7)
   final bool isSynced;
 
+  @HiveField(8)
+  final String? imagePath;
+
   ProductModel({
     required this.id,
     required this.name,
@@ -38,6 +41,7 @@ class ProductModel extends HiveObject {
     this.barcode,
     required this.updatedAt,
     this.isSynced = false,
+    this.imagePath,
   });
 
   factory ProductModel.fromEntity(Product product) => ProductModel(
@@ -49,6 +53,7 @@ class ProductModel extends HiveObject {
         barcode: product.barcode,
         updatedAt: product.updatedAt,
         isSynced: product.isSynced,
+        imagePath: product.imagePath,
       );
 
   Product toEntity() => Product(
@@ -60,6 +65,7 @@ class ProductModel extends HiveObject {
         barcode: barcode,
         updatedAt: updatedAt,
         isSynced: isSynced,
+        imagePath: imagePath,
       );
 
   factory ProductModel.fromMap(Map<String, dynamic> map) => ProductModel(
@@ -71,6 +77,7 @@ class ProductModel extends HiveObject {
         barcode: map['barcode'] as String?,
         updatedAt: DateTime.parse(map['updatedAt'] as String),
         isSynced: true,
+        imagePath: map['imagePath'] as String?,
       );
 
   Map<String, dynamic> toMap() => {
@@ -81,5 +88,6 @@ class ProductModel extends HiveObject {
         'category': category,
         'barcode': barcode,
         'updatedAt': updatedAt.toIso8601String(),
+        'imagePath': imagePath,
       };
 }

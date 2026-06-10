@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,7 @@ import '../../core/providers/sync_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../data/datasources/sync_service.dart';
 import '../widgets/glass_container.dart';
+import '../widgets/app_feedback.dart';
 import '../dashboard/debt_provider.dart';
 import '../sales/sale_provider.dart';
 import '../products/product_provider.dart';
@@ -206,16 +208,24 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
                       color: AppTheme.primaryColor.withOpacity(0.3),
                       width: 1.5,
                     ),
+                    image: authState.logoPath != null
+                        ? DecorationImage(
+                            image: FileImage(File(authState.logoPath!)),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      color: AppTheme.primaryLight,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  child: authState.logoPath == null
+                      ? Text(
+                          initial,
+                          style: const TextStyle(
+                            color: AppTheme.primaryLight,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -249,6 +259,38 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 24),
+
+        // My Shops Section
+        _SectionHeader('My Shops'),
+        _SettingsGroup(
+          children: [
+            ...authState.shops.map((shop) {
+              final isSelected = shop['id'] == authState.activeShopId;
+              return _ActionTile(
+                icon: PhosphorIconsRegular.storefront,
+                iconColor: isSelected ? AppTheme.primaryColor : const Color(0xFF94A3B8),
+                title: shop['name'] as String,
+                subtitle: (shop['shopNumber'] as String? ?? '').isNotEmpty
+                    ? 'Shop Number: ${shop['shopNumber']}'
+                    : ((shop['address'] as String? ?? '').isNotEmpty
+                        ? shop['address'] as String
+                        : 'No details specified'),
+                trailing: isSelected
+                    ? const Icon(Icons.check_circle_rounded, color: AppTheme.successColor, size: 22)
+                    : null,
+                onTap: () => ref.read(authProvider.notifier).switchShop(shop['id'] as String),
+              );
+            }),
+            _ActionTile(
+              icon: PhosphorIconsRegular.plusCircle,
+              iconColor: AppTheme.primaryColor,
+              title: 'Add New Shop',
+              trailing: Icon(PhosphorIconsRegular.caretRight, color: AppTheme.textMuted, size: 20),
+              onTap: () => _showAddShopDialog(context),
+            ),
+          ],
         ),
         const SizedBox(height: 24),
 
@@ -327,6 +369,60 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
                   borderRadius: BorderRadius.circular(12)),
             ),
             child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddShopDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Add New Shop'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter a name for your new shop:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                hintText: 'Shop Name',
+                prefixIcon: Icon(PhosphorIconsRegular.storefront),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                ref.read(authProvider.notifier).addShop(name);
+                Navigator.pop(context);
+                AppFeedback.showSuccess(
+                  context,
+                  'Shop Created',
+                  'Switched to "$name" successfully.',
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Create'),
           ),
         ],
       ),

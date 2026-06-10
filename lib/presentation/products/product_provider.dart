@@ -42,6 +42,7 @@ class ProductNotifier extends Notifier<AsyncValue<void>> {
     required int quantity,
     String? category,
     String? barcode,
+    String? imagePath,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -54,6 +55,7 @@ class ProductNotifier extends Notifier<AsyncValue<void>> {
         barcode: barcode,
         updatedAt: DateTime.now(),
         isSynced: false,
+        imagePath: imagePath,
       );
       await _repo.addProduct(product);
       state = const AsyncValue.data(null);

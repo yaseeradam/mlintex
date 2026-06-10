@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/auth_provider.dart';
@@ -16,7 +18,11 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
+  late TextEditingController _phoneController;
+  late TextEditingController _shopNumberController;
+  late TextEditingController _addressController;
   final _passwordController = TextEditingController();
+  String? _logoPath;
 
   @override
   void initState() {
@@ -24,14 +30,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final authState = ref.read(authProvider);
     _nameController = TextEditingController(text: authState.shopName);
     _emailController = TextEditingController(text: authState.email);
+    _phoneController = TextEditingController(text: authState.phone);
+    _shopNumberController = TextEditingController(text: authState.shopNumber);
+    _addressController = TextEditingController(text: authState.address);
+    _logoPath = authState.logoPath;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
+    _shopNumberController.dispose();
+    _addressController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickLogo() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ImageSourceSheet(),
+    );
+    if (source == null) return;
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (picked != null) setState(() => _logoPath = picked.path);
   }
 
   @override
@@ -75,10 +104,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
                 physics: const BouncingScrollPhysics(),
                 children: [
-                  // Avatar
+                  // Logo/Avatar
                   Center(
                     child: GestureDetector(
-                      onTap: () => AppFeedback.showError(context, 'Notice', 'Custom profile pictures coming soon!'),
+                      onTap: _pickLogo,
                       child: Stack(
                         alignment: Alignment.bottomRight,
                         children: [
@@ -93,9 +122,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                               shape: BoxShape.circle,
                               border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3), width: 2),
+                              image: _logoPath != null
+                                  ? DecorationImage(image: FileImage(File(_logoPath!)), fit: BoxFit.cover)
+                                  : null,
                             ),
                             alignment: Alignment.center,
-                            child: Text(initial, style: const TextStyle(color: AppTheme.primaryColor, fontSize: 40, fontWeight: FontWeight.w800)),
+                            child: _logoPath == null
+                                ? Text(initial, style: const TextStyle(color: AppTheme.primaryColor, fontSize: 40, fontWeight: FontWeight.w800))
+                                : null,
                           ),
                           Container(
                             padding: const EdgeInsets.all(8),
@@ -133,9 +167,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         const SizedBox(height: 20),
                         TextFormField(
                           controller: _nameController,
+                          textCapitalization: TextCapitalization.words,
                           decoration: const InputDecoration(
                             labelText: 'Shop / Profile Name',
                             prefixIcon: Icon(PhosphorIconsRegular.storefront),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'Phone Number',
+                            prefixIcon: Icon(PhosphorIconsRegular.phone),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _shopNumberController,
+                          decoration: const InputDecoration(
+                            labelText: 'Shop Number',
+                            prefixIcon: Icon(PhosphorIconsRegular.tag),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _addressController,
+                          textCapitalization: TextCapitalization.sentences,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Address',
+                            prefixIcon: Icon(PhosphorIconsRegular.mapPin),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -207,7 +269,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _saveProfile() {
     FocusScope.of(context).unfocus();
     final newName = _nameController.text.trim();
-    if (newName.isNotEmpty) ref.read(authProvider.notifier).updateShopName(newName);
+    final newPhone = _phoneController.text.trim();
+    final newShopNumber = _shopNumberController.text.trim();
+    final newAddress = _addressController.text.trim();
+
+    if (newName.isEmpty) {
+      AppFeedback.showError(context, 'Validation Error', 'Shop name cannot be empty.');
+      return;
+    }
+
+    ref.read(authProvider.notifier).updateActiveShop(
+          name: newName,
+          phone: newPhone,
+          shopNumber: newShopNumber,
+          address: newAddress,
+          logoPath: _logoPath,
+        );
 
     if (_passwordController.text.isNotEmpty) {
       AppFeedback.showError(context, 'Notice', 'Password resets require Firebase Authentication. Coming soon!');
@@ -218,5 +295,49 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) context.pop();
     });
+  }
+}
+
+class _ImageSourceSheet extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    const bg = Colors.white;
+    const textPrimary = Color(0xFF0F172A);
+
+    return Container(
+      decoration: const BoxDecoration(
+          color: bg, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 20),
+        const Text('Choose Photo',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary)),
+        const SizedBox(height: 20),
+        ListTile(
+          leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.camera_alt_rounded, color: AppTheme.primaryColor)),
+          title: const Text('Camera', style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary)),
+          onTap: () => Navigator.pop(context, ImageSource.camera),
+        ),
+        ListTile(
+          leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: AppTheme.successColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.photo_library_rounded, color: AppTheme.successColor)),
+          title: const Text('Gallery', style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary)),
+          onTap: () => Navigator.pop(context, ImageSource.gallery),
+        ),
+      ]),
+    );
   }
 }

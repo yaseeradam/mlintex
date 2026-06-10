@@ -26,6 +26,7 @@ class ReceiveEntry extends HiveObject {
   @HiveField(4) final double price;
   @HiveField(5) final int quantity;
   @HiveField(6) final double totalAmount;
+  @HiveField(7) final double? payment;
 
   ReceiveEntry({
     required this.id,
@@ -35,6 +36,7 @@ class ReceiveEntry extends HiveObject {
     required this.price,
     required this.quantity,
     required this.totalAmount,
+    this.payment = 0.0,
   });
 }
 
@@ -47,22 +49,24 @@ class ReceiveEntryAdapter extends TypeAdapter<ReceiveEntry> {
     final f = <int, dynamic>{for (int i = 0; i < n; i++) reader.readByte(): reader.read()};
     return ReceiveEntry(
       id: f[0] as String, date: f[1] as DateTime,
-      productName: f[2] as String, companyName: f[3] as String,
+      productName: f[2] as String, companyName: f[3] as String? ?? '',
       price: f[4] as double, quantity: f[5] as int, totalAmount: f[6] as double,
+      payment: (f[7] as num?)?.toDouble() ?? 0.0,
     );
   }
 
   @override
   void write(BinaryWriter writer, ReceiveEntry obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)..write(obj.id)
       ..writeByte(1)..write(obj.date)
       ..writeByte(2)..write(obj.productName)
       ..writeByte(3)..write(obj.companyName)
       ..writeByte(4)..write(obj.price)
       ..writeByte(5)..write(obj.quantity)
-      ..writeByte(6)..write(obj.totalAmount);
+      ..writeByte(6)..write(obj.totalAmount)
+      ..writeByte(7)..write(obj.payment ?? 0.0);
   }
 
   @override bool operator ==(Object other) => identical(this, other) || other is ReceiveEntryAdapter && typeId == other.typeId;
@@ -71,7 +75,10 @@ class ReceiveEntryAdapter extends TypeAdapter<ReceiveEntry> {
 
 // ── Provider ───────────────────────────────────────────────────────────────
 
-final receiveBoxProvider = Provider<Box<ReceiveEntry>>((ref) => Hive.box<ReceiveEntry>('receive_entries'));
+final receiveBoxProvider = Provider<Box<ReceiveEntry>>((ref) {
+  final shopId = ref.watch(activeShopIdProvider);
+  return Hive.box<ReceiveEntry>('receive_entries_$shopId');
+});
 
 final receiveEntriesProvider = StreamProvider<List<ReceiveEntry>>((ref) async* {
   final box = ref.watch(receiveBoxProvider);
@@ -88,10 +95,10 @@ class ReceiveNotifier extends Notifier<void> {
   @override void build() {}
   Box<ReceiveEntry> get _box => ref.read(receiveBoxProvider);
 
-  Future<void> add({required String product, required String company, required double price, required int qty}) async {
+  Future<void> add({required String product, required double price, required int qty, double payment = 0.0}) async {
     final e = ReceiveEntry(id: const Uuid().v4(), date: DateTime.now(),
-        productName: product, companyName: company, price: price,
-        quantity: qty, totalAmount: price * qty);
+        productName: product, companyName: '', price: price,
+        quantity: qty, totalAmount: price * qty, payment: payment);
     await _box.put(e.id, e);
   }
 
@@ -161,11 +168,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             data: (entries) {
               double totalSpent = 0;
               int totalQty = 0;
-              final Set<String> suppliers = {};
+              double totalPaid = 0;
               for (final entry in entries) {
                 totalSpent += entry.totalAmount;
                 totalQty += entry.quantity;
-                suppliers.add(entry.companyName.toLowerCase().trim());
+                totalPaid += entry.payment ?? 0.0;
               }
 
               return SingleChildScrollView(
@@ -184,7 +191,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                     _FinancialSummaryCard(
                       totalSpent: totalSpent,
                       totalQty: totalQty,
-                      suppliersCount: suppliers.length,
+                      totalPaid: totalPaid,
                       fmt: _fmt,
                     ),
                     const SizedBox(height: 16),
@@ -345,12 +352,13 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           pw.Table(
             border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
             columnWidths: {
-              0: const pw.FixedColumnWidth(110), // Date
-              1: const pw.FlexColumnWidth(3),   // Product
-              2: const pw.FlexColumnWidth(2),   // Supplier
-              3: const pw.FlexColumnWidth(1.5), // Unit Price
-              4: const pw.FlexColumnWidth(1.2), // Quantity
-              5: const pw.FlexColumnWidth(1.8), // Total Amount
+              0: const pw.FixedColumnWidth(100), // Date
+              1: const pw.FlexColumnWidth(2.5), // Product
+              2: const pw.FlexColumnWidth(1.5), // Paid
+              3: const pw.FlexColumnWidth(1.5), // Balance
+              4: const pw.FlexColumnWidth(1.2), // Unit Price
+              5: const pw.FlexColumnWidth(1.0), // Quantity
+              6: const pw.FlexColumnWidth(1.5), // Total Amount
             },
             children: [
               pw.TableRow(
@@ -358,7 +366,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 children: [
                   hCell('Date'),
                   hCell('Product Name'),
-                  hCell('Supplier / Company'),
+                  hCell('Paid (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Balance (₦)', alignment: pw.Alignment.centerRight),
                   hCell('Price (₦)', alignment: pw.Alignment.centerRight),
                   hCell('Qty', alignment: pw.Alignment.center),
                   hCell('Total Value', alignment: pw.Alignment.centerRight),
@@ -368,7 +377,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 children: [
                   dCell(dateFmt.format(entry.date)),
                   dCell(entry.productName, bold: true),
-                  dCell(entry.companyName),
+                  dCell('${PdfTheme.naira}${fmt.format(entry.payment ?? 0.0)}', alignment: pw.Alignment.centerRight),
+                  dCell('${PdfTheme.naira}${fmt.format(entry.totalAmount - (entry.payment ?? 0.0))}', alignment: pw.Alignment.centerRight),
                   dCell('${PdfTheme.naira}${fmt.format(entry.price)}', alignment: pw.Alignment.centerRight),
                   dCell('${entry.quantity}', alignment: pw.Alignment.center),
                   dCell('${PdfTheme.naira}${fmt.format(entry.totalAmount)}', bold: true, alignment: pw.Alignment.centerRight),
@@ -503,7 +513,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Supplier: ${entry.companyName}',
+                                    'Paid: ₦${fmt.format(entry.payment ?? 0.0)} • Bal: ₦${fmt.format(entry.totalAmount - (entry.payment ?? 0.0))}',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: Color(0xFF1D4ED8),
@@ -593,16 +603,18 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
           children: [
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-              children: ['S/N', 'Date', 'Product', 'Company', 'Price', 'Qty', 'Total']
+              children: ['S/N', 'Date', 'Product', 'Price', 'Qty', 'Total', 'Paid', 'Balance']
                   .map((h) => pw.Padding(padding: const pw.EdgeInsets.all(4),
                       child: pw.Text(h, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold))))
                   .toList(),
             ),
             ...entries.asMap().entries.map((e) => pw.TableRow(children: [
               _cell('${e.key + 1}'), _cell(dateFmt.format(e.value.date)),
-              _cell(e.value.productName), _cell(e.value.companyName),
+              _cell(e.value.productName),
               _cell('${PdfTheme.naira}${fmt.format(e.value.price)}'), _cell('${e.value.quantity}'),
               _cell('${PdfTheme.naira}${fmt.format(e.value.totalAmount)}'),
+              _cell('${PdfTheme.naira}${fmt.format(e.value.payment ?? 0.0)}'),
+              _cell('${PdfTheme.naira}${fmt.format(e.value.totalAmount - (e.value.payment ?? 0.0))}'),
             ])),
           ],
         ),
@@ -664,7 +676,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                         children: [
                           TableRow(
                             decoration: BoxDecoration(color: headerBg),
-                            children: ['S/N', 'Date', 'Product', 'Company', 'Price', 'Qty', 'Total']
+                            children: ['S/N', 'Date', 'Product', 'Price', 'Qty', 'Total', 'Paid', 'Balance']
                                 .map((h) => Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                       child: Text(h, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: textColor)),
@@ -681,10 +693,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                                 _tCell('${i + 1}', mutedColor),
                                 _tCell(dateFmt.format(entry.date), mutedColor, size: 9),
                                 _tCell(entry.productName, textColor, bold: true),
-                                _tCell(entry.companyName, AppTheme.primaryColor),
                                 _tCell('\u20a6${fmt.format(entry.price)}', textColor),
                                 _tCell('${entry.quantity}', textColor),
                                 _tCell('\u20a6${fmt.format(entry.totalAmount)}', AppTheme.successColor, bold: true),
+                                _tCell('\u20a6${fmt.format(entry.payment ?? 0.0)}', AppTheme.primaryColor),
+                                _tCell('\u20a6${fmt.format(entry.totalAmount - (entry.payment ?? 0.0))}', AppTheme.errorColor, bold: true),
                               ],
                             );
                           }),
@@ -812,13 +825,13 @@ class _HeaderCard extends StatelessWidget {
 class _FinancialSummaryCard extends StatelessWidget {
   final double totalSpent;
   final int totalQty;
-  final int suppliersCount;
+  final double totalPaid;
   final NumberFormat fmt;
 
   const _FinancialSummaryCard({
     required this.totalSpent,
     required this.totalQty,
-    required this.suppliersCount,
+    required this.totalPaid,
     required this.fmt,
   });
 
@@ -889,7 +902,7 @@ class _FinancialSummaryCard extends StatelessWidget {
           const SizedBox(width: 8),
           buildItem('TOTAL QTY', '$totalQty', const Color(0xFF4F46E5), const Color(0xFFEEF2FF), Icons.inventory_rounded),
           const SizedBox(width: 8),
-          buildItem('SUPPLIERS', '$suppliersCount', const Color(0xFFF59E0B), const Color(0xFFFEF3C7), Icons.business_rounded),
+          buildItem('TOTAL PAID', '₦${fmt.format(totalPaid)}', const Color(0xFFF59E0B), const Color(0xFFFEF3C7), Icons.payments_rounded),
         ],
       ),
     );
@@ -1098,7 +1111,7 @@ class _ReceiveFeed extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Supplier: ${entry.companyName} • $dateStr',
+                          'Paid: ₦${fmt.format(entry.payment ?? 0.0)} • Bal: ₦${fmt.format(entry.totalAmount - (entry.payment ?? 0.0))} • $dateStr',
                           style: const TextStyle(
                             fontSize: 11,
                             color: Color(0xFF64748B),
@@ -1197,18 +1210,20 @@ class _ReceiveFeed extends StatelessWidget {
   Widget build(BuildContext context) {
     int totalQty = 0;
     double totalSpentSum = 0;
+    double totalPaidSum = 0;
     for (final entry in entries) {
       totalQty += entry.quantity;
       totalSpentSum += entry.totalAmount;
+      totalPaidSum += entry.payment ?? 0.0;
     }
 
     const double dateWidth = 70;
     const double productWidth = 120;
-    const double companyWidth = 100;
+    const double paidWidth = 100;
     const double priceWidth = 80;
     const double qtyWidth = 45;
     const double totalWidth = 90;
-    const double totalTableWidth = dateWidth + productWidth + companyWidth + priceWidth + qtyWidth + totalWidth; // 505
+    const double totalTableWidth = dateWidth + productWidth + paidWidth + priceWidth + qtyWidth + totalWidth; // 505
 
     const accentColor = Color(0xFF10B981);
 
@@ -1275,7 +1290,7 @@ class _ReceiveFeed extends StatelessWidget {
                         children: [
                           _buildHeaderCell('Date', width: dateWidth),
                           _buildHeaderCell('Product', width: productWidth),
-                          _buildHeaderCell('Supplier', width: companyWidth),
+                          _buildHeaderCell('Paid (₦)', width: paidWidth, alignment: Alignment.centerRight),
                           _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
                           _buildHeaderCell('Qty', width: qtyWidth, alignment: Alignment.center),
                           _buildHeaderCell('Total Value (₦)', width: totalWidth, alignment: Alignment.centerRight, showRightDivider: false),
@@ -1329,7 +1344,7 @@ class _ReceiveFeed extends StatelessWidget {
                                   children: [
                                     _buildCell(dateStr, width: dateWidth),
                                     _buildCell(entry.productName, width: productWidth, bold: true),
-                                    _buildCell(entry.companyName, width: companyWidth, textColor: AppTheme.primaryColor),
+                                    _buildCell('₦${fmt.format(entry.payment ?? 0.0)}', width: paidWidth, alignment: Alignment.centerRight, textColor: AppTheme.primaryColor),
                                     _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
                                     _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
                                     _buildCell(
@@ -1358,7 +1373,7 @@ class _ReceiveFeed extends StatelessWidget {
                         children: [
                           _buildCell('Totals', width: dateWidth, bold: true, textColor: const Color(0xFF475569)),
                           _buildCell('', width: productWidth),
-                          _buildCell('', width: companyWidth),
+                          _buildCell('₦${fmt.format(totalPaidSum)}', width: paidWidth, alignment: Alignment.centerRight, textColor: AppTheme.primaryColor, bold: true),
                           _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
                           _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
                           _buildCell(
@@ -1412,7 +1427,7 @@ class _ReceiveEntrySheet extends ConsumerStatefulWidget {
 class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
   final _formKey = GlobalKey<FormState>();
   final _productCtrl = TextEditingController();
-  final _companyCtrl = TextEditingController();
+  final _paymentCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _qtyCtrl = TextEditingController();
   final _totalCtrl = TextEditingController();
@@ -1425,16 +1440,18 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
     if (widget.existing != null) {
       final e = widget.existing!;
       _productCtrl.text = e.productName;
-      _companyCtrl.text = e.companyName;
+      _paymentCtrl.text = _numFmt.format(e.payment ?? 0.0);
       _priceCtrl.text = _numFmt.format(e.price);
       _qtyCtrl.text = e.quantity.toString();
       _totalCtrl.text = _numFmt.format(e.totalAmount);
+    } else {
+      _paymentCtrl.text = '0';
     }
   }
 
   @override
   void dispose() {
-    _productCtrl.dispose(); _companyCtrl.dispose();
+    _productCtrl.dispose(); _paymentCtrl.dispose();
     _priceCtrl.dispose(); _qtyCtrl.dispose(); _totalCtrl.dispose();
     super.dispose();
   }
@@ -1448,20 +1465,23 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final notifier = ref.read(receiveNotifierProvider.notifier);
+    final paymentVal = CurrencyInputFormatter.parse(_paymentCtrl.text);
     if (widget.existing != null) {
       final e = widget.existing!;
       await notifier.update(ReceiveEntry(
         id: e.id, date: e.date,
-        productName: _productCtrl.text.trim(), companyName: _companyCtrl.text.trim(),
+        productName: _productCtrl.text.trim(), companyName: '',
         price: CurrencyInputFormatter.parse(_priceCtrl.text),
         quantity: int.parse(_qtyCtrl.text.trim()),
         totalAmount: CurrencyInputFormatter.parse(_totalCtrl.text),
+        payment: paymentVal,
       ));
     } else {
       await notifier.add(
-        product: _productCtrl.text.trim(), company: _companyCtrl.text.trim(),
+        product: _productCtrl.text.trim(),
         price: CurrencyInputFormatter.parse(_priceCtrl.text),
         qty: int.parse(_qtyCtrl.text.trim()),
+        payment: paymentVal,
       );
     }
     if (mounted) Navigator.pop(context);
@@ -1489,9 +1509,6 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
             _label('Product Name', textMuted),
             TextFormField(controller: _productCtrl, decoration: const InputDecoration(hintText: 'e.g. LIN ROMAN 150y'), validator: (v) => v!.trim().isEmpty ? 'Required' : null),
             const SizedBox(height: 14),
-            _label('Company / Supplier', textMuted),
-            TextFormField(controller: _companyCtrl, decoration: const InputDecoration(hintText: 'e.g. Diamond Textiles'), validator: (v) => v!.trim().isEmpty ? 'Required' : null),
-            const SizedBox(height: 14),
             Row(children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _label('Price (₦)', textMuted),
@@ -1513,6 +1530,12 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
             TextFormField(controller: _totalCtrl, readOnly: true,
                 decoration: const InputDecoration(hintText: '0.00', prefixText: '₦ ',
                     filled: true, fillColor: Color(0xFFF1F5F9))),
+            const SizedBox(height: 14),
+            _label('Payment Made (₦)', textMuted),
+            TextFormField(controller: _paymentCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [CurrencyInputFormatter()],
+                decoration: const InputDecoration(hintText: '0.00'),
+                validator: (v) => v!.trim().isEmpty ? 'Required' : null),
             const SizedBox(height: 24),
             SizedBox(width: double.infinity, height: 54,
               child: ElevatedButton(

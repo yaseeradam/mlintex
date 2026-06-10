@@ -7,6 +7,7 @@ class Product {
   final String? barcode;
   final DateTime updatedAt;
   final bool isSynced;
+  final String? imagePath;
 
   const Product({
     required this.id,
@@ -17,6 +18,7 @@ class Product {
     this.barcode,
     required this.updatedAt,
     this.isSynced = false,
+    this.imagePath,
   });
 
   Product copyWith({
@@ -28,6 +30,7 @@ class Product {
     String? barcode,
     DateTime? updatedAt,
     bool? isSynced,
+    String? imagePath,
   }) {
     return Product(
       id: id ?? this.id,
@@ -38,6 +41,7 @@ class Product {
       barcode: barcode ?? this.barcode,
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,
+      imagePath: imagePath ?? this.imagePath,
     );
   }
 }

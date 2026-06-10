@@ -4,7 +4,11 @@ import '../models/customer_ledger_model.dart';
 class CustomerLedgerLocalDataSource {
   static const String _boxName = 'customer_ledger';
 
-  Future<Box> get _box async => Hive.openBox(_boxName);
+  Future<Box> get _box async {
+    final authBox = Hive.box('auth');
+    final shopId = authBox.get('active_shop_id', defaultValue: '1') as String;
+    return Hive.openBox('${_boxName}_$shopId');
+  }
 
   Future<List<CustomerLedgerEntryModel>> getEntriesForCustomer(
       String customerId) async {

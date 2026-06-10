@@ -25,13 +25,14 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       barcode: fields[5] as String?,
       updatedAt: fields[6] as DateTime,
       isSynced: fields[7] as bool,
+      imagePath: fields[8] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ProductModel obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       ..writeByte(6)
       ..write(obj.updatedAt)
       ..writeByte(7)
-      ..write(obj.isSynced);
+      ..write(obj.isSynced)
+      ..writeByte(8)
+      ..write(obj.imagePath);
   }
 
   @override

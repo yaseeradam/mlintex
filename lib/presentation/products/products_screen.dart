@@ -16,6 +16,7 @@ import '../../core/providers/auth_provider.dart';
 import '../widgets/quick_add_product_sheet.dart';
 import '../widgets/app_feedback.dart';
 import 'product_provider.dart';
+import '../widgets/glass_container.dart';
 
 // ── Screen ─────────────────────────────────────────────────────────────────
 
@@ -29,7 +30,7 @@ class ProductsScreen extends ConsumerStatefulWidget {
 class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   final _searchController = TextEditingController();
   String _selectedCategory = 'All';
-  bool _isGridView = true;
+
 
   final _fmt = NumberFormat('#,##0', 'en_US');
 
@@ -117,43 +118,15 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       onRecordProduct: () => _showAddSheet(context),
                     ),
                     const SizedBox(height: 16),
-                    // Toggle + Category Lists
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'INVENTORY CATALOG',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF64748B),
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        // Segmented Toggle
-                        Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE2E8F0),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: const EdgeInsets.all(3),
-                          child: Row(
-                            children: [
-                              _ViewToggleBtn(
-                                icon: PhosphorIconsRegular.squaresFour,
-                                active: _isGridView,
-                                onTap: () => setState(() => _isGridView = true),
-                              ),
-                              const SizedBox(width: 4),
-                              _ViewToggleBtn(
-                                icon: PhosphorIconsRegular.table,
-                                active: !_isGridView,
-                                onTap: () => setState(() => _isGridView = false),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    // Header Title
+                    const Text(
+                      'INVENTORY CATALOG',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.8,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     // Search box
@@ -182,20 +155,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     // Categories
                     _buildCategoryFilter(products),
                     const SizedBox(height: 12),
-                    // Dual View Layout
-                    _isGridView
-                        ? _buildGridView(filtered)
-                        : _ProductsLedgerFeed(
-                            entries: filtered,
-                            fmt: _fmt,
-                            cardBg: cardBg,
-                            borderColor: borderColor,
-                            textPrimary: textPrimary,
-                            textMuted: textMuted,
-                            onEdit: (p) => _showAddSheet(context, existing: p),
-                            onDelete: (p) => _showDeleteDialog(context, p.id, p.name),
-                            onExport: (p) => _showRowExportSheet(context, p, authState),
-                          ),
+                    // Grid View Layout
+                    _buildGridView(filtered),
                     const SizedBox(height: 100),
                   ],
                 ),
@@ -250,6 +211,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   }
 
   Widget _buildGridView(List<dynamic> filtered) {
+    final authState = ref.read(authProvider);
     if (filtered.isEmpty) {
       return Container(
         width: double.infinity,
@@ -272,17 +234,16 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 0.78,
+        childAspectRatio: 0.92,
       ),
       itemCount: filtered.length,
       itemBuilder: (_, i) {
         final product = filtered[i];
         return _ProductCard(
           product: product,
+          onTap: () => _showRowActionMenu(context, product, authState),
           onEdit: () => _showAddSheet(context, existing: product),
           onDelete: () => _showDeleteDialog(context, product.id, product.name),
-          onIncrease: () => ref.read(productNotifierProvider.notifier).updateQuantity(product.id, 1),
-          onDecrease: () => ref.read(productNotifierProvider.notifier).updateQuantity(product.id, -1),
         );
       },
     );
@@ -382,6 +343,238 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showRowActionMenu(BuildContext context, dynamic entry, AuthState authState) {
+    final style = ProductStyleUtil.getStyle(entry.category, entry.name);
+    final accentColor = style.colors.first;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Consumer(
+        builder: (context, ref, _) {
+          final productsList = ref.watch(productsProvider).value ?? [];
+          final currentEntry = productsList.where((p) => p.id == entry.id).firstOrNull ?? entry;
+          final isLowStock = currentEntry.quantity < 5;
+
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          gradient: currentEntry.imagePath == null
+                              ? LinearGradient(colors: style.colors)
+                              : null,
+                          shape: BoxShape.circle,
+                          image: currentEntry.imagePath != null
+                              ? DecorationImage(
+                                  image: FileImage(File(currentEntry.imagePath!)),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        alignment: Alignment.center,
+                        child: currentEntry.imagePath == null
+                            ? Text(
+                                currentEntry.name.isNotEmpty ? currentEntry.name[0].toUpperCase() : '?',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              currentEntry.name,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Category: ${currentEntry.category ?? "Other"}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF64748B),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '₦${_fmt.format(currentEntry.price * currentEntry.quantity)}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: accentColor,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '₦${_fmt.format(currentEntry.price)} / unit',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Adjust Stock Level',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
+                      ),
+                      Row(
+                        children: [
+                          _RowSheetQtyBtn(
+                            icon: PhosphorIconsRegular.minus,
+                            onTap: () {
+                              ref.read(productNotifierProvider.notifier).updateQuantity(currentEntry.id, -1);
+                            },
+                            color: accentColor,
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            margin: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: isLowStock ? AppTheme.errorColor.withOpacity(0.12) : accentColor.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${currentEntry.quantity}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                                color: isLowStock ? AppTheme.errorColor : accentColor,
+                              ),
+                            ),
+                          ),
+                          _RowSheetQtyBtn(
+                            icon: PhosphorIconsRegular.plus,
+                            onTap: () {
+                              ref.read(productNotifierProvider.notifier).updateQuantity(currentEntry.id, 1);
+                            },
+                            color: accentColor,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.edit_outlined, color: Color(0xFF3B82F6), size: 20),
+                  ),
+                  title: const Text('Edit Product Details', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  subtitle: const Text('Modify name, category, or unit price', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showAddSheet(context, existing: currentEntry);
+                  },
+                ),
+                const SizedBox(height: 4),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.ios_share_rounded, color: Color(0xFF10B981), size: 20),
+                  ),
+                  title: const Text('Share Spec Card', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  subtitle: const Text('Generate a beautiful spec PDF or Image', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showRowExportSheet(context, currentEntry, authState);
+                  },
+                ),
+                const SizedBox(height: 4),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 20),
+                  ),
+                  title: const Text('Delete Product', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFFEF4444))),
+                  subtitle: const Text('Permanently remove this fabric from inventory', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showDeleteDialog(context, currentEntry.id, currentEntry.name);
+                  },
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -788,34 +981,6 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   );
 }
 
-class _ViewToggleBtn extends StatelessWidget {
-  final IconData icon;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _ViewToggleBtn({required this.icon, required this.active, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: active ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: active ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 1))] : [],
-        ),
-        child: Icon(
-          icon,
-          size: 16,
-          color: active ? AppTheme.primaryColor : const Color(0xFF64748B),
-        ),
-      ),
-    );
-  }
-}
 
 class _HeaderCard extends StatelessWidget {
   final String shopName;
@@ -1028,527 +1193,7 @@ class _QuickActionButtons extends StatelessWidget {
   }
 }
 
-class _ProductsLedgerFeed extends StatelessWidget {
-  final List<dynamic> entries;
-  final NumberFormat fmt;
-  final Color cardBg;
-  final Color borderColor;
-  final Color textPrimary;
-  final Color textMuted;
-  final void Function(dynamic) onEdit;
-  final void Function(dynamic) onDelete;
-  final void Function(dynamic) onExport;
 
-  const _ProductsLedgerFeed({
-    required this.entries,
-    required this.fmt,
-    required this.cardBg,
-    required this.borderColor,
-    required this.textPrimary,
-    required this.textMuted,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onExport,
-  });
-
-  Widget _buildHeaderCell(
-    String text, {
-    required double width,
-    Alignment alignment = Alignment.centerLeft,
-    bool showRightDivider = true,
-  }) {
-    return Container(
-      width: width,
-      height: 38,
-      alignment: alignment,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        border: showRightDivider
-            ? const Border(right: BorderSide(color: Colors.white24, width: 0.8))
-            : null,
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-          color: Colors.white,
-          letterSpacing: 0.5,
-        ),
-        textAlign: alignment == Alignment.centerRight
-            ? TextAlign.right
-            : (alignment == Alignment.center ? TextAlign.center : TextAlign.left),
-      ),
-    );
-  }
-
-  Widget _buildCell(
-    String text, {
-    required double width,
-    bool bold = false,
-    Color? textColor,
-    Alignment alignment = Alignment.centerLeft,
-    bool showRightDivider = true,
-    double fontSize = 11,
-    EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-  }) {
-    return Container(
-      width: width,
-      height: 48,
-      alignment: alignment,
-      padding: padding,
-      decoration: BoxDecoration(
-        border: showRightDivider
-            ? const Border(right: BorderSide(color: Color(0xFFE2E8F0), width: 0.8))
-            : null,
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: fontSize,
-          fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-          color: textColor ?? const Color(0xFF0F172A),
-        ),
-        textAlign: alignment == Alignment.centerRight
-            ? TextAlign.right
-            : (alignment == Alignment.center ? TextAlign.center : TextAlign.left),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
-  void _showRowActionMenu(BuildContext context, dynamic entry) {
-    final style = ProductStyleUtil.getStyle(entry.category, entry.name);
-    final accentColor = style.colors.first;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Consumer(
-        builder: (context, ref, _) {
-          // Re-watch the products stream to react to quantity updates in real-time!
-          final productsList = ref.watch(productsProvider).value ?? [];
-          final currentEntry = productsList.where((p) => p.id == entry.id).firstOrNull ?? entry;
-          final isLowStock = currentEntry.quantity < 5;
-
-          return Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE2E8F0),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Spec Header inside bottom sheet
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: style.colors),
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          currentEntry.name.isNotEmpty ? currentEntry.name[0].toUpperCase() : '?',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              currentEntry.name,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              'Category: ${currentEntry.category ?? "Other"}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '₦${fmt.format(currentEntry.price * currentEntry.quantity)}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              color: accentColor,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '₦${fmt.format(currentEntry.price)} / unit',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // STOCK QUANTITY ADJUSTER
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Adjust Stock Level',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F172A)),
-                      ),
-                      Row(
-                        children: [
-                          _RowSheetQtyBtn(
-                            icon: PhosphorIconsRegular.minus,
-                            onTap: () {
-                              ref.read(productNotifierProvider.notifier).updateQuantity(currentEntry.id, -1);
-                            },
-                            color: accentColor,
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            margin: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: isLowStock ? AppTheme.errorColor.withOpacity(0.12) : accentColor.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${currentEntry.quantity}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 15,
-                                color: isLowStock ? AppTheme.errorColor : accentColor,
-                              ),
-                            ),
-                          ),
-                          _RowSheetQtyBtn(
-                            icon: PhosphorIconsRegular.plus,
-                            onTap: () {
-                              ref.read(productNotifierProvider.notifier).updateQuantity(currentEntry.id, 1);
-                            },
-                            color: accentColor,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // ACTIONS
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.edit_outlined, color: Color(0xFF3B82F6), size: 20),
-                  ),
-                  title: const Text('Edit Product Details', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                  subtitle: const Text('Modify name, category, or unit price', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    onEdit(currentEntry);
-                  },
-                ),
-                const SizedBox(height: 4),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFECFDF5),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.ios_share_rounded, color: Color(0xFF10B981), size: 20),
-                  ),
-                  title: const Text('Share Spec Card', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                  subtitle: const Text('Generate a beautiful spec PDF or Image', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    onExport(currentEntry);
-                  },
-                ),
-                const SizedBox(height: 4),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 20),
-                  ),
-                  title: const Text('Delete Product', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFFEF4444))),
-                  subtitle: const Text('Permanently remove this fabric from inventory', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    onDelete(currentEntry);
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    int totalRollsCount = 0;
-    double totalValuationSum = 0;
-    for (final entry in entries) {
-      totalRollsCount += entry.quantity as int;
-      totalValuationSum += (entry.price * entry.quantity) as double;
-    }
-
-    const double productWidth = 130;
-    const double categoryWidth = 90;
-    const double priceWidth = 85;
-    const double qtyWidth = 50;
-    const double totalValueWidth = 95;
-    const double totalTableWidth = productWidth + categoryWidth + priceWidth + qtyWidth + totalValueWidth; // 450
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.02),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(11),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: SizedBox(
-                width: totalTableWidth + 4,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF0F172A),
-                        border: Border(
-                          left: BorderSide(color: Color(0xFF0F172A), width: 4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          _buildHeaderCell('Product Name', width: productWidth),
-                          _buildHeaderCell('Category', width: categoryWidth),
-                          _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
-                          _buildHeaderCell('Qty', width: qtyWidth, alignment: Alignment.center),
-                          _buildHeaderCell('Stock Value (₦)', width: totalValueWidth, alignment: Alignment.centerRight, showRightDivider: false),
-                        ],
-                      ),
-                    ),
-                    if (entries.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 16),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.grid_off_rounded, size: 40, color: textMuted.withOpacity(0.4)),
-                            const SizedBox(height: 8),
-                            Text(
-                              'No products cataloged',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: List.generate(entries.length, (index) {
-                          final entry = entries[index];
-                          final style = ProductStyleUtil.getStyle(entry.category, entry.name);
-                          final accentColor = style.colors.first;
-                          final rowBgColor = index.isEven ? Colors.white : const Color(0xFFFAFAFA);
-                          
-                          final isLowStock = entry.quantity < 5;
-                          final priceStr = fmt.format(entry.price);
-                          final qtyStr = entry.quantity.toString();
-                          final totalValStr = '₦${fmt.format(entry.price * entry.quantity)}';
-
-                          return Material(
-                            color: rowBgColor,
-                            child: InkWell(
-                              onTap: () => _showRowActionMenu(context, entry),
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  border: Border(
-                                    left: BorderSide(color: Colors.transparent, width: 4), // Category color indicator
-                                    bottom: BorderSide(color: Color(0xFFE2E8F0), width: 0.8),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    // Custom border cell manually to draw category colored border on the left
-                                    Container(
-                                      width: productWidth,
-                                      height: 48,
-                                      alignment: Alignment.centerLeft,
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                                      decoration: BoxDecoration(
-                                        border: const Border(
-                                          left: BorderSide(color: Colors.transparent, width: 4),
-                                          right: BorderSide(color: Color(0xFFE2E8F0), width: 0.8),
-                                        ),
-                                        gradient: LinearGradient(
-                                          colors: [accentColor, accentColor.withOpacity(0.1)],
-                                          stops: const [0.03, 0.03],
-                                        ),
-                                      ),
-                                      child: Text(
-                                        entry.name,
-                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    _buildCell(entry.category ?? 'Other', width: categoryWidth, textColor: accentColor),
-                                    _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
-                                    _buildCell(
-                                      qtyStr,
-                                      width: qtyWidth,
-                                      alignment: Alignment.center,
-                                      bold: true,
-                                      textColor: isLowStock ? AppTheme.errorColor : const Color(0xFF0F172A),
-                                    ),
-                                    _buildCell(
-                                      totalValStr,
-                                      width: totalValueWidth,
-                                      bold: true,
-                                      alignment: Alignment.centerRight,
-                                      textColor: const Color(0xFF0F766E),
-                                      showRightDivider: false,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
-                    Container(
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF1F5F9),
-                        border: Border(
-                          left: BorderSide(color: Color(0xFF475569), width: 4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          _buildCell('Totals', width: productWidth, bold: true, textColor: const Color(0xFF475569)),
-                          _buildCell('', width: categoryWidth),
-                          _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
-                          _buildCell('$totalRollsCount', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
-                          _buildCell(
-                            '₦${fmt.format(totalValuationSum)}',
-                            width: totalValueWidth,
-                            bold: true,
-                            alignment: Alignment.centerRight,
-                            textColor: const Color(0xFF0F766E),
-                            showRightDivider: false,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline_rounded, size: 12, color: Color(0xFF94A3B8)),
-              SizedBox(width: 4),
-              Text(
-                '💡 Tip: Tap any row to Edit, Delete or share Product details.',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _RowSheetQtyBtn extends StatelessWidget {
   final IconData icon;
@@ -1576,303 +1221,132 @@ class _RowSheetQtyBtn extends StatelessWidget {
 
 class _ProductCard extends StatelessWidget {
   final dynamic product;
+  final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final VoidCallback onIncrease;
-  final VoidCallback onDecrease;
 
   const _ProductCard({
     required this.product,
+    required this.onTap,
     required this.onEdit,
     required this.onDelete,
-    required this.onIncrease,
-    required this.onDecrease,
   });
 
   @override
   Widget build(BuildContext context) {
     final style = ProductStyleUtil.getStyle(product.category, product.name);
+    final accentColor = style.colors.first;
     final isLowStock = product.quantity < 5;
     final fmt = NumberFormat('#,##0', 'en_US');
-    final accentColor = style.colors.first;
+    const textPrimary = Color(0xFF0F172A);
+    const textMuted = Color(0xFF64748B);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Gradient Banner Section
-          Container(
-            height: 72,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: style.colors,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+    final initial = product.name.isNotEmpty ? product.name[0].toUpperCase() : '?';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: ModernCard(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: GestureDetector(
+                onTap: onEdit,
+                child: Container(
+                  width: 26, height: 26,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: const Icon(Icons.edit_rounded, size: 13, color: AppTheme.primaryColor),
+                ),
               ),
             ),
-            child: Stack(
-              children: [
-                // Stylized decorative background icon
-                Positioned(
-                  right: -10,
-                  bottom: -10,
-                  child: Opacity(
-                    opacity: 0.15,
-                    child: Icon(
-                      style.icon,
-                      size: 64,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                // Floating category glass tag
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.25),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withOpacity(0.15), width: 0.5),
-                    ),
-                    child: Text(
-                      (product.category ?? 'Fabric').toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ),
-                ),
-                // Category Icon circle in center
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-                    ),
-                    alignment: Alignment.center,
-                    child: Icon(
-                      style.icon,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                  ),
-                ),
-                // Edit/Delete dropdown options menu button
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: Theme(
-                    data: Theme.of(context).copyWith(
-                      cardColor: Colors.white,
-                    ),
-                    child: PopupMenuButton<String>(
-                      icon: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(PhosphorIconsRegular.dotsThreeVertical, color: Colors.white, size: 16),
-                      ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      onSelected: (val) {
-                        if (val == 'edit') onEdit();
-                        if (val == 'delete') onDelete();
-                      },
-                      itemBuilder: (_) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(PhosphorIconsRegular.pencilSimple, size: 16, color: Color(0xFF475569)),
-                              SizedBox(width: 8),
-                              Text('Edit', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(PhosphorIconsRegular.trash, size: 16, color: AppTheme.errorColor),
-                              const SizedBox(width: 8),
-                              const Text('Delete', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.errorColor)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Low stock indicator tag
-                if (isLowStock)
-                  Positioned(
-                    bottom: 8,
-                    left: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppTheme.errorColor,
-                        borderRadius: BorderRadius.circular(6),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.errorColor.withOpacity(0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          )
-                        ],
-                      ),
-                      child: const Text(
-                        'LOW STOCK',
+            const SizedBox(height: 2),
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: product.imagePath == null
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [accentColor.withOpacity(0.25), accentColor.withOpacity(0.1)],
+                      )
+                    : null,
+                border: Border.all(color: accentColor.withOpacity(0.35), width: 2),
+                image: product.imagePath != null
+                    ? DecorationImage(image: FileImage(File(product.imagePath!)), fit: BoxFit.cover)
+                    : null,
+              ),
+              child: product.imagePath == null
+                  ? Center(
+                      child: Text(
+                        initial,
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 7,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
+                          color: accentColor,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
                         ),
                       ),
-                    ),
-                  ),
-              ],
+                    )
+                  : null,
             ),
-          ),
-          // Details & Interactive Adjuster Section
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          product.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12.5,
-                            color: Color(0xFF0F172A),
-                            height: 1.25,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '₦${fmt.format(product.price)} / yd',
-                          style: TextStyle(
-                            color: accentColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _QtyBtn(
-                        icon: PhosphorIconsRegular.minus,
-                        onTap: onDecrease,
-                        color: accentColor,
-                      ),
-                      Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          padding: const EdgeInsets.symmetric(vertical: 5),
-                          decoration: BoxDecoration(
-                            color: isLowStock 
-                              ? AppTheme.errorColor.withOpacity(0.08) 
-                              : accentColor.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isLowStock 
-                                ? AppTheme.errorColor.withOpacity(0.15) 
-                                : accentColor.withOpacity(0.15),
-                              width: 1,
-                            ),
-                          ),
-                          alignment: Alignment.center,
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              '${product.quantity} yds',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 11.5,
-                                color: isLowStock ? AppTheme.errorColor : accentColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      _QtyBtn(
-                        icon: PhosphorIconsRegular.plus,
-                        onTap: onIncrease,
-                        color: accentColor,
-                      ),
-                    ],
-                  ),
-                ],
+            const SizedBox(height: 6),
+            Text(
+              product.name,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textPrimary),
+            ),
+            if (product.category != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                product.category!,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10, color: accentColor, fontWeight: FontWeight.w500),
+              ),
+            ],
+            const SizedBox(height: 2),
+            Text(
+              '${product.quantity} yds',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                color: isLowStock ? AppTheme.errorColor : textMuted,
+                fontWeight: isLowStock ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QtyBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final Color color;
-
-  const _QtyBtn({required this.icon, required this.onTap, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Ink(
-          width: 30,
-          height: 30,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Center(
-            child: Icon(icon, size: 13, color: color),
-          ),
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              decoration: BoxDecoration(
+                color: isLowStock
+                    ? AppTheme.errorColor.withOpacity(0.1)
+                    : AppTheme.successColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '₦${fmt.format(product.price)} / yd',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: isLowStock ? AppTheme.errorColor : AppTheme.successColor,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

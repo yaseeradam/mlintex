@@ -76,9 +76,10 @@ class SalesLedgerEntryAdapter extends TypeAdapter<SalesLedgerEntry> {
 
 // ── Provider ───────────────────────────────────────────────────────────────
 
-final salesLedgerBoxProvider = Provider<Box<SalesLedgerEntry>>(
-  (ref) => Hive.box<SalesLedgerEntry>('sales_ledger'),
-);
+final salesLedgerBoxProvider = Provider<Box<SalesLedgerEntry>>((ref) {
+  final shopId = ref.watch(activeShopIdProvider);
+  return Hive.box<SalesLedgerEntry>('sales_ledger_$shopId');
+});
 
 final salesLedgerEntriesProvider = StreamProvider<List<SalesLedgerEntry>>((ref) async* {
   final box = ref.watch(salesLedgerBoxProvider);
@@ -108,9 +109,9 @@ class SalesLedgerNotifier extends Notifier<void> {
     await _box.put(e.id, e);
   }
 
-  Future<void> addPayment({required String bankOrCash, required double amount}) async {
+  Future<void> addPayment({required String bankOrCash, required double amount, String? personName}) async {
     final e = SalesLedgerEntry(id: const Uuid().v4(), date: DateTime.now(),
-        outItem: bankOrCash, totalAmount: amount, typeIndex: 0);
+        outItem: bankOrCash, totalAmount: amount, typeIndex: 0, personName: personName);
     await _box.put(e.id, e);
   }
 
@@ -436,11 +437,8 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
       child: child ?? pw.Text(t, style: pw.TextStyle(fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
     );
 
-    final desc = isSale
-        ? (entry.personName != null && entry.personName!.isNotEmpty
-            ? '${entry.inItem ?? ''} (${entry.personName})'
-            : (entry.inItem ?? ''))
-        : 'PAYMENT';
+    final name = entry.personName ?? '—';
+    final desc = isSale ? (entry.inItem ?? '') : (entry.outItem ?? 'PAYMENT');
     final priceStr = isSale && entry.price != null ? fmt.format(entry.price) : '—';
     final qtyStr = isSale && entry.quantity != null ? entry.quantity.toString() : '—';
     final goodsTotal = isSale ? '${PdfTheme.naira}${fmt.format(entry.totalAmount)}' : '—';
@@ -462,18 +460,20 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
             border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
             columnWidths: {
               0: const pw.FixedColumnWidth(80),   // Date
-              1: const pw.FlexColumnWidth(2.5),  // Item/Desc
-              2: const pw.FlexColumnWidth(1.2),  // Price (₦)
-              3: const pw.FlexColumnWidth(0.8),  // Qty
-              4: const pw.FlexColumnWidth(1.3),  // IN (₦)
-              5: const pw.FlexColumnWidth(1.3),  // OUT (₦)
-              6: const pw.FlexColumnWidth(1.5),  // Balance (₦)
+              1: const pw.FlexColumnWidth(1.8),  // Name
+              2: const pw.FlexColumnWidth(2.0),  // Item/Desc
+              3: const pw.FlexColumnWidth(1.2),  // Price (₦)
+              4: const pw.FlexColumnWidth(0.8),  // Qty
+              5: const pw.FlexColumnWidth(1.3),  // IN (₦)
+              6: const pw.FlexColumnWidth(1.3),  // OUT (₦)
+              7: const pw.FlexColumnWidth(1.5),  // Balance (₦)
             },
             children: [
               pw.TableRow(
                 decoration: const pw.BoxDecoration(color: PdfColors.grey200),
                 children: [
                   hCell('Date'),
+                  hCell('Name'),
                   hCell('Item/Desc'),
                   hCell('Price (₦)', alignment: pw.Alignment.centerRight),
                   hCell('Qty', alignment: pw.Alignment.center),
@@ -485,6 +485,7 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
               pw.TableRow(
                 children: [
                   dCell(dateFmt.format(entry.date)),
+                  dCell(name, bold: true),
                   dCell(desc, bold: true),
                   dCell(priceStr, alignment: pw.Alignment.centerRight),
                   dCell(qtyStr, alignment: pw.Alignment.center),
@@ -644,11 +645,7 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    isSale
-                                        ? (entry.personName != null && entry.personName!.isNotEmpty
-                                            ? '${entry.inItem ?? ''} (${entry.personName})'
-                                            : (entry.inItem ?? ''))
-                                        : (entry.outItem ?? 'PAYMENT'),
+                                    isSale ? (entry.inItem ?? '') : (entry.outItem ?? 'PAYMENT'),
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w800,
@@ -658,6 +655,19 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 4),
+                                  if (entry.personName != null && entry.personName!.isNotEmpty) ...[
+                                    Text(
+                                      'Name: ${entry.personName}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF475569),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                  ],
                                   if (isSale) ...[
                                     Text(
                                       '₦${fmt.format(entry.price)} × ${entry.quantity} Bll',
@@ -767,7 +777,7 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
           children: [
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-              children: ['S/N', 'Date', 'IN', 'OUT', 'Price', 'Qty', 'Total Amount', 'Total Balance']
+              children: ['S/N', 'Date', 'Name', 'IN', 'OUT', 'Price', 'Qty', 'Total Amount', 'Total Balance']
                   .map((h) => pw.Padding(padding: const pw.EdgeInsets.all(4),
                       child: pw.Text(h, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold))))
                   .toList(),
@@ -776,13 +786,11 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
               final entry = e.value;
               final isSale = entry.typeIndex == 1;
               return pw.TableRow(children: [
-                _c('${e.key + 1}'), _c(dateFmt.format(entry.date)),
-                _c(isSale
-                    ? (entry.personName != null && entry.personName!.isNotEmpty
-                        ? '${entry.inItem ?? ''} (${entry.personName})'
-                        : (entry.inItem ?? ''))
-                    : ''),
-                _c(!isSale ? (entry.outItem ?? '') : ''),
+                _c('${e.key + 1}'),
+                _c(dateFmt.format(entry.date)),
+                _c(entry.personName ?? '—'),
+                _c(isSale ? (entry.inItem ?? '') : ''),
+                _c(!isSale ? (entry.outItem ?? 'PAYMENT') : ''),
                 _c(entry.price != null ? '${PdfTheme.naira}${fmt.format(entry.price)}' : ''),
                 _c(entry.quantity != null ? '${entry.quantity}' : ''),
                 _c('${PdfTheme.naira}${fmt.format(entry.totalAmount)}'),
@@ -854,7 +862,7 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
                         children: [
                           TableRow(
                             decoration: BoxDecoration(color: headerBg),
-                            children: ['S/N', 'Date', 'IN', 'OUT', 'Price', 'Qty', 'Total Amount', 'Total Balance']
+                            children: ['S/N', 'Date', 'Name', 'IN', 'OUT', 'Price', 'Qty', 'Total Amount', 'Total Balance']
                                 .map((h) => Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                       child: Text(h, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: textColor)),
@@ -871,15 +879,9 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
                               children: [
                                 _tCell('${i + 1}', mutedColor),
                                 _tCell(dateFmt.format(entry.date), mutedColor, size: 9),
-                                _tCell(
-                                    isSale
-                                        ? (entry.personName != null && entry.personName!.isNotEmpty
-                                            ? '${entry.inItem ?? ''}\n(${entry.personName})'
-                                            : (entry.inItem ?? ''))
-                                        : '',
-                                    textColor,
-                                    bold: true),
-                                _tCell(!isSale ? (entry.outItem ?? '') : '', AppTheme.successColor, bold: true),
+                                _tCell(entry.personName ?? '—', textColor, bold: true),
+                                _tCell(isSale ? (entry.inItem ?? '') : '', textColor, bold: true),
+                                _tCell(!isSale ? (entry.outItem ?? 'PAYMENT') : '', AppTheme.successColor, bold: true),
                                 _tCell(entry.price != null ? '\u20a6${fmt.format(entry.price)}' : '', textColor),
                                 _tCell(entry.quantity != null ? '${entry.quantity}' : '', textColor),
                                 _tCell('\u20a6${fmt.format(entry.totalAmount)}', AppTheme.primaryColor, bold: true),
@@ -1422,12 +1424,13 @@ class _SalesLedgerFeed extends StatelessWidget {
     }
 
     const double dateWidth = 65;
+    const double nameWidth = 100;
     const double itemWidth = 115;
     const double priceWidth = 80;
     const double qtyWidth = 40;
     const double outWidth = 90;
     const double balWidth = 95;
-    const double totalTableWidth = dateWidth + itemWidth + priceWidth + qtyWidth + outWidth + balWidth; // 485
+    const double totalTableWidth = dateWidth + nameWidth + itemWidth + priceWidth + qtyWidth + outWidth + balWidth; // 585
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1491,6 +1494,7 @@ class _SalesLedgerFeed extends StatelessWidget {
                       child: Row(
                         children: [
                           _buildHeaderCell('Date', width: dateWidth),
+                          _buildHeaderCell('Name', width: nameWidth),
                           _buildHeaderCell('Item/Desc', width: itemWidth),
                           _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
                           _buildHeaderCell('Qty', width: qtyWidth, alignment: Alignment.center),
@@ -1531,7 +1535,6 @@ class _SalesLedgerFeed extends StatelessWidget {
                           final balColor = entry.runningBalance > 0 ? balancePosColor : balanceNegColor;
                           
                           final dateStr = DateFormat('dd/MM/yy').format(entry.date);
-                          final descStr = isSale ? (entry.inItem ?? '') : 'PAYMENT';
                           final priceStr = isSale && entry.price != null ? fmt.format(entry.price) : '—';
                           final qtyStr = isSale && entry.quantity != null ? entry.quantity.toString() : '—';
                           final outStr = !isSale ? fmt.format(entry.totalAmount) : '—';
@@ -1550,39 +1553,11 @@ class _SalesLedgerFeed extends StatelessWidget {
                                 child: Row(
                                   children: [
                                     _buildCell(dateStr, width: dateWidth),
+                                    _buildCell(entry.personName ?? '—', width: nameWidth, bold: true),
                                     _buildCell(
-                                      isSale ? (entry.inItem ?? '') : descStr,
+                                      isSale ? (entry.inItem ?? '') : (entry.outItem ?? 'PAYMENT'),
                                       width: itemWidth,
                                       bold: true,
-                                      child: isSale && entry.personName != null && entry.personName!.isNotEmpty
-                                          ? Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  entry.inItem ?? '',
-                                                  style: const TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: Color(0xFF0F172A),
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  entry.personName!,
-                                                  style: const TextStyle(
-                                                    fontSize: 8.5,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: Color(0xFF64748B),
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ],
-                                            )
-                                          : null,
                                     ),
                                     _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
                                     _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
@@ -1641,6 +1616,7 @@ class _SalesLedgerFeed extends StatelessWidget {
                       child: Row(
                         children: [
                           _buildCell('Totals', width: dateWidth, bold: true, textColor: const Color(0xFF475569)),
+                          _buildCell('', width: nameWidth, bold: true, textColor: const Color(0xFF475569)),
                           _buildCell('IN: ₦${fmt.format(totalInSum)}', width: itemWidth, bold: true, textColor: const Color(0xFF1E3A8A), fontSize: 9.5),
                           _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
                           _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
@@ -1744,6 +1720,7 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final n = ref.read(salesLedgerNotifierProvider.notifier);
+    final pName = _personCtrl.text.trim().isEmpty ? null : _personCtrl.text.trim();
     if (widget.existing != null) {
       final e = widget.existing!;
       await n.update(SalesLedgerEntry(
@@ -1754,7 +1731,7 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
         quantity: _isSale ? int.tryParse(_qtyCtrl.text) : null,
         totalAmount: CurrencyInputFormatter.parse(_amountCtrl.text),
         typeIndex: _isSale ? 1 : 0,
-        personName: _isSale ? _personCtrl.text.trim() : null,
+        personName: pName,
       ));
     } else {
       if (_isSale) {
@@ -1762,10 +1739,12 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
             item: _itemCtrl.text.trim(),
             price: CurrencyInputFormatter.parse(_priceCtrl.text),
             qty: int.parse(_qtyCtrl.text.trim()),
-            personName: _personCtrl.text.trim());
+            personName: pName);
       } else {
-        await n.addPayment(bankOrCash: _itemCtrl.text.trim(),
-            amount: CurrencyInputFormatter.parse(_amountCtrl.text));
+        await n.addPayment(
+            bankOrCash: _itemCtrl.text.trim(),
+            amount: CurrencyInputFormatter.parse(_amountCtrl.text),
+            personName: pName);
       }
     }
     if (mounted) Navigator.pop(context);
@@ -1810,15 +1789,15 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
               decoration: InputDecoration(hintText: _isSale ? 'e.g. ZENITH 150y' : 'e.g. ACCESS BANK'),
               validator: (v) => v!.trim().isEmpty ? 'Required' : null,
             ),
+            const SizedBox(height: 14),
+            _lbl('Name', textMuted),
+            TextFormField(
+              controller: _personCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(hintText: 'e.g. JOHN DOE'),
+              validator: (v) => v!.trim().isEmpty ? 'Required' : null,
+            ),
             if (_isSale) ...[
-              const SizedBox(height: 14),
-              _lbl('Person Name', textMuted),
-              TextFormField(
-                controller: _personCtrl,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(hintText: 'e.g. JOHN DOE'),
-                validator: (v) => v!.trim().isEmpty ? 'Required' : null,
-              ),
               const SizedBox(height: 14),
               Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

@@ -2,11 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/ledger_entry.dart';
+import '../../core/providers/auth_provider.dart';
 
 const _boxName = 'ledger_entries';
 
 final ledgerBoxProvider = Provider<Box<LedgerEntry>>((ref) {
-  return Hive.box<LedgerEntry>(_boxName);
+  final shopId = ref.watch(activeShopIdProvider);
+  return Hive.box<LedgerEntry>('${_boxName}_$shopId');
 });
 
 final customerLedgerProvider =

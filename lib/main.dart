@@ -26,20 +26,31 @@ Future<void> main() async {
   await Hive.openBox('auth');
   await Hive.openBox('settings');
 
+  final authBox = Hive.box('auth');
+  final activeShopId = authBox.get('active_shop_id', defaultValue: '1') as String;
+
+  // Shop-specific boxes
+  await Hive.openBox<ProductModel>('products_$activeShopId');
+
   // Clear corrupted customer data if adapter changed
-  final customerBox = await Hive.openBox<CustomerModel>('customers');
+  final customerBox = await Hive.openBox<CustomerModel>('customers_$activeShopId');
   if (customerBox.isNotEmpty) {
     final names = customerBox.values.map((c) => c.name).toSet();
     if (names.length == 1) await customerBox.clear(); // all same name = corrupted
   }
 
+  await Hive.openBox<DebtModel>('debts_$activeShopId');
+  await Hive.openBox<SaleModel>('sales_$activeShopId');
+  await Hive.openBox('customer_ledger_$activeShopId');
+  await Hive.openBox('receive_orders_$activeShopId');
+
   // Ledger boxes
   Hive.registerAdapter(LedgerEntryAdapter());
   Hive.registerAdapter(ReceiveEntryAdapter());
   Hive.registerAdapter(SalesLedgerEntryAdapter());
-  await Hive.openBox<LedgerEntry>('ledger_entries');
-  await Hive.openBox<ReceiveEntry>('receive_entries');
-  await Hive.openBox<SalesLedgerEntry>('sales_ledger');
+  await Hive.openBox<LedgerEntry>('ledger_entries_$activeShopId');
+  await Hive.openBox<ReceiveEntry>('receive_entries_$activeShopId');
+  await Hive.openBox<SalesLedgerEntry>('sales_ledger_$activeShopId');
 
   await NotificationService.init();
 

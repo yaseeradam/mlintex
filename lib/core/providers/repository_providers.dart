@@ -17,23 +17,28 @@ import '../../domain/repositories/product_repository.dart';
 import '../../domain/repositories/sale_repository.dart';
 import '../../domain/repositories/receive_order_repository.dart';
 import '../../domain/repositories/customer_ledger_repository.dart';
+import 'auth_provider.dart';
 
 // ─── Data Source Providers ───────────────────────────────────────────────────
-final productLocalDataSourceProvider = Provider<ProductLocalDataSource>(
-  (ref) => ProductLocalDataSource(),
-);
+final productLocalDataSourceProvider = Provider<ProductLocalDataSource>((ref) {
+  ref.watch(activeShopIdProvider);
+  return ProductLocalDataSource();
+});
 
-final customerLocalDataSourceProvider = Provider<CustomerLocalDataSource>(
-  (ref) => CustomerLocalDataSource(),
-);
+final customerLocalDataSourceProvider = Provider<CustomerLocalDataSource>((ref) {
+  ref.watch(activeShopIdProvider);
+  return CustomerLocalDataSource();
+});
 
-final saleLocalDataSourceProvider = Provider<SaleLocalDataSource>(
-  (ref) => SaleLocalDataSource(),
-);
+final saleLocalDataSourceProvider = Provider<SaleLocalDataSource>((ref) {
+  ref.watch(activeShopIdProvider);
+  return SaleLocalDataSource();
+});
 
-final debtLocalDataSourceProvider = Provider<DebtLocalDataSource>(
-  (ref) => DebtLocalDataSource(),
-);
+final debtLocalDataSourceProvider = Provider<DebtLocalDataSource>((ref) {
+  ref.watch(activeShopIdProvider);
+  return DebtLocalDataSource();
+});
 
 // ─── Repository Providers ─────────────────────────────────────────────────────
 final productRepositoryProvider = Provider<ProductRepository>(
@@ -53,10 +58,10 @@ final debtRepositoryProvider = Provider<DebtRepository>(
 );
 
 // ─── Receive Orders ───────────────────────────────────────────────────────────
-final receiveOrderLocalDataSourceProvider =
-    Provider<ReceiveOrderLocalDataSource>(
-  (ref) => ReceiveOrderLocalDataSource(),
-);
+final receiveOrderLocalDataSourceProvider = Provider<ReceiveOrderLocalDataSource>((ref) {
+  ref.watch(activeShopIdProvider);
+  return ReceiveOrderLocalDataSource();
+});
 
 final receiveOrderRepositoryProvider = Provider<ReceiveOrderRepository>(
   (ref) => ReceiveOrderRepositoryImpl(
@@ -64,10 +69,10 @@ final receiveOrderRepositoryProvider = Provider<ReceiveOrderRepository>(
 );
 
 // ─── Customer Ledger ──────────────────────────────────────────────────────────
-final customerLedgerLocalDataSourceProvider =
-    Provider<CustomerLedgerLocalDataSource>(
-  (ref) => CustomerLedgerLocalDataSource(),
-);
+final customerLedgerLocalDataSourceProvider = Provider<CustomerLedgerLocalDataSource>((ref) {
+  ref.watch(activeShopIdProvider);
+  return CustomerLedgerLocalDataSource();
+});
 
 final customerLedgerRepositoryProvider = Provider<CustomerLedgerRepository>(
   (ref) => CustomerLedgerRepositoryImpl(

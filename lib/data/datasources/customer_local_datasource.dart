@@ -4,7 +4,11 @@ import '../models/customer_model.dart';
 class CustomerLocalDataSource {
   static const String _boxName = 'customers';
 
-  Future<Box<CustomerModel>> get _box async => Hive.openBox<CustomerModel>(_boxName);
+  Future<Box<CustomerModel>> get _box async {
+    final authBox = Hive.box('auth');
+    final shopId = authBox.get('active_shop_id', defaultValue: '1') as String;
+    return Hive.openBox<CustomerModel>('${_boxName}_$shopId');
+  }
 
   Future<List<CustomerModel>> getAllCustomers() async {
     final box = await _box;

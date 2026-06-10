@@ -4,7 +4,11 @@ import '../models/receive_order_model.dart';
 class ReceiveOrderLocalDataSource {
   static const String _boxName = 'receive_orders';
 
-  Future<Box> get _box async => Hive.openBox(_boxName);
+  Future<Box> get _box async {
+    final authBox = Hive.box('auth');
+    final shopId = authBox.get('active_shop_id', defaultValue: '1') as String;
+    return Hive.openBox('${_boxName}_$shopId');
+  }
 
   Future<List<ReceiveOrderModel>> getAllOrders() async {
     final box = await _box;
