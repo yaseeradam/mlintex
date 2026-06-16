@@ -18,6 +18,9 @@ import '../../domain/repositories/sale_repository.dart';
 import '../../domain/repositories/receive_order_repository.dart';
 import '../../domain/repositories/customer_ledger_repository.dart';
 import 'auth_provider.dart';
+import '../../data/datasources/shop_customer_local_datasource.dart';
+import '../../data/repositories/shop_customer_repository_impl.dart';
+import '../../domain/repositories/shop_customer_repository.dart';
 
 // ─── Data Source Providers ───────────────────────────────────────────────────
 final productLocalDataSourceProvider = Provider<ProductLocalDataSource>((ref) {
@@ -77,4 +80,15 @@ final customerLedgerLocalDataSourceProvider = Provider<CustomerLedgerLocalDataSo
 final customerLedgerRepositoryProvider = Provider<CustomerLedgerRepository>(
   (ref) => CustomerLedgerRepositoryImpl(
       ref.watch(customerLedgerLocalDataSourceProvider)),
+);
+
+// ─── Shop Customers ───────────────────────────────────────────────────────────
+final shopCustomerLocalDataSourceProvider = Provider<ShopCustomerLocalDataSource>((ref) {
+  ref.watch(activeShopIdProvider);
+  return ShopCustomerLocalDataSource();
+});
+
+final shopCustomerRepositoryProvider = Provider<ShopCustomerRepository>(
+  (ref) => ShopCustomerRepositoryImpl(
+      ref.watch(shopCustomerLocalDataSourceProvider)),
 );

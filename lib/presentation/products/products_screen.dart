@@ -60,7 +60,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
             backgroundColor: bg,
             elevation: 0,
             title: const Text(
-              'Shop Inventory',
+              'Store Inventory',
               style: TextStyle(color: textPrimary, fontWeight: FontWeight.w900, fontSize: 22, letterSpacing: -0.5),
             ),
             actions: [

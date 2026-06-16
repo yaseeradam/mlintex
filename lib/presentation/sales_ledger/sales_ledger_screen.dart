@@ -14,6 +14,9 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/pdf_theme.dart';
 import '../../core/utils/file_saver.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/repository_providers.dart';
+import '../../domain/entities/product.dart';
+import '../products/product_provider.dart';
 
 // ── Model ──────────────────────────────────────────────────────────────────
 
@@ -103,10 +106,23 @@ class SalesLedgerNotifier extends Notifier<void> {
   @override void build() {}
   Box<SalesLedgerEntry> get _box => ref.read(salesLedgerBoxProvider);
 
-  Future<void> addSale({required String item, required double price, required int qty, String? personName}) async {
+  Future<void> addSale({required String item, required double price, required int qty, String? personName, String? productId}) async {
     final e = SalesLedgerEntry(id: const Uuid().v4(), date: DateTime.now(),
         inItem: item, price: price, quantity: qty, totalAmount: price * qty, typeIndex: 1, personName: personName);
     await _box.put(e.id, e);
+
+    String? targetId = productId;
+    if (targetId == null) {
+      final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+      final match = allProds.firstWhere(
+        (p) => p.name.toLowerCase() == item.toLowerCase(),
+        orElse: () => null as dynamic,
+      );
+      if (match != null) targetId = match.id;
+    }
+    if (targetId != null) {
+      await ref.read(productNotifierProvider.notifier).updateQuantity(targetId, -qty);
+    }
   }
 
   Future<void> addPayment({required String bankOrCash, required double amount, String? personName}) async {
@@ -115,8 +131,47 @@ class SalesLedgerNotifier extends Notifier<void> {
     await _box.put(e.id, e);
   }
 
-  Future<void> update(SalesLedgerEntry e) async => _box.put(e.id, e);
-  Future<void> delete(String id) async => _box.delete(id);
+  Future<void> update(SalesLedgerEntry e, {String? productId}) async {
+    final oldEntry = _box.get(e.id);
+    if (oldEntry != null && oldEntry.typeIndex == 1) {
+      final oldQty = oldEntry.quantity ?? 0;
+      final newQty = e.quantity ?? 0;
+      final diff = newQty - oldQty;
+      if (diff != 0) {
+        String? targetId = productId;
+        if (targetId == null && e.inItem != null) {
+          final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+          final match = allProds.firstWhere(
+            (p) => p.name.toLowerCase() == e.inItem!.toLowerCase(),
+            orElse: () => null as dynamic,
+          );
+          if (match != null) targetId = match.id;
+        }
+        if (targetId != null) {
+          await ref.read(productNotifierProvider.notifier).updateQuantity(targetId, -diff);
+        }
+      }
+    }
+    await _box.put(e.id, e);
+  }
+
+  Future<void> delete(String id) async {
+    final entry = _box.get(id);
+    if (entry != null && entry.typeIndex == 1) {
+      final qty = entry.quantity ?? 0;
+      if (qty > 0 && entry.inItem != null) {
+        final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+        final match = allProds.firstWhere(
+          (p) => p.name.toLowerCase() == entry.inItem!.toLowerCase(),
+          orElse: () => null as dynamic,
+        );
+        if (match != null) {
+          await ref.read(productNotifierProvider.notifier).updateQuantity(match.id, qty);
+        }
+      }
+    }
+    await _box.delete(id);
+  }
 }
 
 final salesLedgerNotifierProvider =
@@ -1682,6 +1737,7 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
   final _amountCtrl = TextEditingController();
   final _personCtrl = TextEditingController();
   bool _isSale = true;
+  String? _selectedProductId;
 
   final _numFmt = NumberFormat('#,##0.##', 'en_US');
 
@@ -1732,14 +1788,15 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
         totalAmount: CurrencyInputFormatter.parse(_amountCtrl.text),
         typeIndex: _isSale ? 1 : 0,
         personName: pName,
-      ));
+      ), productId: _selectedProductId);
     } else {
       if (_isSale) {
         await n.addSale(
             item: _itemCtrl.text.trim(),
             price: CurrencyInputFormatter.parse(_priceCtrl.text),
             qty: int.parse(_qtyCtrl.text.trim()),
-            personName: pName);
+            personName: pName,
+            productId: _selectedProductId);
       } else {
         await n.addPayment(
             bankOrCash: _itemCtrl.text.trim(),
@@ -1756,6 +1813,7 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
     const textPrimary = Color(0xFF0F172A);
     const textMuted = Color(0xFF64748B);
     const borderColor = Color(0xFFE2E8F0);
+    final productsAsync = ref.watch(productsProvider);
 
     return Container(
       decoration: const BoxDecoration(color: bg, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
@@ -1783,10 +1841,91 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
               ]),
             ),
             const SizedBox(height: 16),
+            if (_isSale) ...[
+              _lbl('Select Product from Store', textMuted),
+              productsAsync.when(
+                data: (products) {
+                  if (_selectedProductId != null && !products.any((p) => p.id == _selectedProductId)) {
+                    _selectedProductId = null;
+                  }
+                  if (_selectedProductId == null && _itemCtrl.text.isNotEmpty) {
+                    final Product? match = products.firstWhere(
+                      (p) => p.name.toLowerCase() == _itemCtrl.text.trim().toLowerCase(),
+                      orElse: () => null as dynamic,
+                    );
+                    if (match != null) {
+                      _selectedProductId = match.id;
+                    }
+                  }
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: borderColor),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedProductId,
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        hint: const Text('Choose a product...', style: TextStyle(fontSize: 14, color: textMuted)),
+                        isExpanded: true,
+                        items: products.map((p) {
+                          return DropdownMenuItem<String>(
+                            value: p.id,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                Text('₦${_numFmt.format(p.price)} (${p.quantity} left)', 
+                                     style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val == null) return;
+                          final prod = products.firstWhere((p) => p.id == val);
+                          setState(() {
+                            _selectedProductId = val;
+                            _itemCtrl.text = prod.name;
+                            _priceCtrl.text = _numFmt.format(prod.price);
+                            _updateTotal();
+                          });
+                        },
+                      ),
+                    ),
+                  );
+                },
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: LinearProgressIndicator(),
+                ),
+                error: (err, _) => Text('Error: $err', style: const TextStyle(color: AppTheme.errorColor)),
+              ),
+            ],
             _lbl(_isSale ? 'Item Name' : 'Bank / Cash', textMuted),
             TextFormField(
               controller: _itemCtrl,
               decoration: InputDecoration(hintText: _isSale ? 'e.g. ZENITH 150y' : 'e.g. ACCESS BANK'),
+              onChanged: (val) {
+                if (_isSale && _selectedProductId != null) {
+                  final products = productsAsync.value ?? [];
+                  final Product? match = products.firstWhere(
+                    (p) => p.id == _selectedProductId,
+                    orElse: () => null as dynamic,
+                  );
+                  if (match == null || match.name != val) {
+                    setState(() {
+                      _selectedProductId = null;
+                    });
+                  }
+                }
+              },
               validator: (v) => v!.trim().isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 14),
@@ -1816,7 +1955,25 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(hintText: '0'),
                       onChanged: (_) => setState(_updateTotal),
-                      validator: (v) => v!.trim().isEmpty ? 'Required' : null),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Required';
+                        final q = int.tryParse(v);
+                        if (q == null || q <= 0) return 'Must be > 0';
+                        if (_isSale && _selectedProductId != null) {
+                          final products = productsAsync.value ?? [];
+                          final Product? prod = products.firstWhere((p) => p.id == _selectedProductId, orElse: () => null as dynamic);
+                          if (prod != null) {
+                            int allowedQty = prod.quantity;
+                            if (widget.existing != null && widget.existing!.typeIndex == 1) {
+                              allowedQty += widget.existing!.quantity ?? 0;
+                            }
+                            if (q > allowedQty) {
+                              return 'Only $allowedQty left';
+                            }
+                          }
+                        }
+                        return null;
+                      }),
                 ])),
               ]),
             ],

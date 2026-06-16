@@ -6,6 +6,7 @@ import '../customers/customers_screen.dart';
 import '../receive/receive_screen.dart';
 import '../products/products_screen.dart';
 import '../settings/settings_screen.dart';
+import '../shop/shop_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../data/datasources/sync_service.dart';
@@ -28,6 +29,7 @@ class AppShell extends ConsumerWidget {
     SalesLedgerScreen(),
     ReceiveScreen(),
     CustomersScreen(),
+    ShopScreen(),
     ProductsScreen(),
     SettingsScreen(),
   ];
@@ -88,7 +90,8 @@ class _ModernBottomNav extends ConsumerWidget {
       _NavItemData(icon: PhosphorIconsRegular.receipt, activeIcon: PhosphorIconsFill.receipt, label: 'Sales'),
       _NavItemData(icon: PhosphorIconsRegular.arrowCircleDown, activeIcon: PhosphorIconsFill.arrowCircleDown, label: 'Receive'),
       _NavItemData(icon: PhosphorIconsRegular.users, activeIcon: PhosphorIconsFill.users, label: 'Customers'),
-      _NavItemData(icon: PhosphorIconsRegular.storefront, activeIcon: PhosphorIconsFill.storefront, label: 'Shop'),
+      _NavItemData(icon: PhosphorIconsRegular.shoppingBag, activeIcon: PhosphorIconsFill.shoppingBag, label: 'Shop'),
+      _NavItemData(icon: PhosphorIconsRegular.storefront, activeIcon: PhosphorIconsFill.storefront, label: 'Store'),
       _NavItemData(icon: PhosphorIconsRegular.gear, activeIcon: PhosphorIconsFill.gear, label: 'Settings'),
     ];
 
