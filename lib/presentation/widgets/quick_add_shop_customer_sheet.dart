@@ -101,13 +101,13 @@ class _QuickAddShopCustomerSheetState extends ConsumerState<QuickAddShopCustomer
         AppFeedback.showSuccess(
           context,
           'Success',
-          _isEditing ? 'Shop updated.' : 'Shop added successfully.',
+          _isEditing ? 'Customer updated.' : 'Customer added successfully.',
         );
       }
     } catch (e) {
       if (mounted) {
         AppFeedback.hideLoading(context);
-        AppFeedback.showError(context, 'Error', 'Failed to save shop.');
+        AppFeedback.showError(context, 'Error', 'Failed to save customer.');
       }
     }
   }
@@ -148,10 +148,10 @@ class _QuickAddShopCustomerSheetState extends ConsumerState<QuickAddShopCustomer
 
               // Title
               Row(children: [
-                Icon(PhosphorIconsRegular.storefront, color: AppTheme.warningColor, size: 22),
+                Icon(PhosphorIconsRegular.userPlus, color: AppTheme.warningColor, size: 22),
                 const SizedBox(width: 10),
                 Text(
-                  _isEditing ? 'Edit Shop' : 'Add Shop',
+                  _isEditing ? 'Edit Customer' : 'Add Customer',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: textPrimary),
                 ),
               ]),
@@ -174,7 +174,7 @@ class _QuickAddShopCustomerSheetState extends ConsumerState<QuickAddShopCustomer
                               : null,
                         ),
                         child: _avatarPath == null
-                            ? Icon(PhosphorIconsRegular.storefront, size: 40, color: AppTheme.primaryColor.withOpacity(0.5))
+                            ? Icon(PhosphorIconsRegular.user, size: 40, color: AppTheme.primaryColor.withOpacity(0.5))
                             : null,
                       ),
                       Positioned(
@@ -200,13 +200,13 @@ class _QuickAddShopCustomerSheetState extends ConsumerState<QuickAddShopCustomer
               const SizedBox(height: 20),
 
               // Name
-              _lbl('Shop Name *', textMuted),
+              _lbl('Full Name *', textMuted),
               TextFormField(
                 controller: _nameController,
                 autofocus: !_isEditing,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(hintText: 'Shop name'),
-                validator: (v) => v!.trim().isEmpty ? 'Shop name is required' : null,
+                decoration: const InputDecoration(hintText: 'Customer name'),
+                validator: (v) => v!.trim().isEmpty ? 'Customer name is required' : null,
               ),
               const SizedBox(height: 14),
 
@@ -232,7 +232,7 @@ class _QuickAddShopCustomerSheetState extends ConsumerState<QuickAddShopCustomer
               TextFormField(
                 controller: _addressController,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(hintText: 'Shop address'),
+                decoration: const InputDecoration(hintText: 'Customer address'),
                 maxLines: 2,
               ),
               const SizedBox(height: 28),
@@ -242,9 +242,9 @@ class _QuickAddShopCustomerSheetState extends ConsumerState<QuickAddShopCustomer
                 height: 52,
                 child: ElevatedButton.icon(
                   onPressed: _submit,
-                  icon: Icon(_isEditing ? Icons.save_rounded : PhosphorIconsFill.storefront, size: 18),
+                  icon: Icon(_isEditing ? Icons.save_rounded : PhosphorIconsFill.userPlus, size: 18),
                   label: Text(
-                    _isEditing ? 'Save Changes' : 'Add Shop',
+                    _isEditing ? 'Save Changes' : 'Add Customer',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   style: ElevatedButton.styleFrom(

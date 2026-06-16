@@ -71,7 +71,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Shops',
+                        const Text('Shop Customers',
                             style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: textPrimary, letterSpacing: -1)),
                         shopsAsync.when(
                           data: (s) => Text('${s.length} total',
@@ -122,7 +122,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen>
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [BoxShadow(color: AppTheme.warningColor.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
                       ),
-                      child: const Icon(PhosphorIconsFill.storefront, color: Colors.white, size: 20),
+                      child: const Icon(PhosphorIconsFill.userPlus, color: Colors.white, size: 20),
                     ),
                   ),
                 ],
@@ -141,7 +141,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen>
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                   child: Row(children: [
-                    _StatPill(label: 'Shops', value: '${shops.length}', color: AppTheme.primaryColor),
+                    _StatPill(label: 'Customers', value: '${shops.length}', color: AppTheme.primaryColor),
                     const SizedBox(width: 8),
                     _StatPill(label: 'With Debt', value: '$totalDebts', color: AppTheme.errorColor),
                     const SizedBox(width: 8),
@@ -160,7 +160,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen>
                 controller: _searchController,
                 onChanged: (val) => ref.read(shopCustomerSearchProvider.notifier).update(val),
                 decoration: InputDecoration(
-                  hintText: 'Search by name, phone or shop number…',
+                  hintText: 'Search by name, phone or customer details…',
                   prefixIcon: const Icon(PhosphorIconsRegular.magnifyingGlass, color: AppTheme.textMuted, size: 18),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
@@ -194,13 +194,13 @@ class _ShopScreenState extends ConsumerState<ShopScreen>
                   if (filtered.isEmpty) {
                     return Center(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(PhosphorIconsRegular.shoppingBag, size: 64, color: AppTheme.textMuted.withOpacity(0.3)),
+                        Icon(PhosphorIconsRegular.users, size: 64, color: AppTheme.textMuted.withOpacity(0.3)),
                         const SizedBox(height: 16),
-                        Text(query.isEmpty ? 'No shops yet' : 'No results for "$query"',
+                        Text(query.isEmpty ? 'No customers yet' : 'No results for "$query"',
                             style: TextStyle(color: textMuted, fontSize: 16, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 6),
                         if (query.isEmpty)
-                          Text('Tap + to add your first shop',
+                          Text('Tap + to add your first customer',
                               style: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13)),
                       ]),
                     );

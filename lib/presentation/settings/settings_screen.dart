@@ -2,17 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../data/datasources/sync_service.dart';
-import '../widgets/glass_container.dart';
 import '../widgets/app_feedback.dart';
-import '../dashboard/debt_provider.dart';
-import '../sales/sale_provider.dart';
-import '../products/product_provider.dart';
+import '../widgets/glass_container.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -22,12 +18,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  int _selectedTab = 0; // 0 = Settings, 1 = Reports
-
   @override
   Widget build(BuildContext context) {
     const bgColor = Color(0xFFF1F5F9);
-    const surfaceLight = Color(0xFFE2E8F0);
     const titleColor = Color(0xFF0F172A);
 
     return Container(
@@ -41,7 +34,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Row(
                 children: [
                   Text(
-                    'More',
+                    'Settings',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w900,
@@ -53,106 +46,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
 
-            // Segmented Control
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: surfaceLight,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _SegmentButton(
-                        title: 'Settings',
-                        icon: PhosphorIconsRegular.gear,
-                        isSelected: _selectedTab == 0,
-                        onTap: () => setState(() => _selectedTab = 0),
-                      ),
-                    ),
-                    Expanded(
-                      child: _SegmentButton(
-                        title: 'Reports',
-                        icon: PhosphorIconsRegular.chartBar,
-                        isSelected: _selectedTab == 1,
-                        onTap: () => setState(() => _selectedTab = 1),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-
             // Content
-            Expanded(
-              child: _selectedTab == 0
-                  ? const _SettingsContent()
-                  : const _ReportsContent(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SegmentButton extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _SegmentButton({
-    required this.title,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const selectedBg = Colors.white;
-    const activeColor = AppTheme.primaryColor;
-    const inactiveColor = Color(0xFF94A3B8);
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? selectedBg : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  )
-                ]
-              : [],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? activeColor : inactiveColor,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? activeColor : inactiveColor,
-              ),
+            const Expanded(
+              child: _SettingsContent(),
             ),
           ],
         ),
@@ -262,37 +158,6 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
         ),
         const SizedBox(height: 24),
 
-        // My Shops Section
-        _SectionHeader('My Shops'),
-        _SettingsGroup(
-          children: [
-            ...authState.shops.map((shop) {
-              final isSelected = shop['id'] == authState.activeShopId;
-              return _ActionTile(
-                icon: PhosphorIconsRegular.storefront,
-                iconColor: isSelected ? AppTheme.primaryColor : const Color(0xFF94A3B8),
-                title: shop['name'] as String,
-                subtitle: (shop['shopNumber'] as String? ?? '').isNotEmpty
-                    ? 'Shop Number: ${shop['shopNumber']}'
-                    : ((shop['address'] as String? ?? '').isNotEmpty
-                        ? shop['address'] as String
-                        : 'No details specified'),
-                trailing: isSelected
-                    ? const Icon(Icons.check_circle_rounded, color: AppTheme.successColor, size: 22)
-                    : null,
-                onTap: () => ref.read(authProvider.notifier).switchShop(shop['id'] as String),
-              );
-            }),
-            _ActionTile(
-              icon: PhosphorIconsRegular.plusCircle,
-              iconColor: AppTheme.primaryColor,
-              title: 'Add New Shop',
-              trailing: Icon(PhosphorIconsRegular.caretRight, color: AppTheme.textMuted, size: 20),
-              onTap: () => _showAddShopDialog(context),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
 
         _SectionHeader('Preferences'),
         _SettingsGroup(
@@ -375,290 +240,6 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
     );
   }
 
-  void _showAddShopDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Add New Shop'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Enter a name for your new shop:'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                hintText: 'Shop Name',
-                prefixIcon: Icon(PhosphorIconsRegular.storefront),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final name = controller.text.trim();
-              if (name.isNotEmpty) {
-                ref.read(authProvider.notifier).addShop(name);
-                Navigator.pop(context);
-                AppFeedback.showSuccess(
-                  context,
-                  'Shop Created',
-                  'Switched to "$name" successfully.',
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportsContent extends ConsumerWidget {
-  const _ReportsContent();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currency = NumberFormat.currency(symbol: '₦', decimalDigits: 2);
-    final salesAsync = ref.watch(salesProvider);
-    final debtsAsync = ref.watch(debtsProvider);
-    final productsAsync = ref.watch(productsProvider);
-
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-      children: [
-        _SectionHeader('Revenue Overview'),
-        salesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text('Error: $e'),
-          data: (sales) {
-            final now = DateTime.now();
-            final todaySales = sales
-                .where((s) =>
-                    s.saleDate.day == now.day &&
-                    s.saleDate.month == now.month &&
-                    s.saleDate.year == now.year)
-                .toList();
-            final monthSales = sales
-                .where((s) =>
-                    s.saleDate.month == now.month &&
-                    s.saleDate.year == now.year)
-                .toList();
-
-            final todayTotal =
-                todaySales.fold<double>(0, (sum, s) => sum + s.totalAmount);
-            final monthTotal =
-                monthSales.fold<double>(0, (sum, s) => sum + s.totalAmount);
-
-            return Row(
-              children: [
-                Expanded(
-                  child: _StatCardPremium(
-                    title: 'Today',
-                    amount: currency.format(todayTotal),
-                    subtitle: '${todaySales.length} transactions',
-                    colors: const [
-                      Color(0xFF6366F1),
-                      Color(0xFF4F46E5),
-                    ],
-                    icon: PhosphorIconsFill.calendar,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCardPremium(
-                    title: 'This Month',
-                    amount: currency.format(monthTotal),
-                    subtitle: '${monthSales.length} transactions',
-                    colors: const [
-                      Color(0xFF10B981),
-                      Color(0xFF059669),
-                    ],
-                    icon: PhosphorIconsFill.chartBar,
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 24),
-
-        _SectionHeader('Inventory & Debts'),
-        debtsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => const SizedBox(),
-          data: (debts) {
-            final unpaid = debts.where((d) => !d.isPaid).toList();
-            final totalOwed = unpaid.fold<double>(
-                0, (sum, d) => sum + d.remainingAmount);
-
-            return Row(
-              children: [
-                Expanded(
-                  child: _StatCardPremium(
-                    title: 'Unpaid Debts',
-                    amount: currency.format(totalOwed),
-                    subtitle: '${unpaid.length} customers',
-                    colors: const [
-                      Color(0xFFF43F5E),
-                      Color(0xFFE11D48),
-                    ],
-                    icon: PhosphorIconsFill.receipt,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: productsAsync.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => const SizedBox(),
-                    data: (products) {
-                      final lowStock =
-                          products.where((p) => p.quantity < 5).length;
-                      return _StatCardPremium(
-                        title: 'Low Stock',
-                        amount: lowStock.toString(),
-                        subtitle: 'Items to restock',
-                        colors: const [
-                          Color(0xFFF59E0B),
-                          Color(0xFFD97706),
-                        ],
-                        icon: PhosphorIconsFill.warning,
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 24),
-
-        _SectionHeader('Top Selling Items'),
-        salesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => const SizedBox(),
-          data: (sales) {
-            if (sales.isEmpty) {
-              return ModernCard(
-                padding: const EdgeInsets.all(20),
-                child: const Center(
-                  child: Text(
-                    'No sales yet.',
-                    style: TextStyle(color: AppTheme.textSecondary),
-                  ),
-                ),
-              );
-            }
-
-            // Calculate top selling
-            final Map<String, int> productSales = {};
-            final Map<String, String> productNames = {};
-
-            for (final sale in sales) {
-              for (final item in sale.items) {
-                productSales[item.productId] =
-                    (productSales[item.productId] ?? 0) + item.quantity;
-                productNames[item.productId] = item.productName;
-              }
-            }
-
-            final sortedKeys = productSales.keys.toList()
-              ..sort(
-                  (a, b) => productSales[b]!.compareTo(productSales[a]!));
-
-            final top3 = sortedKeys.take(3).toList();
-
-            return Column(
-              children: top3.asMap().entries.map((entry) {
-                final index = entry.key;
-                final id = entry.value;
-                final medals = [
-                  PhosphorIconsFill.trophy,
-                  PhosphorIconsFill.medal,
-                  PhosphorIconsFill.star,
-                ];
-                final medalColors = [
-                  const Color(0xFFFBBF24),
-                  const Color(0xFF94A3B8),
-                  const Color(0xFFCD7F32),
-                ];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ModernCard(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: medalColors[index].withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            medals[index],
-                            color: medalColors[index],
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            productNames[id]!,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${productSales[id]} sold',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              color: AppTheme.primaryLight,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            );
-          },
-        ),
-      ],
-    );
-  }
 }
 
 class _SettingsGroup extends StatelessWidget {
@@ -824,84 +405,6 @@ class _ActionTile extends StatelessWidget {
             trailing ?? const SizedBox(),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _StatCardPremium extends StatelessWidget {
-  final String title;
-  final String amount;
-  final String subtitle;
-  final List<Color> colors;
-  final IconData icon;
-
-  const _StatCardPremium({
-    required this.title,
-    required this.amount,
-    required this.subtitle,
-    required this.colors,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: colors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: colors.first.withOpacity(0.25),
-            blurRadius: 15,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: Colors.white, size: 18),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            title,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            amount,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.75),
-              fontSize: 11,
-            ),
-          ),
-        ],
       ),
     );
   }
