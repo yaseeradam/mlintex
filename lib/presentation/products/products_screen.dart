@@ -30,6 +30,7 @@ class ProductsScreen extends ConsumerStatefulWidget {
 class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   final _searchController = TextEditingController();
   String _selectedCategory = 'All';
+  bool _isGridView = false;
 
 
   final _fmt = NumberFormat('#,##0', 'en_US');
@@ -64,6 +65,14 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               style: TextStyle(color: textPrimary, fontWeight: FontWeight.w900, fontSize: 22, letterSpacing: -0.5),
             ),
             actions: [
+              IconButton(
+                icon: Icon(
+                  _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
+                  color: AppTheme.primaryColor,
+                ),
+                tooltip: _isGridView ? 'Switch to Table View' : 'Switch to Grid View',
+                onPressed: () => setState(() => _isGridView = !_isGridView),
+              ),
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf_rounded, color: AppTheme.errorColor),
                 tooltip: 'Export Catalog PDF',
@@ -155,8 +164,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     // Categories
                     _buildCategoryFilter(products),
                     const SizedBox(height: 12),
-                    // Grid View Layout
-                    _buildGridView(filtered),
+                    // Toggle Layout
+                    _isGridView ? _buildGridView(filtered) : _buildTableView(filtered),
                     const SizedBox(height: 100),
                   ],
                 ),
@@ -246,6 +255,224 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           onDelete: () => _showDeleteDialog(context, product.id, product.name),
         );
       },
+    );
+  }
+
+  Widget _buildHeaderCell(
+    String text, {
+    required double width,
+    Alignment alignment = Alignment.centerLeft,
+    bool showRightDivider = true,
+  }) {
+    return Container(
+      width: width,
+      height: 38,
+      alignment: alignment,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        border: showRightDivider
+            ? const Border(right: BorderSide(color: Colors.white24, width: 0.8))
+            : null,
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+          letterSpacing: 0.5,
+        ),
+        textAlign: alignment == Alignment.centerRight
+            ? TextAlign.right
+            : (alignment == Alignment.center ? TextAlign.center : TextAlign.left),
+      ),
+    );
+  }
+
+  Widget _buildCell(
+    String text, {
+    required double width,
+    bool bold = false,
+    Color? textColor,
+    Alignment alignment = Alignment.centerLeft,
+    bool showRightDivider = true,
+    double fontSize = 11,
+    EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+  }) {
+    return Container(
+      width: width,
+      height: 48,
+      alignment: alignment,
+      padding: padding,
+      decoration: BoxDecoration(
+        border: showRightDivider
+            ? const Border(right: BorderSide(color: Color(0xFFE2E8F0), width: 0.8))
+            : null,
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+          color: textColor ?? const Color(0xFF0F172A),
+        ),
+        textAlign: alignment == Alignment.centerRight
+            ? TextAlign.right
+            : (alignment == Alignment.center ? TextAlign.center : TextAlign.left),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _buildTableView(List<dynamic> filtered) {
+    final authState = ref.read(authProvider);
+    if (filtered.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 16),
+        alignment: Alignment.center,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(PhosphorIconsRegular.package, size: 64, color: AppTheme.textMuted.withOpacity(0.3)),
+          const SizedBox(height: 16),
+          const Text('No products found', style: TextStyle(color: Color(0xFF64748B), fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          const Text('Tap + to add a product', style: TextStyle(color: AppTheme.textMuted, fontSize: 13)),
+        ]),
+      );
+    }
+
+    const double productWidth = 130;
+    const double categoryWidth = 90;
+    const double priceWidth = 90;
+    const double qtyWidth = 60;
+    const double totalWidth = 110;
+    const double totalTableWidth = productWidth + categoryWidth + priceWidth + qtyWidth + totalWidth;
+
+    const accentColor = Color(0xFF10B981);
+    const borderColor = Color(0xFFE2E8F0);
+
+    double totalAssetValue = 0;
+    int totalQty = 0;
+    for (final p in filtered) {
+      totalAssetValue += p.price * p.quantity;
+      totalQty += p.quantity as int;
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: SizedBox(
+            width: totalTableWidth + 4,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0F172A),
+                    border: Border(
+                      left: BorderSide(color: Color(0xFF0F172A), width: 4),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildHeaderCell('Product', width: productWidth),
+                      _buildHeaderCell('Category', width: categoryWidth),
+                      _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
+                      _buildHeaderCell('Qty (yds)', width: qtyWidth, alignment: Alignment.center),
+                      _buildHeaderCell('Total Value (₦)', width: totalWidth, alignment: Alignment.centerRight, showRightDivider: false),
+                    ],
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(filtered.length, (index) {
+                    final product = filtered[index];
+                    final rowBgColor = index.isEven ? Colors.white : const Color(0xFFFAFAFA);
+                    final style = ProductStyleUtil.getStyle(product.category, product.name);
+                    final rowAccentColor = style.colors.first;
+
+                    final priceStr = '₦${_fmt.format(product.price)}';
+                    final qtyStr = product.quantity.toString();
+                    final totalStr = '₦${_fmt.format(product.price * product.quantity)}';
+
+                    return Material(
+                      color: rowBgColor,
+                      child: InkWell(
+                        onTap: () => _showRowActionMenu(context, product, authState),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border(
+                              left: BorderSide(color: rowAccentColor, width: 4),
+                              bottom: const BorderSide(color: Color(0xFFE2E8F0), width: 0.8),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              _buildCell(product.name, width: productWidth, bold: true),
+                              _buildCell(product.category ?? 'Other', width: categoryWidth),
+                              _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
+                              _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
+                              _buildCell(
+                                totalStr,
+                                width: totalWidth,
+                                bold: true,
+                                alignment: Alignment.centerRight,
+                                textColor: rowAccentColor,
+                                showRightDivider: false,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF1F5F9),
+                    border: Border(
+                      left: BorderSide(color: Color(0xFF475569), width: 4),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildCell('Totals', width: productWidth, bold: true, textColor: const Color(0xFF475569)),
+                      _buildCell('', width: categoryWidth),
+                      _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
+                      _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
+                      _buildCell(
+                        '₦${_fmt.format(totalAssetValue)}',
+                        width: totalWidth,
+                        bold: true,
+                        alignment: Alignment.centerRight,
+                        textColor: accentColor,
+                        showRightDivider: false,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
