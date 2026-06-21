@@ -1064,12 +1064,26 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
 
   Future<void> _exportPdf(List<dynamic> products, NumberFormat fmt) async {
     final pdf = pw.Document(theme: await PdfTheme.load());
+    final auth = ref.read(authProvider);
+    final shopName = auth.shopName.isEmpty || auth.shopName.toLowerCase() == 'admin' ? 'M Lin Tex' : auth.shopName;
+
+    double totalAssetValue = 0;
+    int totalQty = 0;
+    for (final p in products) {
+      totalAssetValue += p.price * p.quantity;
+      totalQty += p.quantity as int;
+    }
+
     pdf.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(24),
       build: (ctx) => [
-        pw.Text('Store Products Catalog', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 12),
+        pw.Text(shopName, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 2),
+        pw.Text('Store Products Catalog Ledger', style: const pw.TextStyle(fontSize: 10)),
+        pw.SizedBox(height: 10),
+        pw.Divider(),
+        pw.SizedBox(height: 8),
         pw.Table(
           border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
           children: [
@@ -1083,9 +1097,21 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
             ...products.asMap().entries.map((e) => pw.TableRow(children: [
               _cCell('${e.key + 1}'), _cCell(e.value.name),
               _cCell(e.value.category ?? 'Other'),
-              _cCell('${PdfTheme.naira}${fmt.format(e.value.price)}'), _cCell('${e.value.quantity}'),
+              _cCell('${PdfTheme.naira}${fmt.format(e.value.price)}'),
+              _cCell('${e.value.quantity}'),
               _cCell('${PdfTheme.naira}${fmt.format(e.value.price * e.value.quantity)}'),
             ])),
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+              children: [
+                _cCell('Totals', bold: true),
+                _cCell(''),
+                _cCell(''),
+                _cCell('—'),
+                _cCell('$totalQty', bold: true),
+                _cCell('${PdfTheme.naira}${fmt.format(totalAssetValue)}', bold: true),
+              ],
+            ),
           ],
         ),
       ],
@@ -1096,7 +1122,13 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     await FileSaver.savePdf(context, 'products_catalog.pdf', pdfBytes);
   }
 
-  pw.Widget _cCell(String t) => pw.Padding(padding: const pw.EdgeInsets.all(3), child: pw.Text(t, style: const pw.TextStyle(fontSize: 7)));
+  pw.Widget _cCell(String t, {bool bold = false}) => pw.Padding(
+        padding: const pw.EdgeInsets.all(3),
+        child: pw.Text(t,
+            style: pw.TextStyle(
+                fontSize: 7,
+                fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+      );
 
   Future<void> _exportImage() async {
     final overlayState = Overlay.of(context);
