@@ -130,23 +130,20 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen>
               ),
             ),
 
-            // ── Stats bar ────────────────────────────────────────────
-            customersAsync.when(
-              data: (customers) {
-                final totalDebts = debtsAsync.value?.where((d) => !d.isPaid).length ?? 0;
+            // ── Owed Header Card ─────────────────────────────────────
+            debtsAsync.when(
+              data: (debts) {
+                final unpaid = debts.where((d) => !d.isPaid).toList();
+                final totalDebts = unpaid.length;
                 final fmt = NumberFormat('#,##0', 'en_US');
-                final totalOwed = debtsAsync.value
-                    ?.where((d) => !d.isPaid)
-                    .fold<double>(0, (s, d) => s + d.remainingAmount) ?? 0;
+                final totalOwed = unpaid.fold<double>(0, (s, d) => s + d.remainingAmount);
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                  child: Row(children: [
-                    _StatPill(label: 'Customers', value: '${customers.length}', color: AppTheme.primaryColor),
-                    const SizedBox(width: 8),
-                    _StatPill(label: 'With Debt', value: '$totalDebts', color: AppTheme.errorColor),
-                    const SizedBox(width: 8),
-                    _StatPill(label: 'Total Owed', value: '₦${fmt.format(totalOwed)}', color: AppTheme.warningColor, flex: 2),
-                  ]),
+                  child: _OwedHeaderCard(
+                    totalOwed: totalOwed,
+                    totalDebts: totalDebts,
+                    fmt: fmt,
+                  ),
                 );
               },
               loading: () => const SizedBox.shrink(),
@@ -297,29 +294,91 @@ class _ViewToggleBtn extends StatelessWidget {
 
 // ── Stat Pill ────────────────────────────────────────────────────────────────
 
-class _StatPill extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final int flex;
-  const _StatPill({required this.label, required this.value, required this.color, this.flex = 1});
+// ── Owed Header Card ─────────────────────────────────────────────────────────
+
+class _OwedHeaderCard extends StatelessWidget {
+  final double totalOwed;
+  final int totalDebts;
+  final NumberFormat fmt;
+
+  const _OwedHeaderCard({
+    required this.totalOwed,
+    required this.totalDebts,
+    required this.fmt,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      flex: flex,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color)),
-          const SizedBox(height: 1),
-          Text(label, style: TextStyle(fontSize: 10, color: color.withOpacity(0.8), fontWeight: FontWeight.w500)),
-        ]),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD97706).withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'TOTAL AMOUNT OWED',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$totalDebts active debts',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '₦${fmt.format(totalOwed)}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Accumulated pending balance from customers with active debt entries.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
