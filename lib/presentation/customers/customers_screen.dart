@@ -5,8 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_theme.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/quick_add_customer_sheet.dart';
-import '../dashboard/debt_provider.dart';
-import '../widgets/app_feedback.dart';
+import '../ledger/ledger_provider.dart';
 import '../ledger/customer_ledger_screen.dart';
 import 'customer_provider.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -51,7 +50,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen>
   @override
   Widget build(BuildContext context) {
     final customersAsync = ref.watch(customersProvider);
-    final debtsAsync = ref.watch(debtsProvider);
+    final balancesAsync = ref.watch(customerLedgerBalancesProvider);
     const bg = Color(0xFFF1F5F9);
     const textPrimary = Color(0xFF0F172A);
     const textMuted = Color(0xFF64748B);
@@ -131,19 +130,29 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen>
             ),
 
             // ── Owed Header Card ─────────────────────────────────────
-            debtsAsync.when(
-              data: (debts) {
-                final unpaid = debts.where((d) => !d.isPaid).toList();
-                final totalDebts = unpaid.length;
-                final fmt = NumberFormat('#,##0', 'en_US');
-                final totalOwed = unpaid.fold<double>(0, (s, d) => s + d.remainingAmount);
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                  child: _OwedHeaderCard(
-                    totalOwed: totalOwed,
-                    totalDebts: totalDebts,
-                    fmt: fmt,
-                  ),
+            customersAsync.when(
+              data: (customers) {
+                final customerIds = customers.map((c) => c.id).toSet();
+                return balancesAsync.when(
+                  data: (balances) {
+                    final activeDebts = balances.entries
+                        .where((e) => customerIds.contains(e.key) && e.value > 0)
+                        .map((e) => e.value)
+                        .toList();
+                    final totalDebts = activeDebts.length;
+                    final fmt = NumberFormat('#,##0', 'en_US');
+                    final totalOwed = activeDebts.fold<double>(0, (s, b) => s + b);
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                      child: _OwedHeaderCard(
+                        totalOwed: totalOwed,
+                        totalDebts: totalDebts,
+                        fmt: fmt,
+                      ),
+                    );
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
                 );
               },
               loading: () => const SizedBox.shrink(),
@@ -216,7 +225,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen>
                       itemBuilder: (_, i) => _CustomerGridCard(
                         customer: filtered[i],
                         avatarColor: _avatarColors[filtered[i].name.hashCode % _avatarColors.length],
-                        debts: debtsAsync.value ?? [],
+                        balances: balancesAsync.value ?? {},
                         onTap: () => _openLedger(context, filtered[i]),
                         onEdit: () => _openEdit(context, filtered[i]),
                       ),
@@ -230,7 +239,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen>
                     itemBuilder: (_, i) => _CustomerListCard(
                       customer: filtered[i],
                       avatarColor: _avatarColors[filtered[i].name.hashCode % _avatarColors.length],
-                      debts: debtsAsync.value ?? [],
+                      balances: balancesAsync.value ?? {},
                       onTap: () => _openLedger(context, filtered[i]),
                       onEdit: () => _openEdit(context, filtered[i]),
                     ),
@@ -253,6 +262,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen>
         customerAddress: customer.address,
         customerShopNumber: customer.shopNumber,
         customerAvatarPath: customer.avatarPath,
+        isShop: false,
       ),
     ));
   }
@@ -389,14 +399,14 @@ class _OwedHeaderCard extends StatelessWidget {
 class _CustomerListCard extends StatelessWidget {
   final dynamic customer;
   final Color avatarColor;
-  final List<dynamic> debts;
+  final Map<String, double> balances;
   final VoidCallback onTap;
   final VoidCallback onEdit;
 
   const _CustomerListCard({
     required this.customer,
     required this.avatarColor,
-    required this.debts,
+    required this.balances,
     required this.onTap,
     required this.onEdit,
   });
@@ -404,8 +414,7 @@ class _CustomerListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initial = customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?';
-    final unpaidDebts = debts.where((d) => d.customerId == customer.id && !d.isPaid).toList();
-    final totalOwed = unpaidDebts.fold<double>(0, (s, d) => s + d.remainingAmount);
+    final totalOwed = balances[customer.id] ?? 0.0;
     final fmt = NumberFormat('#,##0', 'en_US');
 
     return GestureDetector(
@@ -436,7 +445,7 @@ class _CustomerListCard extends StatelessWidget {
                   Text(customer.phone!, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                 ]),
               ],
-              if (unpaidDebts.isNotEmpty) ...[
+              if (totalOwed > 0) ...[
                 const SizedBox(height: 5),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -477,14 +486,14 @@ class _CustomerListCard extends StatelessWidget {
 class _CustomerGridCard extends StatelessWidget {
   final dynamic customer;
   final Color avatarColor;
-  final List<dynamic> debts;
+  final Map<String, double> balances;
   final VoidCallback onTap;
   final VoidCallback onEdit;
 
   const _CustomerGridCard({
     required this.customer,
     required this.avatarColor,
-    required this.debts,
+    required this.balances,
     required this.onTap,
     required this.onEdit,
   });
@@ -492,8 +501,7 @@ class _CustomerGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initial = customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?';
-    final unpaidDebts = debts.where((d) => d.customerId == customer.id && !d.isPaid).toList();
-    final totalOwed = unpaidDebts.fold<double>(0, (s, d) => s + d.remainingAmount);
+    final totalOwed = balances[customer.id] ?? 0.0;
     final fmt = NumberFormat('#,##0', 'en_US');
     const textPrimary = Color(0xFF0F172A);
     const textMuted = Color(0xFF64748B);
@@ -555,18 +563,18 @@ class _CustomerGridCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 4),
               decoration: BoxDecoration(
-                color: unpaidDebts.isNotEmpty
+                color: totalOwed > 0
                     ? AppTheme.errorColor.withOpacity(0.1)
                     : AppTheme.successColor.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                unpaidDebts.isNotEmpty ? '\u20a6${fmt.format(totalOwed)}' : 'No debt',
+                totalOwed > 0 ? '\u20a6${fmt.format(totalOwed)}' : 'No debt',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: unpaidDebts.isNotEmpty ? AppTheme.errorColor : AppTheme.successColor,
+                  color: totalOwed > 0 ? AppTheme.errorColor : AppTheme.successColor,
                 ),
               ),
             ),

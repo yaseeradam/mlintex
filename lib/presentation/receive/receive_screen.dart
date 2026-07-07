@@ -28,6 +28,7 @@ class ReceiveEntry extends HiveObject {
   @HiveField(5) final int quantity;
   @HiveField(6) final double totalAmount;
   @HiveField(7) final double? payment;
+  @HiveField(8) final DateTime? paymentDate;
 
   ReceiveEntry({
     required this.id,
@@ -38,6 +39,7 @@ class ReceiveEntry extends HiveObject {
     required this.quantity,
     required this.totalAmount,
     this.payment = 0.0,
+    this.paymentDate,
   });
 }
 
@@ -53,13 +55,14 @@ class ReceiveEntryAdapter extends TypeAdapter<ReceiveEntry> {
       productName: f[2] as String, companyName: f[3] as String? ?? '',
       price: f[4] as double, quantity: f[5] as int, totalAmount: f[6] as double,
       payment: (f[7] as num?)?.toDouble() ?? 0.0,
+      paymentDate: f[8] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ReceiveEntry obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)..write(obj.id)
       ..writeByte(1)..write(obj.date)
       ..writeByte(2)..write(obj.productName)
@@ -67,7 +70,8 @@ class ReceiveEntryAdapter extends TypeAdapter<ReceiveEntry> {
       ..writeByte(4)..write(obj.price)
       ..writeByte(5)..write(obj.quantity)
       ..writeByte(6)..write(obj.totalAmount)
-      ..writeByte(7)..write(obj.payment ?? 0.0);
+      ..writeByte(7)..write(obj.payment ?? 0.0)
+      ..writeByte(8)..write(obj.paymentDate);
   }
 
   @override bool operator ==(Object other) => identical(this, other) || other is ReceiveEntryAdapter && typeId == other.typeId;
@@ -90,7 +94,7 @@ final receiveEntriesProvider = StreamProvider<List<ReceiveEntry>>((ref) async* {
 });
 
 List<ReceiveEntry> _sorted(Box<ReceiveEntry> box) =>
-    box.values.toList()..sort((a, b) => b.date.compareTo(a.date));
+    box.values.toList()..sort((a, b) => a.date.compareTo(b.date));
 
 class ReceiveNotifier extends Notifier<void> {
   @override void build() {}
@@ -102,6 +106,7 @@ class ReceiveNotifier extends Notifier<void> {
     required int qty,
     double payment = 0.0,
     double? totalAmount,
+    DateTime? paymentDate,
   }) async {
     final finalTotal = totalAmount ?? (price * qty);
     final e = ReceiveEntry(
@@ -113,6 +118,7 @@ class ReceiveNotifier extends Notifier<void> {
       quantity: qty,
       totalAmount: finalTotal,
       payment: payment,
+      paymentDate: paymentDate,
     );
     await _box.put(e.id, e);
   }
@@ -122,6 +128,112 @@ class ReceiveNotifier extends Notifier<void> {
 }
 
 final receiveNotifierProvider = NotifierProvider<ReceiveNotifier, void>(ReceiveNotifier.new);
+
+// ── UI UI Rows Class & Splitter ────────────────────────────────────────────
+
+class ReceiveUiRow {
+  final String id;
+  final DateTime displayDate;
+  final String productName;
+  final double payment;
+  final double price;
+  final int quantity;
+  final double totalAmount;
+  final ReceiveEntry originalEntry;
+  final bool isPaymentRow;
+
+  ReceiveUiRow({
+    required this.id,
+    required this.displayDate,
+    required this.productName,
+    required this.payment,
+    required this.price,
+    required this.quantity,
+    required this.totalAmount,
+    required this.originalEntry,
+    this.isPaymentRow = false,
+  });
+}
+
+List<ReceiveUiRow> _buildUiRows(List<ReceiveEntry> entries) {
+  final List<ReceiveUiRow> rows = [];
+  for (final entry in entries) {
+    if (entry.payment != null && entry.payment! > 0 && entry.paymentDate != null) {
+      final isSameDay = entry.date.year == entry.paymentDate!.year &&
+          entry.date.month == entry.paymentDate!.month &&
+          entry.date.day == entry.paymentDate!.day;
+      if (isSameDay) {
+        rows.add(ReceiveUiRow(
+          id: entry.id,
+          displayDate: entry.date,
+          productName: entry.productName.trim().isEmpty ? 'Payment Only' : entry.productName,
+          payment: entry.payment ?? 0.0,
+          price: entry.price,
+          quantity: entry.quantity,
+          totalAmount: entry.totalAmount,
+          originalEntry: entry,
+        ));
+      } else {
+        if (entry.price > 0 || entry.quantity > 0 || entry.totalAmount > 0) {
+          rows.add(ReceiveUiRow(
+            id: '${entry.id}_del',
+            displayDate: entry.date,
+            productName: entry.productName.trim().isEmpty ? 'Fabric Delivery' : entry.productName,
+            payment: 0.0,
+            price: entry.price,
+            quantity: entry.quantity,
+            totalAmount: entry.totalAmount,
+            originalEntry: entry,
+          ));
+        }
+        rows.add(ReceiveUiRow(
+          id: '${entry.id}_pay',
+          displayDate: entry.paymentDate!,
+          productName: entry.productName.trim().isEmpty
+              ? 'Payment Only'
+              : 'Payment: ${entry.productName}',
+          payment: entry.payment ?? 0.0,
+          price: 0.0,
+          quantity: 0,
+          totalAmount: 0.0,
+          originalEntry: entry,
+          isPaymentRow: true,
+        ));
+      }
+    } else {
+      rows.add(ReceiveUiRow(
+        id: entry.id,
+        displayDate: entry.date,
+        productName: entry.productName.trim().isEmpty ? 'Payment Only' : entry.productName,
+        payment: entry.payment ?? 0.0,
+        price: entry.price,
+        quantity: entry.quantity,
+        totalAmount: entry.totalAmount,
+        originalEntry: entry,
+      ));
+    }
+  }
+  return rows..sort((a, b) {
+    // Compare day part first
+    final dayA = DateTime(a.displayDate.year, a.displayDate.month, a.displayDate.day);
+    final dayB = DateTime(b.displayDate.year, b.displayDate.month, b.displayDate.day);
+    final dayCmp = dayA.compareTo(dayB);
+    if (dayCmp != 0) return dayCmp;
+
+    // Same day: Deliveries first, Payments second
+    final aIsPayment = a.isPaymentRow || a.originalEntry.productName.trim().isEmpty;
+    final bIsPayment = b.isPaymentRow || b.originalEntry.productName.trim().isEmpty;
+    if (aIsPayment != bIsPayment) {
+      return aIsPayment ? 1 : -1;
+    }
+
+    // Same day and same type: sort by actual time
+    final timeCmp = a.displayDate.compareTo(b.displayDate);
+    if (timeCmp != 0) return timeCmp;
+
+    return a.id.compareTo(b.id);
+  });
+}
 
 // ── Screen ─────────────────────────────────────────────────────────────────
 
@@ -215,7 +327,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                     ),
                     const SizedBox(height: 16),
                     _ReceiveFeed(
-                      entries: entries,
+                      rows: _buildUiRows(entries),
                       fmt: _fmt,
                       dateFmt: _dateFmt,
                       cardBg: cardBg,
@@ -369,11 +481,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
             columnWidths: {
               0: const pw.FixedColumnWidth(100), // Date
               1: const pw.FlexColumnWidth(2.5), // Product
-              2: const pw.FlexColumnWidth(1.5), // Paid
-              3: const pw.FlexColumnWidth(1.5), // Balance
-              4: const pw.FlexColumnWidth(1.2), // Unit Price
-              5: const pw.FlexColumnWidth(1.0), // Quantity
-              6: const pw.FlexColumnWidth(1.5), // Total Amount
+              2: const pw.FlexColumnWidth(1.2), // Unit Price
+              3: const pw.FlexColumnWidth(1.0), // Quantity
+              4: const pw.FlexColumnWidth(1.5), // Total Amount
+              5: const pw.FlexColumnWidth(1.5), // Paid
+              6: const pw.FlexColumnWidth(1.5), // Balance
             },
             children: [
               pw.TableRow(
@@ -381,22 +493,22 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 children: [
                   hCell('Date'),
                   hCell('Product Name'),
-                  hCell('Paid (₦)', alignment: pw.Alignment.centerRight),
-                  hCell('Balance (₦)', alignment: pw.Alignment.centerRight),
                   hCell('Price (₦)', alignment: pw.Alignment.centerRight),
                   hCell('Qty', alignment: pw.Alignment.center),
                   hCell('Total Value', alignment: pw.Alignment.centerRight),
+                  hCell('Paid (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Balance (₦)', alignment: pw.Alignment.centerRight),
                 ],
               ),
               pw.TableRow(
                 children: [
                   dCell(dateFmt.format(entry.date)),
                   dCell(entry.productName.trim().isEmpty ? 'Payment Only' : entry.productName, bold: true),
-                  dCell('${PdfTheme.naira}${fmt.format(entry.payment ?? 0.0)}', alignment: pw.Alignment.centerRight),
-                  dCell('${PdfTheme.naira}${fmt.format(entry.totalAmount - (entry.payment ?? 0.0))}', alignment: pw.Alignment.centerRight),
                   dCell(entry.price == 0.0 ? '—' : '${PdfTheme.naira}${fmt.format(entry.price)}', alignment: pw.Alignment.centerRight),
                   dCell(entry.quantity == 0 ? '—' : '${entry.quantity}', alignment: pw.Alignment.center),
                   dCell('${PdfTheme.naira}${fmt.format(entry.totalAmount)}', bold: true, alignment: pw.Alignment.centerRight),
+                  dCell('${PdfTheme.naira}${fmt.format(entry.payment ?? 0.0)}', alignment: pw.Alignment.centerRight),
+                  dCell('${PdfTheme.naira}${fmt.format(entry.totalAmount - (entry.payment ?? 0.0))}', alignment: pw.Alignment.centerRight),
                 ],
               ),
             ],
@@ -621,6 +733,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       totalPaid += entry.payment ?? 0.0;
     }
 
+    final rows = _buildUiRows(entries);
+
     pdf.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(24),
@@ -641,14 +755,14 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                       child: pw.Text(h, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold))))
                   .toList(),
             ),
-            ...entries.asMap().entries.map((e) => pw.TableRow(children: [
-              _cell('${e.key + 1}'), _cell(dateFmt.format(e.value.date)),
-              _cell(e.value.productName.trim().isEmpty ? 'Payment Only' : e.value.productName),
+            ...rows.asMap().entries.map((e) => pw.TableRow(children: [
+              _cell('${e.key + 1}'), _cell(dateFmt.format(e.value.displayDate)),
+              _cell(e.value.productName),
               _cell(e.value.price == 0.0 ? '—' : '${PdfTheme.naira}${fmt.format(e.value.price)}'),
               _cell(e.value.quantity == 0 ? '—' : '${e.value.quantity}'),
-              _cell('${PdfTheme.naira}${fmt.format(e.value.totalAmount)}'),
-              _cell('${PdfTheme.naira}${fmt.format(e.value.payment ?? 0.0)}'),
-              _cell('${PdfTheme.naira}${fmt.format(e.value.totalAmount - (e.value.payment ?? 0.0))}'),
+              _cell(e.value.totalAmount == 0.0 ? '—' : '${PdfTheme.naira}${fmt.format(e.value.totalAmount)}'),
+              _cell(e.value.payment == 0.0 ? '—' : '${PdfTheme.naira}${fmt.format(e.value.payment)}'),
+              _cell(e.value.isPaymentRow ? '—' : '${PdfTheme.naira}${fmt.format(e.value.totalAmount - e.value.payment)}'),
             ])),
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey100),
@@ -736,21 +850,21 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                                     ))
                                 .toList(),
                           ),
-                          ...entries.asMap().entries.map((e) {
+                          ..._buildUiRows(entries).asMap().entries.map((e) {
                             final i = e.key;
-                            final entry = e.value;
+                            final row = e.value;
                             final rowBg = i.isEven ? bg : (isDark ? const Color(0xFF1A2535) : const Color(0xFFF8FAFC));
                             return TableRow(
                               decoration: BoxDecoration(color: rowBg),
                               children: [
                                 _tCell('${i + 1}', mutedColor),
-                                _tCell(dateFmt.format(entry.date), mutedColor, size: 9),
-                                _tCell(entry.productName.trim().isEmpty ? 'Payment Only' : entry.productName, textColor, bold: true),
-                                _tCell(entry.price == 0.0 ? '—' : '\u20a6${fmt.format(entry.price)}', textColor),
-                                _tCell(entry.quantity == 0 ? '—' : '${entry.quantity}', textColor),
-                                _tCell('\u20a6${fmt.format(entry.totalAmount)}', AppTheme.successColor, bold: true),
-                                _tCell('\u20a6${fmt.format(entry.payment ?? 0.0)}', AppTheme.primaryColor),
-                                _tCell('\u20a6${fmt.format(entry.totalAmount - (entry.payment ?? 0.0))}', AppTheme.errorColor, bold: true),
+                                _tCell(dateFmt.format(row.displayDate), mutedColor, size: 9),
+                                _tCell(row.productName, textColor, bold: true),
+                                _tCell(row.price == 0.0 ? '—' : '\u20a6${fmt.format(row.price)}', textColor),
+                                _tCell(row.quantity == 0 ? '—' : '${row.quantity}', textColor),
+                                _tCell(row.totalAmount == 0.0 ? '—' : '\u20a6${fmt.format(row.totalAmount)}', AppTheme.successColor, bold: true),
+                                _tCell(row.payment == 0.0 ? '—' : '\u20a6${fmt.format(row.payment)}', AppTheme.primaryColor),
+                                _tCell(row.isPaymentRow ? '—' : '\u20a6${fmt.format(row.totalAmount - row.payment)}', AppTheme.errorColor, bold: true),
                               ],
                             );
                           }),
@@ -1005,7 +1119,7 @@ class _QuickActionButtons extends StatelessWidget {
 }
 
 class _ReceiveFeed extends StatelessWidget {
-  final List<ReceiveEntry> entries;
+  final List<ReceiveUiRow> rows;
   final NumberFormat fmt;
   final DateFormat dateFmt;
   final Color cardBg;
@@ -1017,7 +1131,7 @@ class _ReceiveFeed extends StatelessWidget {
   final void Function(ReceiveEntry) onExport;
 
   const _ReceiveFeed({
-    required this.entries,
+    required this.rows,
     required this.fmt,
     required this.dateFmt,
     required this.cardBg,
@@ -1073,7 +1187,7 @@ class _ReceiveFeed extends StatelessWidget {
   }) {
     return Container(
       width: width,
-      height: 48,
+      constraints: const BoxConstraints(minHeight: 48),
       alignment: alignment,
       padding: padding,
       decoration: BoxDecoration(
@@ -1091,7 +1205,7 @@ class _ReceiveFeed extends StatelessWidget {
         textAlign: alignment == Alignment.centerRight
             ? TextAlign.right
             : (alignment == Alignment.center ? TextAlign.center : TextAlign.left),
-        maxLines: 2,
+        maxLines: 3,
         overflow: TextOverflow.ellipsis,
       ),
     );
@@ -1264,19 +1378,19 @@ class _ReceiveFeed extends StatelessWidget {
     int totalQty = 0;
     double totalSpentSum = 0;
     double totalPaidSum = 0;
-    for (final entry in entries) {
-      totalQty += entry.quantity;
-      totalSpentSum += entry.totalAmount;
-      totalPaidSum += entry.payment ?? 0.0;
+    for (final row in rows) {
+      totalQty += row.quantity;
+      totalSpentSum += row.totalAmount;
+      totalPaidSum += row.payment;
     }
 
-    const double dateWidth = 70;
-    const double productWidth = 120;
+    const double dateWidth = 80;
+    const double productWidth = 160;
     const double paidWidth = 100;
-    const double priceWidth = 80;
-    const double qtyWidth = 45;
-    const double totalWidth = 90;
-    const double totalTableWidth = dateWidth + productWidth + paidWidth + priceWidth + qtyWidth + totalWidth; // 505
+    const double priceWidth = 90;
+    const double qtyWidth = 50;
+    const double totalWidth = 100;
+    const double totalTableWidth = dateWidth + productWidth + paidWidth + priceWidth + qtyWidth + totalWidth;
 
     const accentColor = Color(0xFF10B981);
 
@@ -1298,7 +1412,7 @@ class _ReceiveFeed extends StatelessWidget {
                 ),
               ),
               Text(
-                '${entries.length} ${entries.length == 1 ? 'Item' : 'Items'}',
+                '${rows.length} ${rows.length == 1 ? 'Row' : 'Rows'}',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -1339,18 +1453,21 @@ class _ReceiveFeed extends StatelessWidget {
                           left: BorderSide(color: Color(0xFF0F172A), width: 4),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          _buildHeaderCell('Date', width: dateWidth),
-                          _buildHeaderCell('Product', width: productWidth),
-                          _buildHeaderCell('Paid (₦)', width: paidWidth, alignment: Alignment.centerRight),
-                          _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
-                          _buildHeaderCell('Qty', width: qtyWidth, alignment: Alignment.center),
-                          _buildHeaderCell('Total Value (₦)', width: totalWidth, alignment: Alignment.centerRight, showRightDivider: false),
-                        ],
+                      child: IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildHeaderCell('Date', width: dateWidth),
+                            _buildHeaderCell('Product', width: productWidth),
+                            _buildHeaderCell('Paid (₦)', width: paidWidth, alignment: Alignment.centerRight),
+                            _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
+                            _buildHeaderCell('Qty', width: qtyWidth, alignment: Alignment.center),
+                            _buildHeaderCell('Total Value (₦)', width: totalWidth, alignment: Alignment.centerRight, showRightDivider: false),
+                          ],
+                        ),
                       ),
                     ),
-                    if (entries.isEmpty)
+                    if (rows.isEmpty)
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 16),
@@ -1362,10 +1479,10 @@ class _ReceiveFeed extends StatelessWidget {
                             Text(
                               'No received stock yet',
                               style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: textPrimary,
-                              ),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: textPrimary,
+                                ),
                             ),
                           ],
                         ),
@@ -1373,19 +1490,20 @@ class _ReceiveFeed extends StatelessWidget {
                     else
                       Column(
                         mainAxisSize: MainAxisSize.min,
-                        children: List.generate(entries.length, (index) {
-                          final entry = entries[index];
+                        children: List.generate(rows.length, (index) {
+                          final row = rows[index];
                           final rowBgColor = index.isEven ? Colors.white : const Color(0xFFFAFAFA);
                           
-                          final dateStr = DateFormat('dd/MM/yy').format(entry.date);
-                          final priceStr = entry.price == 0.0 ? '—' : fmt.format(entry.price);
-                          final qtyStr = entry.quantity == 0 ? '—' : entry.quantity.toString();
-                          final totalStr = '₦${fmt.format(entry.totalAmount)}';
+                          final dateStr = DateFormat('dd/MM/yy').format(row.displayDate);
+                          final priceStr = row.price == 0.0 ? '—' : fmt.format(row.price);
+                          final qtyStr = row.quantity == 0 ? '—' : row.quantity.toString();
+                          final totalStr = row.totalAmount == 0.0 ? '—' : '₦${fmt.format(row.totalAmount)}';
+                          final paidStr = row.payment == 0.0 ? '—' : '₦${fmt.format(row.payment)}';
 
                           return Material(
                             color: rowBgColor,
                             child: InkWell(
-                              onTap: () => _showRowActionMenu(context, entry),
+                              onTap: () => _showRowActionMenu(context, row.originalEntry),
                               child: Container(
                                 decoration: const BoxDecoration(
                                   border: Border(
@@ -1393,22 +1511,25 @@ class _ReceiveFeed extends StatelessWidget {
                                     bottom: BorderSide(color: Color(0xFFE2E8F0), width: 0.8),
                                   ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    _buildCell(dateStr, width: dateWidth),
-                                    _buildCell(entry.productName.trim().isEmpty ? 'Payment Only' : entry.productName, width: productWidth, bold: true),
-                                    _buildCell('₦${fmt.format(entry.payment ?? 0.0)}', width: paidWidth, alignment: Alignment.centerRight, textColor: AppTheme.primaryColor),
-                                    _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
-                                    _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
-                                    _buildCell(
-                                      totalStr,
-                                      width: totalWidth,
-                                      bold: true,
-                                      alignment: Alignment.centerRight,
-                                      textColor: accentColor,
-                                      showRightDivider: false,
-                                    ),
-                                  ],
+                                child: IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      _buildCell(dateStr, width: dateWidth),
+                                      _buildCell(row.productName, width: productWidth, bold: true),
+                                      _buildCell(paidStr, width: paidWidth, alignment: Alignment.centerRight, textColor: AppTheme.primaryColor),
+                                      _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
+                                      _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
+                                      _buildCell(
+                                        totalStr,
+                                        width: totalWidth,
+                                        bold: true,
+                                        alignment: Alignment.centerRight,
+                                        textColor: accentColor,
+                                        showRightDivider: false,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -1422,22 +1543,25 @@ class _ReceiveFeed extends StatelessWidget {
                           left: BorderSide(color: Color(0xFF475569), width: 4),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          _buildCell('Totals', width: dateWidth, bold: true, textColor: const Color(0xFF475569)),
-                          _buildCell('', width: productWidth),
-                          _buildCell('₦${fmt.format(totalPaidSum)}', width: paidWidth, alignment: Alignment.centerRight, textColor: AppTheme.primaryColor, bold: true),
-                          _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
-                          _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
-                          _buildCell(
-                            '₦${fmt.format(totalSpentSum)}',
-                            width: totalWidth,
-                            bold: true,
-                            alignment: Alignment.centerRight,
-                            textColor: accentColor,
-                            showRightDivider: false,
-                          ),
-                        ],
+                      child: IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildCell('Totals', width: dateWidth, bold: true, textColor: const Color(0xFF475569)),
+                            _buildCell('', width: productWidth),
+                            _buildCell('₦${fmt.format(totalPaidSum)}', width: paidWidth, alignment: Alignment.centerRight, textColor: AppTheme.primaryColor, bold: true),
+                            _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
+                            _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
+                            _buildCell(
+                              '₦${fmt.format(totalSpentSum)}',
+                              width: totalWidth,
+                              bold: true,
+                              alignment: Alignment.centerRight,
+                              textColor: accentColor,
+                              showRightDivider: false,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -1519,28 +1643,37 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
     final p = CurrencyInputFormatter.parse(_priceCtrl.text);
     final q = int.tryParse(_qtyCtrl.text) ?? 0;
     if (p > 0 && q > 0) {
-      _totalCtrl.text = NumberFormat('#,##0', 'en_US').format(p * q);
-      _updateBalance();
-    } else {
+      final total = p * q;
+      _totalCtrl.text = _numFmt.format(total);
       final paid = CurrencyInputFormatter.parse(_paymentCtrl.text);
-      final bal = CurrencyInputFormatter.parse(_balanceCtrl.text);
-      _totalCtrl.text = NumberFormat('#,##0', 'en_US').format(paid + bal);
-      if (mounted) setState(() {});
+      final balance = total - paid;
+      _balanceCtrl.text = _numFmt.format(balance < 0 ? 0.0 : balance);
+    } else {
+      final total = CurrencyInputFormatter.parse(_totalCtrl.text);
+      final paid = CurrencyInputFormatter.parse(_paymentCtrl.text);
+      final balance = total - paid;
+      _balanceCtrl.text = _numFmt.format(balance < 0 ? 0.0 : balance);
     }
+    if (mounted) setState(() {});
   }
 
   void _updateBalance() {
     final p = CurrencyInputFormatter.parse(_priceCtrl.text);
     final q = int.tryParse(_qtyCtrl.text) ?? 0;
+    final paid = CurrencyInputFormatter.parse(_paymentCtrl.text);
+
     if (p > 0 && q > 0) {
       final total = p * q;
-      final paid = CurrencyInputFormatter.parse(_paymentCtrl.text);
       final balance = total - paid;
-      _balanceCtrl.text = NumberFormat('#,##0', 'en_US').format(balance < 0 ? 0 : balance);
+      _balanceCtrl.text = _numFmt.format(balance < 0 ? 0.0 : balance);
     } else {
-      final paid = CurrencyInputFormatter.parse(_paymentCtrl.text);
-      final bal = CurrencyInputFormatter.parse(_balanceCtrl.text);
-      _totalCtrl.text = NumberFormat('#,##0', 'en_US').format(paid + bal);
+      var total = CurrencyInputFormatter.parse(_totalCtrl.text);
+      if (total < paid) {
+        total = paid;
+        _totalCtrl.text = _numFmt.format(total);
+      }
+      final balance = total - paid;
+      _balanceCtrl.text = _numFmt.format(balance < 0 ? 0.0 : balance);
     }
     if (mounted) setState(() {});
   }
@@ -1554,8 +1687,15 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
     final qtyVal = int.tryParse(_qtyCtrl.text.trim()) ?? 0;
     final totalVal = CurrencyInputFormatter.parse(_totalCtrl.text);
 
+    DateTime? paymentDateVal;
     if (widget.existing != null) {
       final e = widget.existing!;
+      if (paymentVal != (e.payment ?? 0.0)) {
+        paymentDateVal = DateTime.now();
+      } else {
+        paymentDateVal = e.paymentDate;
+      }
+
       await notifier.update(ReceiveEntry(
         id: e.id, date: e.date,
         productName: productName, companyName: '',
@@ -1563,14 +1703,19 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
         quantity: qtyVal,
         totalAmount: totalVal,
         payment: paymentVal,
+        paymentDate: paymentDateVal,
       ));
     } else {
+      if (paymentVal > 0) {
+        paymentDateVal = DateTime.now();
+      }
       await notifier.add(
         product: productName,
         price: priceVal,
         qty: qtyVal,
         payment: paymentVal,
         totalAmount: totalVal,
+        paymentDate: paymentDateVal,
       );
     }
     if (mounted) Navigator.pop(context);
@@ -1662,13 +1807,16 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
             _label('Total Amount (₦)', textMuted),
             TextFormField(
               controller: _totalCtrl,
-              readOnly: true,
-              decoration: const InputDecoration(
+              readOnly: isProductsMode,
+              keyboardType: isProductsMode ? null : const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: isProductsMode ? null : [CurrencyInputFormatter()],
+              decoration: InputDecoration(
                 hintText: '0.00',
                 prefixText: '₦ ',
-                filled: true,
-                fillColor: Color(0xFFF1F5F9),
+                filled: isProductsMode,
+                fillColor: isProductsMode ? const Color(0xFFF1F5F9) : null,
               ),
+              onChanged: isProductsMode ? null : (_) => setState(_updateTotal),
             ),
             const SizedBox(height: 20),
 
@@ -1758,10 +1906,7 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
                             _label('Balance (₦)', textMuted),
                             TextFormField(
                               controller: _balanceCtrl,
-                              readOnly: isProductsMode,
-                              keyboardType: isProductsMode ? null : const TextInputType.numberWithOptions(decimal: true),
-                              inputFormatters: isProductsMode ? null : [CurrencyInputFormatter()],
-                              onChanged: isProductsMode ? null : (_) => setState(_updateTotal),
+                              readOnly: true,
                               decoration: InputDecoration(
                                 hintText: '0.00',
                                 prefixText: '₦ ',

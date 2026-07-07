@@ -8,7 +8,6 @@ import 'data/models/product_model.dart';
 import 'data/models/customer_model.dart';
 import 'data/models/sale_model.dart';
 import 'data/models/debt_model.dart';
-import 'data/datasources/mock_data_seeder.dart';
 import 'domain/entities/ledger_entry.dart';
 import 'presentation/receive/receive_screen.dart';
 import 'presentation/sales_ledger/sales_ledger_screen.dart';
@@ -49,14 +48,13 @@ Future<void> main() async {
   Hive.registerAdapter(ReceiveEntryAdapter());
   Hive.registerAdapter(SalesLedgerEntryAdapter());
   await Hive.openBox<LedgerEntry>('ledger_entries_$activeShopId');
+  await Hive.openBox<LedgerEntry>('shop_ledger_entries_$activeShopId');
   await Hive.openBox<ReceiveEntry>('receive_entries_$activeShopId');
   await Hive.openBox<SalesLedgerEntry>('sales_ledger_$activeShopId');
 
   await NotificationService.init();
 
   final container = ProviderContainer();
-
-  await container.read(mockSeederProvider).seedIfEmpty();
 
   runApp(
     UncontrolledProviderScope(

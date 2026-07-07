@@ -22,6 +22,7 @@ class CustomerLedgerScreen extends ConsumerStatefulWidget {
   final String? customerAddress;
   final String? customerShopNumber;
   final String? customerAvatarPath;
+  final bool isShop;
 
   const CustomerLedgerScreen({
     super.key,
@@ -31,6 +32,7 @@ class CustomerLedgerScreen extends ConsumerStatefulWidget {
     this.customerAddress,
     this.customerShopNumber,
     this.customerAvatarPath,
+    required this.isShop,
   });
 
   @override
@@ -50,8 +52,11 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
     const cardBg = Colors.white;
     const borderColor = Color(0xFFE2E8F0);
     final authState = ref.watch(authProvider);
-    final entriesAsync =
-        ref.watch(customerLedgerProvider(widget.customerId));
+    final entriesAsync = ref.watch(
+      widget.isShop
+          ? shopLedgerProvider(widget.customerId)
+          : customerLedgerProvider(widget.customerId),
+    );
 
     return Scaffold(
       backgroundColor: bg,
@@ -243,6 +248,7 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
       builder: (_) => _AddEntrySheet(
         customerId: widget.customerId,
         initialIsSale: isSale,
+        isShop: widget.isShop,
       ),
     );
   }
@@ -255,6 +261,7 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
       builder: (_) => _AddEntrySheet(
         customerId: widget.customerId,
         existing: entry,
+        isShop: widget.isShop,
       ),
     );
   }
@@ -275,7 +282,11 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
       ),
     );
     if (confirm == true) {
-      await ref.read(ledgerNotifierProvider.notifier).deleteEntry(entry.id);
+      if (widget.isShop) {
+        await ref.read(shopLedgerNotifierProvider.notifier).deleteEntry(entry.id);
+      } else {
+        await ref.read(customerLedgerNotifierProvider.notifier).deleteEntry(entry.id);
+      }
     }
   }
 
@@ -605,11 +616,15 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
       EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       Widget? child,
     }) {
+      final resolvedPadding = child != null && padding == const EdgeInsets.symmetric(horizontal: 8, vertical: 12)
+          ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+          : padding;
+
       return Container(
         width: width,
         height: 48,
         alignment: alignment,
-        padding: padding,
+        padding: resolvedPadding,
         decoration: BoxDecoration(
           border: showRightDivider
               ? const Border(right: BorderSide(color: Color(0xFFE2E8F0), width: 0.8))
@@ -1532,11 +1547,15 @@ class _LedgerFeed extends StatelessWidget {
     EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
     Widget? child,
   }) {
+    final resolvedPadding = child != null && padding == const EdgeInsets.symmetric(horizontal: 8, vertical: 12)
+        ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+        : padding;
+
     return Container(
       width: width,
       height: 48,
       alignment: alignment,
-      padding: padding,
+      padding: resolvedPadding,
       decoration: BoxDecoration(
         border: showRightDivider
             ? const Border(right: BorderSide(color: Color(0xFFE2E8F0), width: 0.8))
@@ -1931,33 +1950,6 @@ class _LedgerFeed extends StatelessWidget {
                           );
                         },
                       ),
-
-                    // 5. Bookkeeping Summary Footer Row
-                    Container(
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF1F5F9), // Gray-100
-                        border: Border(
-                          left: BorderSide(color: Color(0xFF475569), width: 4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          _buildCell('Totals', width: dateWidth, bold: true, textColor: const Color(0xFF475569)),
-                          _buildCell('IN: ₦${fmt.format(totalInSum)}', width: itemWidth, bold: true, textColor: const Color(0xFF1E3A8A), fontSize: 9.5),
-                          _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
-                          _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
-                          _buildCell('₦${fmt.format(totalOutSum)}', width: outWidth, bold: true, alignment: Alignment.centerRight, textColor: const Color(0xFF15803D)),
-                          _buildCell(
-                            '₦${fmt.format(entries.isEmpty ? 0 : entries.last.runningBalance)}',
-                            width: balWidth,
-                            bold: true,
-                            alignment: Alignment.centerRight,
-                            textColor: (entries.isEmpty ? 0 : entries.last.runningBalance) > 0 ? balancePosColor : balanceNegColor,
-                            showRightDivider: false,
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -1991,11 +1983,13 @@ class _AddEntrySheet extends ConsumerStatefulWidget {
   final String customerId;
   final LedgerEntry? existing;
   final bool initialIsSale;
+  final bool isShop;
 
   const _AddEntrySheet({
     required this.customerId,
     this.existing,
     this.initialIsSale = true,
+    required this.isShop,
   });
 
   @override
@@ -2059,7 +2053,9 @@ class _AddEntrySheetState extends ConsumerState<_AddEntrySheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final notifier = ref.read(ledgerNotifierProvider.notifier);
+    final dynamic notifier = widget.isShop
+        ? ref.read(shopLedgerNotifierProvider.notifier)
+        : ref.read(customerLedgerNotifierProvider.notifier);
 
     if (widget.existing != null) {
       final e = widget.existing!;

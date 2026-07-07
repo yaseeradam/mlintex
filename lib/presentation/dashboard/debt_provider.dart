@@ -3,13 +3,38 @@ import 'package:uuid/uuid.dart';
 import '../../domain/entities/debt.dart';
 import '../../domain/repositories/debt_repository.dart';
 import '../../core/providers/repository_providers.dart';
+import '../ledger/ledger_provider.dart';
 
 final debtsProvider = StreamProvider<List<Debt>>((ref) {
   return ref.watch(debtRepositoryProvider).watchDebts();
 });
 
-final totalOutstandingProvider = FutureProvider<double>((ref) {
-  return ref.watch(debtRepositoryProvider).getTotalOutstanding();
+final totalOutstandingProvider = Provider<AsyncValue<double>>((ref) {
+  final customerBalancesAsync = ref.watch(customerLedgerBalancesProvider);
+  final shopBalancesAsync = ref.watch(shopLedgerBalancesProvider);
+
+  if (customerBalancesAsync.hasError) {
+    return AsyncValue.error(customerBalancesAsync.error!, customerBalancesAsync.stackTrace!);
+  }
+  if (shopBalancesAsync.hasError) {
+    return AsyncValue.error(shopBalancesAsync.error!, shopBalancesAsync.stackTrace!);
+  }
+
+  if (customerBalancesAsync.isLoading || shopBalancesAsync.isLoading) {
+    return const AsyncValue.loading();
+  }
+
+  final customerSum = customerBalancesAsync.value?.values
+          .where((bal) => bal > 0)
+          .fold<double>(0, (sum, bal) => sum + bal) ??
+      0.0;
+
+  final shopSum = shopBalancesAsync.value?.values
+          .where((bal) => bal > 0)
+          .fold<double>(0, (sum, bal) => sum + bal) ??
+      0.0;
+
+  return AsyncValue.data(customerSum + shopSum);
 });
 
 final overdueDebtsProvider = StreamProvider<List<Debt>>((ref) {

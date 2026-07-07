@@ -110,6 +110,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                   children: [
                     _HeaderCard(
                       shopName: authState.shopName,
+                      totalValue: totalValue,
+                      fmt: _fmt,
                       cardBg: cardBg,
                       borderColor: borderColor,
                       textPrimary: textPrimary,
@@ -117,7 +119,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     ),
                     const SizedBox(height: 16),
                     _FinancialSummaryCard(
-                      totalValue: totalValue,
+                      totalYards: products.fold<double>(0, (s, p) => s + (p.quantity as num).toDouble()),
                       totalCount: products.length,
                       lowStockCount: lowStock,
                       fmt: _fmt,
@@ -243,7 +245,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 0.92,
+        childAspectRatio: 0.80,
       ),
       itemCount: filtered.length,
       itemBuilder: (_, i) {
@@ -302,7 +304,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   }) {
     return Container(
       width: width,
-      height: 48,
+      constraints: const BoxConstraints(minHeight: 48),
       alignment: alignment,
       padding: padding,
       decoration: BoxDecoration(
@@ -320,7 +322,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         textAlign: alignment == Alignment.centerRight
             ? TextAlign.right
             : (alignment == Alignment.center ? TextAlign.center : TextAlign.left),
-        maxLines: 2,
+        maxLines: 3,
         overflow: TextOverflow.ellipsis,
       ),
     );
@@ -343,7 +345,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       );
     }
 
-    const double productWidth = 130;
+    const double productWidth = 160;
     const double categoryWidth = 90;
     const double priceWidth = 90;
     const double qtyWidth = 60;
@@ -390,14 +392,17 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       left: BorderSide(color: Color(0xFF0F172A), width: 4),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      _buildHeaderCell('Product', width: productWidth),
-                      _buildHeaderCell('Category', width: categoryWidth),
-                      _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
-                      _buildHeaderCell('Qty (yds)', width: qtyWidth, alignment: Alignment.center),
-                      _buildHeaderCell('Total Value (₦)', width: totalWidth, alignment: Alignment.centerRight, showRightDivider: false),
-                    ],
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildHeaderCell('Product', width: productWidth),
+                        _buildHeaderCell('Category', width: categoryWidth),
+                        _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
+                        _buildHeaderCell('Qty (yds)', width: qtyWidth, alignment: Alignment.center),
+                        _buildHeaderCell('Total Value (₦)', width: totalWidth, alignment: Alignment.centerRight, showRightDivider: false),
+                      ],
+                    ),
                   ),
                 ),
                 Column(
@@ -423,21 +428,24 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                               bottom: const BorderSide(color: Color(0xFFE2E8F0), width: 0.8),
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              _buildCell(product.name, width: productWidth, bold: true),
-                              _buildCell(product.category ?? 'Other', width: categoryWidth),
-                              _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
-                              _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
-                              _buildCell(
-                                totalStr,
-                                width: totalWidth,
-                                bold: true,
-                                alignment: Alignment.centerRight,
-                                textColor: rowAccentColor,
-                                showRightDivider: false,
-                              ),
-                            ],
+                          child: IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildCell(product.name, width: productWidth, bold: true),
+                                _buildCell(product.category ?? 'Other', width: categoryWidth),
+                                _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
+                                _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
+                                _buildCell(
+                                  totalStr,
+                                  width: totalWidth,
+                                  bold: true,
+                                  alignment: Alignment.centerRight,
+                                  textColor: rowAccentColor,
+                                  showRightDivider: false,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -451,21 +459,24 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       left: BorderSide(color: Color(0xFF475569), width: 4),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      _buildCell('Totals', width: productWidth, bold: true, textColor: const Color(0xFF475569)),
-                      _buildCell('', width: categoryWidth),
-                      _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
-                      _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
-                      _buildCell(
-                        '₦${_fmt.format(totalAssetValue)}',
-                        width: totalWidth,
-                        bold: true,
-                        alignment: Alignment.centerRight,
-                        textColor: accentColor,
-                        showRightDivider: false,
-                      ),
-                    ],
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildCell('Totals', width: productWidth, bold: true, textColor: const Color(0xFF475569)),
+                        _buildCell('', width: categoryWidth),
+                        _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
+                        _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
+                        _buildCell(
+                          '₦${_fmt.format(totalAssetValue)}',
+                          width: totalWidth,
+                          bold: true,
+                          alignment: Alignment.centerRight,
+                          textColor: accentColor,
+                          showRightDivider: false,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -1243,6 +1254,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
 
 class _HeaderCard extends StatelessWidget {
   final String shopName;
+  final double totalValue;
+  final NumberFormat fmt;
   final Color cardBg;
   final Color borderColor;
   final Color textPrimary;
@@ -1250,6 +1263,8 @@ class _HeaderCard extends StatelessWidget {
 
   const _HeaderCard({
     required this.shopName,
+    required this.totalValue,
+    required this.fmt,
     required this.cardBg,
     required this.borderColor,
     required this.textPrimary,
@@ -1269,53 +1284,100 @@ class _HeaderCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
+          colors: [Color(0xFF0F766E), Color(0xFF0D9488)],
         ),
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F766E).withOpacity(0.2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Text(
-            displayShop,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.75),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayShop.toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Total Asset Value',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.2),
+                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '₦${fmt.format(totalValue)}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1.0,
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 10),
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.2),
-              border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.storefront_rounded,
-              color: Colors.white,
-              size: 26,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Store Inventory Catalog',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Global list of fabric stock, yards, and catalogs',
-            style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 11,
-                fontWeight: FontWeight.w500),
+          const SizedBox(height: 8),
+          const Divider(color: Colors.white24, height: 1),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(
+                Icons.inventory_2_rounded,
+                color: Colors.white70,
+                size: 12,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Global fabric stock, yards, and inventory items',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1324,13 +1386,13 @@ class _HeaderCard extends StatelessWidget {
 }
 
 class _FinancialSummaryCard extends StatelessWidget {
-  final double totalValue;
+  final double totalYards;
   final int totalCount;
   final int lowStockCount;
   final NumberFormat fmt;
 
   const _FinancialSummaryCard({
-    required this.totalValue,
+    required this.totalYards,
     required this.totalCount,
     required this.lowStockCount,
     required this.fmt,
@@ -1399,9 +1461,9 @@ class _FinancialSummaryCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          buildItem('ASSET VALUE', '₦${fmt.format(totalValue)}', const Color(0xFF0F766E), const Color(0xFFF0FDFA), Icons.account_balance_wallet_rounded),
+          buildItem('TOTAL STOCK', '${fmt.format(totalYards)} yds', const Color(0xFF0F766E), const Color(0xFFF0FDFA), Icons.inventory_rounded),
           const SizedBox(width: 8),
-          buildItem('FABRIC LINES', '$totalCount', const Color(0xFF4F46E5), const Color(0xFFEEF2FF), Icons.category_rounded),
+          buildItem('FABRIC TYPES', '$totalCount', const Color(0xFF4F46E5), const Color(0xFFEEF2FF), Icons.category_rounded),
           const SizedBox(width: 8),
           buildItem('LOW STOCK', '$lowStockCount', const Color(0xFFEF4444), const Color(0xFFFEF2F2), Icons.warning_rounded),
         ],
@@ -1559,7 +1621,7 @@ class _ProductCard extends StatelessWidget {
             Text(
               product.name,
               textAlign: TextAlign.center,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: textPrimary),
             ),

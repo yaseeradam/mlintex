@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:hive/hive.dart';
 import '../../core/providers/repository_providers.dart';
 import '../models/product_model.dart';
 import '../models/customer_model.dart';
 import '../models/sale_model.dart';
 import '../models/debt_model.dart';
+import '../../domain/entities/ledger_entry.dart';
 import 'product_local_datasource.dart';
 import 'customer_local_datasource.dart';
 import 'sale_local_datasource.dart';
@@ -57,6 +59,9 @@ class MockDataSeeder {
           await _seedCustomers();
         }
       }
+      // Seed ledger entries for existing customers if empty
+      final currentCustomers = await _customerDS.getAllCustomers();
+      await _seedLedger(currentCustomers);
       return;
     }
 
@@ -64,7 +69,147 @@ class MockDataSeeder {
     final customers = await _seedCustomers();
     await _seedSales(customers);
     await _seedDebts(customers);
+    await _seedLedger(customers);
   }
+
+  Future<void> _seedLedger(List<CustomerModel> customers) async {
+    final authBox = Hive.box('auth');
+    final shopId = authBox.get('active_shop_id', defaultValue: '1') as String;
+    final ledgerBox = Hive.box<LedgerEntry>('ledger_entries_$shopId');
+
+    if (ledgerBox.isNotEmpty) return;
+
+    CustomerModel? findCustomer(String name) {
+      try {
+        return customers.firstWhere((c) => c.name.toLowerCase() == name.toLowerCase());
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final now = DateTime.now();
+
+    // 1. Amara Diallo (₦100,000 outstanding)
+    final amara = findCustomer('Amara Diallo');
+    if (amara != null) {
+      final saleId = _uuid.v4();
+      await ledgerBox.put(saleId, LedgerEntry(
+        id: saleId,
+        customerId: amara.id,
+        date: now.subtract(const Duration(days: 3)),
+        inItem: 'Swiss Voile Lace (Swiss Blue)',
+        price: 45000,
+        quantity: 4,
+        totalAmount: 180000.0,
+        typeIndex: LedgerEntryType.sale.index,
+      ));
+      final paymentId = _uuid.v4();
+      await ledgerBox.put(paymentId, LedgerEntry(
+        id: paymentId,
+        customerId: amara.id,
+        date: now.subtract(const Duration(days: 2)),
+        outItem: 'Cash',
+        totalAmount: 80000.0,
+        typeIndex: LedgerEntryType.payment.index,
+      ));
+    }
+
+    // 2. Fatimah Bello (₦85,000 outstanding)
+    final fatimah = findCustomer('Fatimah Bello');
+    if (fatimah != null) {
+      final saleId = _uuid.v4();
+      await ledgerBox.put(saleId, LedgerEntry(
+        id: saleId,
+        customerId: fatimah.id,
+        date: now.subtract(const Duration(days: 8)),
+        inItem: 'High Target Wax Ankara (Vibrant)',
+        price: 8500,
+        quantity: 10,
+        totalAmount: 85000.0,
+        typeIndex: LedgerEntryType.sale.index,
+      ));
+    }
+
+    // 3. Chukwuemeka Obi (₦150,000 paid / ₦0 outstanding)
+    final emeka = findCustomer('Chukwuemeka Obi');
+    if (emeka != null) {
+      final saleId = _uuid.v4();
+      await ledgerBox.put(saleId, LedgerEntry(
+        id: saleId,
+        customerId: emeka.id,
+        date: now.subtract(const Duration(days: 10)),
+        inItem: 'Super Guinea Brocade (White)',
+        price: 35000,
+        quantity: 4,
+        totalAmount: 140000.0,
+        typeIndex: LedgerEntryType.sale.index,
+      ));
+      final extraSaleId = _uuid.v4();
+      await ledgerBox.put(extraSaleId, LedgerEntry(
+        id: extraSaleId,
+        customerId: emeka.id,
+        date: now.subtract(const Duration(days: 10)),
+        inItem: 'Soft Polish Cotton (Sky Blue)',
+        price: 5000,
+        quantity: 2,
+        totalAmount: 10000.0,
+        typeIndex: LedgerEntryType.sale.index,
+      ));
+      final paymentId = _uuid.v4();
+      await ledgerBox.put(paymentId, LedgerEntry(
+        id: paymentId,
+        customerId: emeka.id,
+        date: now.subtract(const Duration(days: 1)),
+        outItem: 'Bank Transfer',
+        totalAmount: 150000.0,
+        typeIndex: LedgerEntryType.payment.index,
+      ));
+    }
+
+    // 4. Ngozi Adeyemi (₦95,000 outstanding)
+    final ngozi = findCustomer('Ngozi Adeyemi');
+    if (ngozi != null) {
+      final saleId = _uuid.v4();
+      await ledgerBox.put(saleId, LedgerEntry(
+        id: saleId,
+        customerId: ngozi.id,
+        date: now.subtract(const Duration(days: 2)),
+        inItem: 'Imperial Jacquard Brocade (Grey)',
+        price: 40000,
+        quantity: 2,
+        totalAmount: 80000.0,
+        typeIndex: LedgerEntryType.sale.index,
+      ));
+      final extraSaleId = _uuid.v4();
+      await ledgerBox.put(extraSaleId, LedgerEntry(
+        id: extraSaleId,
+        customerId: ngozi.id,
+        date: now.subtract(const Duration(days: 2)),
+        inItem: 'Premium Royal Velvet (Burgundy)',
+        price: 15000,
+        quantity: 1,
+        totalAmount: 15000.0,
+        typeIndex: LedgerEntryType.sale.index,
+      ));
+    }
+
+    // 5. Ibrahim Hassan (₦45,000 outstanding)
+    final ibrahim = findCustomer('Ibrahim Hassan');
+    if (ibrahim != null) {
+      final saleId = _uuid.v4();
+      await ledgerBox.put(saleId, LedgerEntry(
+        id: saleId,
+        customerId: ibrahim.id,
+        date: now.subtract(const Duration(days: 5)),
+        inItem: 'Premium Royal Velvet (Burgundy)',
+        price: 15000,
+        quantity: 3,
+        totalAmount: 45000.0,
+        typeIndex: LedgerEntryType.sale.index,
+      ));
+    }
+  }
+
 
   // ─── Products ───────────────────────────────────────────────────────────────
 
