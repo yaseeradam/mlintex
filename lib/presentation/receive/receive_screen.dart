@@ -777,19 +777,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       balances.add(runningBalance);
     }
 
-    // Totals
-    double totalIn = 0;
-    double totalOut = 0;
-    int totalQty = 0;
-    for (final row in rows) {
-      if (row.isPaymentRow) {
-        totalOut += row.payment;
-      } else {
-        totalIn += row.totalAmount;
-        totalOut += row.payment;
-        totalQty += row.quantity;
-      }
-    }
 
     pw.Widget hCell(String t, {pw.Alignment alignment = pw.Alignment.center}) => pw.Container(
       alignment: alignment,
@@ -873,14 +860,16 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                   ? null
                   : const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF8FAFC));
 
-              // IN column: product name for delivery rows, blank for payment-only rows
-              final inText = row.isPaymentRow ? '' : row.productName;
-              // OUT column: payment amount for payment rows or same-day payment
+              // IN column: show product name only for actual stock delivery rows
+              // A payment-only entry has an empty/blank product name in the original entry
+              final isPaymentOnly = row.originalEntry.productName.trim().isEmpty;
+              final inText = (row.isPaymentRow || isPaymentOnly) ? '' : row.productName;
+              // OUT column: payment amount
               final outText = row.payment > 0
                   ? '${PdfTheme.naira}${fmt.format(row.payment)}'
                   : '';
-              // Total Amount: stock value for delivery rows
-              final totalText = row.totalAmount > 0
+              // Total Amount: stock value (only for delivery rows)
+              final totalText = (!row.isPaymentRow && !isPaymentOnly && row.totalAmount > 0)
                   ? '${PdfTheme.naira}${fmt.format(row.totalAmount)}'
                   : '';
 
@@ -921,24 +910,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 ],
               );
             }),
-            // Totals row
-            pw.TableRow(
-              decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-              children: [
-                dCell('', alignment: pw.Alignment.center),
-                dCell('TOTALS', bold: true),
-                dCell(''),
-                dCell('${PdfTheme.naira}${fmt.format(totalOut)}',
-                  alignment: pw.Alignment.centerRight, bold: true, color: PdfColors.blue800),
-                dCell(''),
-                dCell('$totalQty', alignment: pw.Alignment.center, bold: true),
-                dCell('${PdfTheme.naira}${fmt.format(totalIn)}',
-                  alignment: pw.Alignment.centerRight, bold: true),
-                dCell('${PdfTheme.naira}${fmt.format(totalIn - totalOut)}',
-                  alignment: pw.Alignment.centerRight, bold: true,
-                  color: (totalIn - totalOut) <= 0 ? PdfColors.green800 : PdfColors.red800),
-              ],
-            ),
           ],
         ),
       ],
@@ -979,18 +950,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       runningBalances.add(runningBal);
     }
 
-    // Totals
-    double totalIn = 0, totalOut = 0;
-    int totalQty = 0;
-    for (final row in rows) {
-      if (row.isPaymentRow) {
-        totalOut += row.payment;
-      } else {
-        totalIn += row.totalAmount;
-        totalOut += row.payment;
-        totalQty += row.quantity;
-      }
-    }
 
     final captureKey = GlobalKey();
     final overlay = OverlayEntry(
@@ -1038,9 +997,15 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                             final row = e.value;
                             final bal = runningBalances[i];
                             final rowBg = i.isEven ? bg : (isDark ? const Color(0xFF1A2535) : const Color(0xFFF8FAFC));
-                            final inText = row.isPaymentRow ? '' : row.productName;
+                            // IN: blank for payment-only entries (no product)
+                            final isPaymentOnly = row.originalEntry.productName.trim().isEmpty;
+                            final inText = (row.isPaymentRow || isPaymentOnly) ? '' : row.productName;
                             final outStr = row.payment == 0.0 ? '' : '\u20a6${fmt.format(row.payment)}';
                             final balColor = bal <= 0 ? AppTheme.successColor : AppTheme.errorColor;
+                            // Total Amount: only for actual stock rows
+                            final totalAmtStr = (!row.isPaymentRow && !isPaymentOnly && row.totalAmount > 0)
+                                ? '\u20a6${fmt.format(row.totalAmount)}'
+                                : '';
                             return TableRow(
                               decoration: BoxDecoration(color: rowBg),
                               children: [
@@ -1078,26 +1043,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                                 _tCell(outStr, AppTheme.primaryColor),
                                 _tCell(row.price == 0.0 ? '' : '\u20a6${fmt.format(row.price)}', textColor),
                                 _tCell(row.quantity == 0 ? '' : '${row.quantity}', textColor),
-                                _tCell(row.totalAmount == 0.0 ? '' : '\u20a6${fmt.format(row.totalAmount)}', AppTheme.successColor, bold: true),
+                                _tCell(totalAmtStr, AppTheme.successColor, bold: totalAmtStr.isNotEmpty),
                                 _tCell('\u20a6${fmt.format(bal)}', balColor, bold: true),
                               ],
                             );
                           }),
-                          // Totals row
-                          TableRow(
-                            decoration: BoxDecoration(color: headerBg),
-                            children: [
-                              _tCell('', mutedColor),
-                              _tCell('TOTALS', textColor, bold: true),
-                              _tCell('', textColor),
-                              _tCell('\u20a6${fmt.format(totalOut)}', AppTheme.primaryColor, bold: true),
-                              _tCell('', textColor),
-                              _tCell('$totalQty', textColor, bold: true),
-                              _tCell('\u20a6${fmt.format(totalIn)}', AppTheme.successColor, bold: true),
-                              _tCell('\u20a6${fmt.format(totalIn - totalOut)}',
-                                (totalIn - totalOut) <= 0 ? AppTheme.successColor : AppTheme.errorColor, bold: true),
-                            ],
-                          ),
                         ],
                       ),
                     ),
@@ -1106,7 +1056,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
 
@@ -1618,19 +1568,6 @@ class _ReceiveFeed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Fix math: separate stock-in rows from payment-only rows to avoid double-counting
-    int totalQty = 0;
-    double totalIn = 0;   // total stock value received
-    double totalOut = 0;  // total payments made
-    for (final row in rows) {
-      if (row.isPaymentRow) {
-        totalOut += row.payment;
-      } else {
-        totalQty += row.quantity;
-        totalIn += row.totalAmount;
-        totalOut += row.payment; // same-day payments on delivery rows
-      }
-    }
 
     // Build running balance list
     double runningBal = 0;
@@ -1853,41 +1790,7 @@ class _ReceiveFeed extends StatelessWidget {
                           );
                         }),
                       ),
-                    Container(
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF1F5F9),
-                        border: Border(
-                          left: BorderSide(color: Color(0xFF475569), width: 4),
-                        ),
-                      ),
-                      child: IntrinsicHeight(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _buildCell('Totals', width: dateWidth, bold: true, textColor: const Color(0xFF475569)),
-                            _buildCell('', width: productWidth),
-                            _buildCell('₦${fmt.format(totalOut)}', width: outWidth, alignment: Alignment.centerRight, textColor: AppTheme.primaryColor, bold: true),
-                            _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
-                            _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
-                            _buildCell(
-                              '₦${fmt.format(totalIn)}',
-                              width: totalWidth,
-                              bold: true,
-                              alignment: Alignment.centerRight,
-                              textColor: accentColor,
-                            ),
-                            _buildCell(
-                              '₦${fmt.format(totalIn - totalOut)}',
-                              width: balWidth,
-                              bold: true,
-                              alignment: Alignment.centerRight,
-                              textColor: (totalIn - totalOut) <= 0 ? const Color(0xFF15803D) : const Color(0xFFDC2626),
-                              showRightDivider: false,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    // end of rows
                   ],
                 ),
               ),
