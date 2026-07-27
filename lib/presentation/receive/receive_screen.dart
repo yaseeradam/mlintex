@@ -860,25 +860,38 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                   ? null
                   : const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF8FAFC));
 
-              // IN column: show product name only for actual stock delivery rows
-              // A payment-only entry has an empty/blank product name in the original entry
+              // Payment-only = either a split payment row OR an entry with empty product name
               final isPaymentOnly = row.originalEntry.productName.trim().isEmpty;
-              final inText = (row.isPaymentRow || isPaymentOnly) ? '' : row.productName;
-              // OUT column: payment amount
+              final isPayment = row.isPaymentRow || isPaymentOnly;
+
+              // IN column: product name only for stock delivery rows
+              final inText = isPayment ? '' : row.productName;
+
+              // OUT column: payment amount for all payment rows
               final outText = row.payment > 0
                   ? '${PdfTheme.naira}${fmt.format(row.payment)}'
                   : '';
-              // Total Amount: stock value (only for delivery rows)
-              final totalText = (!row.isPaymentRow && !isPaymentOnly && row.totalAmount > 0)
-                  ? '${PdfTheme.naira}${fmt.format(row.totalAmount)}'
-                  : '';
+
+              // Price column:
+              //   - Payment rows → description (e.g. "DIAMOND BANK")
+              //   - Stock rows   → price amount
+              final priceText = isPayment
+                  ? (row.originalEntry.description?.trim() ?? '')
+                  : (row.price == 0.0 ? '' : '${PdfTheme.naira}${fmt.format(row.price)}');
+
+              // Total Amount:
+              //   - Payment rows → same as OUT (the payment amount)
+              //   - Stock rows   → price × qty
+              final totalText = isPayment
+                  ? (row.payment > 0 ? '${PdfTheme.naira}${fmt.format(row.payment)}' : '')
+                  : (row.totalAmount > 0 ? '${PdfTheme.naira}${fmt.format(row.totalAmount)}' : '');
 
               return pw.TableRow(
                 decoration: rowDecoration,
                 children: [
                   dCell('${i + 1}', alignment: pw.Alignment.center),
                   dCell(dateFmt.format(row.displayDate)),
-                  // IN cell with product name and optional description
+                  // IN cell — product name only (no description here anymore)
                   pw.Padding(
                     padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
                     child: pw.Column(
@@ -886,23 +899,21 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                       children: [
                         if (inText.isNotEmpty)
                           pw.Text(inText, style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold)),
-                        if (row.originalEntry.description != null &&
-                            row.originalEntry.description!.trim().isNotEmpty) ...[
-                          pw.SizedBox(height: 1),
-                          pw.Text(
-                            row.originalEntry.description!,
-                            style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey700),
-                          ),
-                        ],
                       ],
                     ),
                   ),
+                  // OUT column
                   dCell(outText, alignment: pw.Alignment.centerRight,
                     color: outText.isNotEmpty ? PdfColors.blue800 : null),
-                  dCell(row.price == 0.0 ? '' : '${PdfTheme.naira}${fmt.format(row.price)}',
-                    alignment: pw.Alignment.centerRight),
-                  dCell(row.quantity == 0 ? '' : '${row.quantity}', alignment: pw.Alignment.center),
+                  // Price column: description for payments, price amount for stock
+                  dCell(priceText,
+                    alignment: isPayment ? pw.Alignment.centerLeft : pw.Alignment.centerRight),
+                  // Qty column: only for stock rows
+                  dCell(isPayment || row.quantity == 0 ? '' : '${row.quantity}',
+                    alignment: pw.Alignment.center),
+                  // Total Amount
                   dCell(totalText, alignment: pw.Alignment.centerRight, bold: totalText.isNotEmpty),
+                  // Total Balance (running)
                   dCell('${PdfTheme.naira}${fmt.format(bal)}',
                     alignment: pw.Alignment.centerRight,
                     bold: true,
