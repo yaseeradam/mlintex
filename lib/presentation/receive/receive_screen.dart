@@ -1008,15 +1008,21 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                             final row = e.value;
                             final bal = runningBalances[i];
                             final rowBg = i.isEven ? bg : (isDark ? const Color(0xFF1A2535) : const Color(0xFFF8FAFC));
-                            // IN: blank for payment-only entries (no product)
                             final isPaymentOnly = row.originalEntry.productName.trim().isEmpty;
-                            final inText = (row.isPaymentRow || isPaymentOnly) ? '' : row.productName;
+                            final isPayment = row.isPaymentRow || isPaymentOnly;
+
+                            final inText = isPayment ? '' : row.productName;
                             final outStr = row.payment == 0.0 ? '' : '\u20a6${fmt.format(row.payment)}';
                             final balColor = bal <= 0 ? AppTheme.successColor : AppTheme.errorColor;
-                            // Total Amount: only for actual stock rows
-                            final totalAmtStr = (!row.isPaymentRow && !isPaymentOnly && row.totalAmount > 0)
-                                ? '\u20a6${fmt.format(row.totalAmount)}'
-                                : '';
+
+                            final priceStr = isPayment
+                                ? (row.originalEntry.description?.trim() ?? '')
+                                : (row.price == 0.0 ? '' : '\u20a6${fmt.format(row.price)}');
+
+                            final totalAmtStr = isPayment
+                                ? (row.payment > 0 ? '\u20a6${fmt.format(row.payment)}' : '')
+                                : (row.totalAmount > 0 ? '\u20a6${fmt.format(row.totalAmount)}' : '');
+
                             return TableRow(
                               decoration: BoxDecoration(color: rowBg),
                               children: [
@@ -1037,24 +1043,18 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                                              color: textColor,
                                            ),
                                          ),
-                                       if (row.originalEntry.description != null && row.originalEntry.description!.trim().isNotEmpty) ...[
-                                         const SizedBox(height: 2),
-                                         Text(
-                                           row.originalEntry.description!,
-                                           style: TextStyle(
-                                             fontSize: 8,
-                                             color: mutedColor,
-                                           ),
-                                         ),
-                                       ],
                                      ],
                                    ),
                                  ),
                                 // OUT column
                                 _tCell(outStr, AppTheme.primaryColor),
-                                _tCell(row.price == 0.0 ? '' : '\u20a6${fmt.format(row.price)}', textColor),
-                                _tCell(row.quantity == 0 ? '' : '${row.quantity}', textColor),
+                                // Price column
+                                _tCell(priceStr, textColor),
+                                // Qty column
+                                _tCell(isPayment || row.quantity == 0 ? '' : '${row.quantity}', textColor),
+                                // Total Amount
                                 _tCell(totalAmtStr, AppTheme.successColor, bold: totalAmtStr.isNotEmpty),
+                                // Total Balance
                                 _tCell('\u20a6${fmt.format(bal)}', balColor, bold: true),
                               ],
                             );
@@ -1067,7 +1067,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
 
