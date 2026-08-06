@@ -1481,11 +1481,12 @@ class _SalesLedgerFeed extends StatelessWidget {
     const double dateWidth = 65;
     const double nameWidth = 100;
     const double itemWidth = 115;
-    const double priceWidth = 80;
     const double qtyWidth = 40;
+    const double priceWidth = 80;
+    const double totalAmtWidth = 90;
     const double outWidth = 90;
     const double balWidth = 95;
-    const double totalTableWidth = dateWidth + nameWidth + itemWidth + priceWidth + qtyWidth + outWidth + balWidth; // 585
+    const double totalTableWidth = dateWidth + nameWidth + itemWidth + qtyWidth + priceWidth + totalAmtWidth + outWidth + balWidth; // 675
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1551,8 +1552,9 @@ class _SalesLedgerFeed extends StatelessWidget {
                           _buildHeaderCell('Date', width: dateWidth),
                           _buildHeaderCell('Name', width: nameWidth),
                           _buildHeaderCell('Item/Desc', width: itemWidth),
-                          _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
                           _buildHeaderCell('Qty', width: qtyWidth, alignment: Alignment.center),
+                          _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
+                          _buildHeaderCell('Total Amt', width: totalAmtWidth, alignment: Alignment.centerRight),
                           _buildHeaderCell('OUT (₦)', width: outWidth, alignment: Alignment.centerRight),
                           _buildHeaderCell('Balance (₦)', width: balWidth, alignment: Alignment.centerRight, showRightDivider: false),
                         ],
@@ -1590,8 +1592,10 @@ class _SalesLedgerFeed extends StatelessWidget {
                           final balColor = entry.runningBalance > 0 ? balancePosColor : balanceNegColor;
                           
                           final dateStr = DateFormat('dd/MM/yy').format(entry.date);
-                          final priceStr = isSale && entry.price != null ? fmt.format(entry.price) : '—';
+                          final descStr = isSale ? (entry.inItem ?? '') : '';
                           final qtyStr = isSale && entry.quantity != null ? entry.quantity.toString() : '—';
+                          final priceStr = isSale && entry.price != null ? fmt.format(entry.price) : (entry.outItem ?? '');
+                          final totalAmtStr = fmt.format(entry.totalAmount);
                           final outStr = !isSale ? fmt.format(entry.totalAmount) : '—';
 
                           return Material(
@@ -1609,42 +1613,22 @@ class _SalesLedgerFeed extends StatelessWidget {
                                   children: [
                                     _buildCell(dateStr, width: dateWidth),
                                     _buildCell(entry.personName ?? '—', width: nameWidth, bold: true),
-                                    _buildCell(
-                                      isSale ? (entry.inItem ?? '') : (entry.outItem ?? 'PAYMENT'),
-                                      width: itemWidth,
-                                      bold: true,
-                                    ),
-                                    _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
+                                    _buildCell(descStr, width: itemWidth, bold: isSale),
                                     _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
+                                    _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
                                     _buildCell(
-                                      !isSale ? '' : outStr,
-                                      width: outWidth,
+                                      '₦$totalAmtStr',
+                                      width: totalAmtWidth,
+                                      bold: true,
                                       alignment: Alignment.centerRight,
-                                      child: !isSale
-                                          ? Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              crossAxisAlignment: CrossAxisAlignment.end,
-                                              children: [
-                                                Text(
-                                                  entry.outItem ?? 'PAYMENT',
-                                                  style: const TextStyle(
-                                                    fontSize: 9,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: Color(0xFF64748B),
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  '₦$outStr',
-                                                  style: const TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: Color(0xFF10B981),
-                                                  ),
-                                                ),
-                                              ],
-                                            )
-                                          : null,
+                                      textColor: isSale ? const Color(0xFF1E3A8A) : const Color(0xFF10B981),
+                                    ),
+                                    _buildCell(
+                                      !isSale ? '₦$outStr' : '—',
+                                      width: outWidth,
+                                      bold: !isSale,
+                                      alignment: Alignment.centerRight,
+                                      textColor: !isSale ? const Color(0xFF10B981) : null,
                                     ),
                                     _buildCell(
                                       balStr,
@@ -1673,8 +1657,9 @@ class _SalesLedgerFeed extends StatelessWidget {
                           _buildCell('Totals', width: dateWidth, bold: true, textColor: const Color(0xFF475569)),
                           _buildCell('', width: nameWidth, bold: true, textColor: const Color(0xFF475569)),
                           _buildCell('IN: ₦${fmt.format(totalInSum)}', width: itemWidth, bold: true, textColor: const Color(0xFF1E3A8A), fontSize: 9.5),
-                          _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
                           _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
+                          _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
+                          _buildCell('₦${fmt.format(totalInSum)}', width: totalAmtWidth, bold: true, alignment: Alignment.centerRight, textColor: const Color(0xFF1E3A8A)),
                           _buildCell('₦${fmt.format(totalOutSum)}', width: outWidth, bold: true, alignment: Alignment.centerRight, textColor: const Color(0xFF15803D)),
                           _buildCell(
                             '₦${fmt.format(entries.isEmpty ? 0 : entries.last.runningBalance)}',
