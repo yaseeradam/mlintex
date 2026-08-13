@@ -1479,14 +1479,13 @@ class _SalesLedgerFeed extends StatelessWidget {
     }
 
     const double dateWidth = 65;
-    const double nameWidth = 100;
-    const double itemWidth = 115;
+    const double itemWidth = 140;
     const double qtyWidth = 40;
-    const double priceWidth = 80;
+    const double priceWidth = 90;
     const double totalAmtWidth = 90;
     const double outWidth = 90;
     const double balWidth = 95;
-    const double totalTableWidth = dateWidth + nameWidth + itemWidth + qtyWidth + priceWidth + totalAmtWidth + outWidth + balWidth; // 675
+    const double totalTableWidth = dateWidth + itemWidth + qtyWidth + priceWidth + totalAmtWidth + outWidth + balWidth; // 610
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1550,7 +1549,6 @@ class _SalesLedgerFeed extends StatelessWidget {
                       child: Row(
                         children: [
                           _buildHeaderCell('Date', width: dateWidth),
-                          _buildHeaderCell('Name', width: nameWidth),
                           _buildHeaderCell('Item/Desc', width: itemWidth),
                           _buildHeaderCell('Qty', width: qtyWidth, alignment: Alignment.center),
                           _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
@@ -1612,7 +1610,6 @@ class _SalesLedgerFeed extends StatelessWidget {
                                 child: Row(
                                   children: [
                                     _buildCell(dateStr, width: dateWidth),
-                                    _buildCell(entry.personName ?? '—', width: nameWidth, bold: true),
                                     _buildCell(descStr, width: itemWidth, bold: isSale),
                                     _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
                                     _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
@@ -1655,7 +1652,6 @@ class _SalesLedgerFeed extends StatelessWidget {
                       child: Row(
                         children: [
                           _buildCell('Totals', width: dateWidth, bold: true, textColor: const Color(0xFF475569)),
-                          _buildCell('', width: nameWidth, bold: true, textColor: const Color(0xFF475569)),
                           _buildCell('IN: ₦${fmt.format(totalInSum)}', width: itemWidth, bold: true, textColor: const Color(0xFF1E3A8A), fontSize: 9.5),
                           _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
                           _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),

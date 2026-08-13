@@ -472,7 +472,7 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
     const double dateWidth = 65;
     const double itemWidth = 115;
     const double qtyWidth = 40;
-    const double priceWidth = 80;
+    const double priceWidth = 105;
     const double totalAmtWidth = 90;
     const double outWidth = 90;
     const double balWidth = 95;
@@ -1707,11 +1707,11 @@ class _LedgerFeed extends StatelessWidget {
     const double dateWidth = 65;
     const double itemWidth = 115;
     const double qtyWidth = 40;
-    const double priceWidth = 80;
+    const double priceWidth = 105;
     const double totalAmtWidth = 90;
     const double outWidth = 90;
     const double balWidth = 95;
-    const double totalTableWidth = dateWidth + itemWidth + qtyWidth + priceWidth + totalAmtWidth + outWidth + balWidth; // 575
+    const double totalTableWidth = dateWidth + itemWidth + qtyWidth + priceWidth + totalAmtWidth + outWidth + balWidth; // 600
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
