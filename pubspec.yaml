@@ -81,11 +81,11 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  hive_generator: any
+  hive_generator: ^2.0.1
   build_runner: ^2.4.13
-  riverpod_generator: any
-  custom_lint: any
-  riverpod_lint: any
+  riverpod_generator: ^3.0.0-dev.3
+  custom_lint: ^0.7.5
+  riverpod_lint: ^3.0.0-dev.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
