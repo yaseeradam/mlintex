@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/providers/auth_provider.dart';
@@ -148,7 +147,7 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
                   ),
                 ),
                 Icon(
-                  PhosphorIconsRegular.caretRight,
+                  Icons.chevron_right_rounded,
                   color: AppTheme.textMuted,
                   size: 20,
                 ),
@@ -163,7 +162,7 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
         _SettingsGroup(
           children: [
             _ToggleTile(
-              icon: PhosphorIconsRegular.bell,
+              icon: Icons.notifications_outlined,
               iconColor: AppTheme.warningColor,
               title: 'Notifications',
               value: _notificationsEnabled,
@@ -177,7 +176,7 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
         _SettingsGroup(
           children: [
             _ActionTile(
-              icon: PhosphorIconsRegular.cloudArrowUp,
+              icon: Icons.cloud_upload_outlined,
               iconColor: AppTheme.successColor,
               title: 'Manual Sync',
               trailing: isSyncing
@@ -186,7 +185,7 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Icon(PhosphorIconsRegular.caretRight,
+                  : Icon(Icons.chevron_right_rounded,
                       color: AppTheme.textMuted, size: 20),
               onTap: isSyncing ? null : () => ref.read(syncServiceProvider).syncAll(),
             ),
@@ -198,7 +197,7 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
         _SettingsGroup(
           children: [
             _ActionTile(
-              icon: PhosphorIconsRegular.signOut,
+              icon: Icons.logout_rounded,
               iconColor: AppTheme.errorColor,
               title: 'Sign Out',
               titleColor: AppTheme.errorColor,

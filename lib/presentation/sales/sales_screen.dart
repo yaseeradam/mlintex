@@ -7,7 +7,6 @@ import '../../core/utils/product_style_util.dart';
 import '../products/product_provider.dart';
 import '../customers/customer_provider.dart';
 import 'sale_provider.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class SalesScreen extends ConsumerStatefulWidget {
   const SalesScreen({super.key});
@@ -74,7 +73,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              PhosphorIconsRegular.trash,
+                              Icons.delete_outline_rounded,
                               color: AppTheme.errorColor,
                               size: 14,
                             ),
@@ -106,12 +105,12 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 decoration: InputDecoration(
                   hintText: 'Search products to add…',
                   prefixIcon: const Icon(
-                    PhosphorIconsRegular.magnifyingGlass,
+                    Icons.search_rounded,
                     color: AppTheme.textMuted,
                   ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(PhosphorIconsRegular.x, color: AppTheme.textMuted),
+                          icon: const Icon(Icons.close_rounded, color: AppTheme.textMuted),
                           onPressed: () {
                             _searchController.clear();
                             ref.read(productSearchProvider.notifier).update('');
@@ -146,7 +145,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            PhosphorIconsRegular.magnifyingGlass,
+                            Icons.search_rounded,
                             size: 48,
                             color: AppTheme.textMuted.withOpacity(0.4),
                           ),
@@ -316,7 +315,7 @@ class _ProductTile extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Icon(
-                          PhosphorIconsRegular.minus,
+                          Icons.remove_rounded,
                           size: 12,
                           color: AppTheme.errorColor,
                         ),
@@ -437,7 +436,7 @@ class _CartSummary extends StatelessWidget {
             ),
             ElevatedButton.icon(
               onPressed: onCheckout,
-              icon: const Icon(PhosphorIconsFill.checkCircle, size: 18),
+              icon: const Icon(Icons.check_circle_rounded, size: 18),
               label: const Text('Complete Sale'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,

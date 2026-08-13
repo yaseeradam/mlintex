@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/auth_provider.dart';
 import '../widgets/app_feedback.dart';
@@ -87,7 +86,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
-                      child: const Icon(PhosphorIconsRegular.caretLeft, color: Color(0xFF0F172A), size: 20),
+                      child: const Icon(Icons.chevron_left_rounded, color: Color(0xFF0F172A), size: 20),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -140,7 +139,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               shape: BoxShape.circle,
                               border: Border.all(color: const Color(0xFFF1F5F9), width: 2),
                             ),
-                            child: const Icon(PhosphorIconsRegular.camera, size: 16, color: Colors.white),
+                            child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
                           ),
                         ],
                       ),
@@ -160,7 +159,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(children: [
-                          const Icon(PhosphorIconsRegular.storefront, color: AppTheme.primaryColor, size: 20),
+                          const Icon(Icons.storefront_rounded, color: AppTheme.primaryColor, size: 20),
                           const SizedBox(width: 10),
                           const Text('Personal Information', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xFF0F172A))),
                         ]),
@@ -170,7 +169,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           textCapitalization: TextCapitalization.words,
                           decoration: const InputDecoration(
                             labelText: 'Shop / Profile Name',
-                            prefixIcon: Icon(PhosphorIconsRegular.storefront),
+                            prefixIcon: Icon(Icons.storefront_rounded),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -179,7 +178,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           keyboardType: TextInputType.phone,
                           decoration: const InputDecoration(
                             labelText: 'Phone Number',
-                            prefixIcon: Icon(PhosphorIconsRegular.phone),
+                            prefixIcon: Icon(Icons.phone_rounded),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -187,7 +186,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           controller: _shopNumberController,
                           decoration: const InputDecoration(
                             labelText: 'Shop Number',
-                            prefixIcon: Icon(PhosphorIconsRegular.tag),
+                            prefixIcon: Icon(Icons.label_rounded),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -197,7 +196,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           maxLines: 2,
                           decoration: const InputDecoration(
                             labelText: 'Address',
-                            prefixIcon: Icon(PhosphorIconsRegular.mapPin),
+                            prefixIcon: Icon(Icons.location_on_rounded),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -206,7 +205,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           enabled: false,
                           decoration: const InputDecoration(
                             labelText: 'Email Address',
-                            prefixIcon: Icon(PhosphorIconsRegular.envelope),
+                            prefixIcon: Icon(Icons.email_rounded),
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -228,7 +227,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(children: [
-                          const Icon(PhosphorIconsRegular.shieldCheck, color: AppTheme.successColor, size: 20),
+                          const Icon(Icons.security_rounded, color: AppTheme.successColor, size: 20),
                           const SizedBox(width: 10),
                           const Text('Security', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xFF0F172A))),
                         ]),
@@ -238,7 +237,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           obscureText: true,
                           decoration: const InputDecoration(
                             labelText: 'New Password',
-                            prefixIcon: Icon(PhosphorIconsRegular.lockKey),
+                            prefixIcon: Icon(Icons.lock_outline_roundedKey),
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -253,7 +252,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     height: 52,
                     child: ElevatedButton.icon(
                       onPressed: _saveProfile,
-                      icon: const Icon(PhosphorIconsFill.floppyDisk, size: 18),
+                      icon: const Icon(Icons.save_rounded, size: 18),
                       label: const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     ),
                   ),

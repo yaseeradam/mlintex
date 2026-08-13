@@ -9,7 +9,6 @@ import '../../core/utils/currency_formatter.dart';
 import 'app_feedback.dart';
 import '../products/product_provider.dart';
 import '../../domain/entities/product.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../receive/receive_screen.dart';
 
 class QuickAddProductSheet extends ConsumerStatefulWidget {
@@ -193,7 +192,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
 
               // Title
               Row(children: [
-                Icon(_isEditing ? PhosphorIconsRegular.pencilSimple : PhosphorIconsRegular.package,
+                Icon(_isEditing ? Icons.edit_rounded : Icons.inventory_2_rounded,
                     color: AppTheme.primaryColor, size: 22),
                 const SizedBox(width: 10),
                 Text(
@@ -220,7 +219,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                               : null,
                         ),
                         child: _avatarPath == null
-                            ? Icon(PhosphorIconsRegular.package, size: 40, color: AppTheme.primaryColor.withOpacity(0.5))
+                            ? Icon(Icons.inventory_2_rounded, size: 40, color: AppTheme.primaryColor.withOpacity(0.5))
                             : null,
                       ),
                       Positioned(
@@ -486,7 +485,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                 height: 52,
                 child: ElevatedButton.icon(
                   onPressed: _submit,
-                  icon: Icon(_isEditing ? Icons.save_rounded : PhosphorIconsFill.package, size: 18),
+                  icon: Icon(_isEditing ? Icons.save_rounded : Icons.add_rounded, size: 18),
                   label: Text(
                     _isEditing ? 'Save Changes' : 'Add Product',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),

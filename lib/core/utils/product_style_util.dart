@@ -1,117 +1,116 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class ProductStyleUtil {
   static final Map<String, ProductStyleData> _categoryStyles = {
     'fabric': ProductStyleData(
       colors: [const Color(0xFF6366F1), const Color(0xFF4F46E5)],
-      icon: PhosphorIconsFill.scissors,
+      icon: Icons.content_cut_rounded,
     ),
     'fabrics': ProductStyleData(
       colors: [const Color(0xFF6366F1), const Color(0xFF4F46E5)],
-      icon: PhosphorIconsFill.scissors,
+      icon: Icons.content_cut_rounded,
     ),
     'lace': ProductStyleData(
       colors: [const Color(0xFFF472B6), const Color(0xFFDB2777)],
-      icon: PhosphorIconsFill.star,
+      icon: Icons.star_rounded,
     ),
     'ankara': ProductStyleData(
       colors: [const Color(0xFFF59E0B), const Color(0xFFD97706)],
-      icon: PhosphorIconsFill.palette,
+      icon: Icons.palette_rounded,
     ),
     'brocade': ProductStyleData(
       colors: [const Color(0xFF0F766E), const Color(0xFF0D9488)],
-      icon: PhosphorIconsFill.starFour,
+      icon: Icons.star_roundedFour,
     ),
     'atiku': ProductStyleData(
       colors: [const Color(0xFF0F172A), const Color(0xFF1E293B)],
-      icon: PhosphorIconsFill.crown,
+      icon: Icons.workspace_premium_rounded,
     ),
     'cotton': ProductStyleData(
       colors: [const Color(0xFF34D399), const Color(0xFF059669)],
-      icon: PhosphorIconsFill.leaf,
+      icon: Icons.eco_rounded,
     ),
     'silk': ProductStyleData(
       colors: [const Color(0xFFA78BFA), const Color(0xFF7C3AED)],
-      icon: PhosphorIconsFill.sparkle,
+      icon: Icons.auto_awesome_rounded,
     ),
     'wool': ProductStyleData(
       colors: [const Color(0xFFFB923C), const Color(0xFFEA580C)],
-      icon: PhosphorIconsFill.spiral,
+      icon: Icons.loop_rounded,
     ),
     'cashmere': ProductStyleData(
       colors: [const Color(0xFF818CF8), const Color(0xFF4338CA)],
-      icon: PhosphorIconsFill.crown,
+      icon: Icons.workspace_premium_rounded,
     ),
     'velvet': ProductStyleData(
       colors: [const Color(0xFF9333EA), const Color(0xFF7E22CE)],
-      icon: PhosphorIconsFill.diamond,
+      icon: Icons.diamond_rounded,
     ),
     'chiffon': ProductStyleData(
       colors: [const Color(0xFF38BDF8), const Color(0xFF0284C7)],
-      icon: PhosphorIconsFill.wind,
+      icon: Icons.air_rounded,
     ),
     'denim': ProductStyleData(
       colors: [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)],
-      icon: PhosphorIconsFill.pants,
+      icon: Icons.straighten_rounded,
     ),
     'polyester': ProductStyleData(
       colors: [const Color(0xFF06B6D4), const Color(0xFF0891B2)],
-      icon: PhosphorIconsFill.tShirt,
+      icon: Icons.checkroom_rounded,
     ),
     'linen': ProductStyleData(
       colors: [const Color(0xFFFBBF24), const Color(0xFFF59E0B)],
-      icon: PhosphorIconsFill.tShirt,
+      icon: Icons.checkroom_rounded,
     ),
     'clothing': ProductStyleData(
       colors: [const Color(0xFFF472B6), const Color(0xFFDB2777)],
-      icon: PhosphorIconsFill.tShirt,
+      icon: Icons.checkroom_rounded,
     ),
     'clothes': ProductStyleData(
       colors: [const Color(0xFFF472B6), const Color(0xFFDB2777)],
-      icon: PhosphorIconsFill.tShirt,
+      icon: Icons.checkroom_rounded,
     ),
     'roman': ProductStyleData(
       colors: [const Color(0xFF6366F1), const Color(0xFF4F46E5)],
-      icon: PhosphorIconsFill.scissors,
+      icon: Icons.content_cut_rounded,
     ),
     'senator': ProductStyleData(
       colors: [const Color(0xFF0F172A), const Color(0xFF1E293B)],
-      icon: PhosphorIconsFill.crown,
+      icon: Icons.workspace_premium_rounded,
     ),
     'native': ProductStyleData(
       colors: [const Color(0xFF16A34A), const Color(0xFF15803D)],
-      icon: PhosphorIconsFill.star,
+      icon: Icons.star_rounded,
     ),
     'accessories': ProductStyleData(
       colors: [const Color(0xFFF59E0B), const Color(0xFFD97706)],
-      icon: PhosphorIconsFill.handbag,
+      icon: Icons.shopping_bag_rounded,
     ),
     'thread': ProductStyleData(
       colors: [const Color(0xFFEC4899), const Color(0xFFBE185D)],
-      icon: PhosphorIconsFill.spiral,
+      icon: Icons.loop_rounded,
     ),
     'button': ProductStyleData(
       colors: [const Color(0xFF64748B), const Color(0xFF475569)],
-      icon: PhosphorIconsFill.circle,
+      icon: Icons.circle_rounded,
     ),
     'zip': ProductStyleData(
       colors: [const Color(0xFF64748B), const Color(0xFF475569)],
-      icon: PhosphorIconsFill.arrowsVertical,
+      icon: Icons.unfold_more_rounded,
     ),
     'zipper': ProductStyleData(
       colors: [const Color(0xFF64748B), const Color(0xFF475569)],
-      icon: PhosphorIconsFill.arrowsVertical,
+      icon: Icons.unfold_more_rounded,
     ),
   };
 
   static final List<ProductStyleData> _fallbacks = [
-    ProductStyleData(colors: [const Color(0xFF6366F1), const Color(0xFF4F46E5)], icon: PhosphorIconsFill.scissors),
-    ProductStyleData(colors: [const Color(0xFFF472B6), const Color(0xFFDB2777)], icon: PhosphorIconsFill.tShirt),
-    ProductStyleData(colors: [const Color(0xFF34D399), const Color(0xFF059669)], icon: PhosphorIconsFill.leaf),
-    ProductStyleData(colors: [const Color(0xFFFBBF24), const Color(0xFFD97706)], icon: PhosphorIconsFill.palette),
-    ProductStyleData(colors: [const Color(0xFFA78BFA), const Color(0xFF7C3AED)], icon: PhosphorIconsFill.sparkle),
-    ProductStyleData(colors: [const Color(0xFF38BDF8), const Color(0xFF0284C7)], icon: PhosphorIconsFill.wind),
+    ProductStyleData(colors: [const Color(0xFF6366F1), const Color(0xFF4F46E5)], icon: Icons.content_cut_rounded),
+    ProductStyleData(colors: [const Color(0xFFF472B6), const Color(0xFFDB2777)], icon: Icons.checkroom_rounded),
+    ProductStyleData(colors: [const Color(0xFF34D399), const Color(0xFF059669)], icon: Icons.eco_rounded),
+    ProductStyleData(colors: [const Color(0xFFFBBF24), const Color(0xFFD97706)], icon: Icons.palette_rounded),
+    ProductStyleData(colors: [const Color(0xFFA78BFA), const Color(0xFF7C3AED)], icon: Icons.auto_awesome_rounded),
+    ProductStyleData(colors: [const Color(0xFF38BDF8), const Color(0xFF0284C7)], icon: Icons.air_rounded),
   ];
 
   static ProductStyleData getStyle(String? category, String name) {

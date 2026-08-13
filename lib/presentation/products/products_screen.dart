@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/pdf_theme.dart';
 import '../../core/utils/file_saver.dart';
@@ -149,10 +148,10 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       },
                       decoration: InputDecoration(
                         hintText: 'Search products…',
-                        prefixIcon: const Icon(PhosphorIconsRegular.magnifyingGlass, color: AppTheme.textMuted, size: 18),
+                        prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textMuted, size: 18),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(PhosphorIconsRegular.x, color: AppTheme.textMuted, size: 16),
+                                icon: const Icon(Icons.close_rounded, color: AppTheme.textMuted, size: 16),
                                 onPressed: () {
                                   _searchController.clear();
                                   ref.read(productSearchProvider.notifier).update('');
@@ -229,7 +228,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 16),
         alignment: Alignment.center,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(PhosphorIconsRegular.package, size: 64, color: AppTheme.textMuted.withOpacity(0.3)),
+          Icon(Icons.inventory_2_rounded, size: 64, color: AppTheme.textMuted.withOpacity(0.3)),
           const SizedBox(height: 16),
           const Text('No products found', style: TextStyle(color: Color(0xFF64748B), fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
@@ -336,7 +335,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 16),
         alignment: Alignment.center,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(PhosphorIconsRegular.package, size: 64, color: AppTheme.textMuted.withOpacity(0.3)),
+          Icon(Icons.inventory_2_rounded, size: 64, color: AppTheme.textMuted.withOpacity(0.3)),
           const SizedBox(height: 16),
           const Text('No products found', style: TextStyle(color: Color(0xFF64748B), fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
@@ -724,7 +723,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       Row(
                         children: [
                           _RowSheetQtyBtn(
-                            icon: PhosphorIconsRegular.minus,
+                            icon: Icons.remove_rounded,
                             onTap: () {
                               ref.read(productNotifierProvider.notifier).updateQuantity(currentEntry.id, -1);
                             },
@@ -747,7 +746,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                             ),
                           ),
                           _RowSheetQtyBtn(
-                            icon: PhosphorIconsRegular.plus,
+                            icon: Icons.add_rounded,
                             onTap: () {
                               ref.read(productNotifierProvider.notifier).updateQuantity(currentEntry.id, 1);
                             },

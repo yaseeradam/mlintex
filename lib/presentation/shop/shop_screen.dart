@@ -8,7 +8,6 @@ import '../widgets/quick_add_shop_customer_sheet.dart';
 import '../ledger/ledger_provider.dart';
 import '../ledger/customer_ledger_screen.dart';
 import 'shop_customer_provider.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class ShopScreen extends ConsumerStatefulWidget {
   const ShopScreen({super.key});
@@ -91,12 +90,12 @@ class _ShopScreenState extends ConsumerState<ShopScreen>
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       _ViewToggleBtn(
-                        icon: PhosphorIconsRegular.list,
+                        icon: Icons.list_rounded,
                         active: !_isGridView,
                         onTap: () => setState(() => _isGridView = false),
                       ),
                       _ViewToggleBtn(
-                        icon: PhosphorIconsRegular.squaresFour,
+                        icon: Icons.grid_view_rounded,
                         active: _isGridView,
                         onTap: () => setState(() => _isGridView = true),
                       ),
@@ -122,7 +121,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen>
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [BoxShadow(color: AppTheme.warningColor.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
                       ),
-                      child: const Icon(PhosphorIconsFill.userPlus, color: Colors.white, size: 20),
+                      child: const Icon(Icons.person_add_rounded, color: Colors.white, size: 20),
                     ),
                   ),
                 ],
@@ -167,10 +166,10 @@ class _ShopScreenState extends ConsumerState<ShopScreen>
                 onChanged: (val) => ref.read(shopCustomerSearchProvider.notifier).update(val),
                 decoration: InputDecoration(
                   hintText: 'Search by name, phone or customer details…',
-                  prefixIcon: const Icon(PhosphorIconsRegular.magnifyingGlass, color: AppTheme.textMuted, size: 18),
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textMuted, size: 18),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(PhosphorIconsRegular.x, color: AppTheme.textMuted, size: 16),
+                          icon: const Icon(Icons.close_rounded, color: AppTheme.textMuted, size: 16),
                           onPressed: () {
                             _searchController.clear();
                             ref.read(shopCustomerSearchProvider.notifier).update('');
@@ -200,7 +199,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen>
                   if (filtered.isEmpty) {
                     return Center(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(PhosphorIconsRegular.users, size: 64, color: AppTheme.textMuted.withOpacity(0.3)),
+                        Icon(Icons.people_rounded, size: 64, color: AppTheme.textMuted.withOpacity(0.3)),
                         const SizedBox(height: 16),
                         Text(query.isEmpty ? 'No customers yet' : 'No results for "$query"',
                             style: TextStyle(color: textMuted, fontSize: 16, fontWeight: FontWeight.w600)),
@@ -440,7 +439,7 @@ class _ShopListCard extends StatelessWidget {
               if (customer.phone != null) ...[
                 const SizedBox(height: 2),
                 Row(children: [
-                  const Icon(PhosphorIconsRegular.phone, size: 12, color: Color(0xFF64748B)),
+                  const Icon(Icons.phone_rounded, size: 12, color: Color(0xFF64748B)),
                   const SizedBox(width: 4),
                   Text(customer.phone!, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                 ]),
@@ -473,7 +472,7 @@ class _ShopListCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            const Icon(PhosphorIconsRegular.caretRight, size: 16, color: Color(0xFF64748B)),
+            const Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF64748B)),
           ]),
         ]),
       ),

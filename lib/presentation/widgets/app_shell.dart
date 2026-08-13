@@ -10,7 +10,6 @@ import '../shop/shop_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../data/datasources/sync_service.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class _TabNotifier extends Notifier<int> {
   @override
@@ -86,13 +85,13 @@ class _ModernBottomNav extends ConsumerWidget {
         syncStatus.value == SyncStatus.syncing;
 
     final items = [
-      _NavItemData(icon: PhosphorIconsRegular.house, activeIcon: PhosphorIconsFill.house, label: 'Home'),
-      _NavItemData(icon: PhosphorIconsRegular.receipt, activeIcon: PhosphorIconsFill.receipt, label: 'Sales'),
-      _NavItemData(icon: PhosphorIconsRegular.arrowCircleDown, activeIcon: PhosphorIconsFill.arrowCircleDown, label: 'Receive'),
-      _NavItemData(icon: PhosphorIconsRegular.users, activeIcon: PhosphorIconsFill.users, label: 'Customers'),
-      _NavItemData(icon: PhosphorIconsRegular.shoppingBag, activeIcon: PhosphorIconsFill.shoppingBag, label: 'Shop'),
-      _NavItemData(icon: PhosphorIconsRegular.storefront, activeIcon: PhosphorIconsFill.storefront, label: 'Store'),
-      _NavItemData(icon: PhosphorIconsRegular.gear, activeIcon: PhosphorIconsFill.gear, label: 'Settings'),
+      _NavItemData(icon: Icons.home_rounded, activeIcon: Icons.home_rounded, label: 'Home'),
+      _NavItemData(icon: Icons.receipt_long_rounded, activeIcon: Icons.receipt_long_rounded, label: 'Sales'),
+      _NavItemData(icon: Icons.download_rounded, activeIcon: Icons.download_rounded, label: 'Receive'),
+      _NavItemData(icon: Icons.people_rounded, activeIcon: Icons.people_rounded, label: 'Customers'),
+      _NavItemData(icon: Icons.shopping_bag_rounded, activeIcon: Icons.shopping_bag_rounded, label: 'Shop'),
+      _NavItemData(icon: Icons.storefront_rounded, activeIcon: Icons.storefront_rounded, label: 'Store'),
+      _NavItemData(icon: Icons.settings_rounded, activeIcon: Icons.settings_rounded, label: 'Settings'),
     ];
 
     final bottomPadding = MediaQuery.of(context).padding.bottom;

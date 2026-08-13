@@ -6,7 +6,6 @@ import '../../core/theme/app_theme.dart';
 import '../../domain/entities/customer.dart';
 import 'app_feedback.dart';
 import '../shop/shop_customer_provider.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class QuickAddShopCustomerSheet extends ConsumerStatefulWidget {
   final Customer? existing;
@@ -148,7 +147,7 @@ class _QuickAddShopCustomerSheetState extends ConsumerState<QuickAddShopCustomer
 
               // Title
               Row(children: [
-                Icon(PhosphorIconsRegular.userPlus, color: AppTheme.warningColor, size: 22),
+                Icon(Icons.person_add_rounded, color: AppTheme.warningColor, size: 22),
                 const SizedBox(width: 10),
                 Text(
                   _isEditing ? 'Edit Customer' : 'Add Customer',
@@ -174,7 +173,7 @@ class _QuickAddShopCustomerSheetState extends ConsumerState<QuickAddShopCustomer
                               : null,
                         ),
                         child: _avatarPath == null
-                            ? Icon(PhosphorIconsRegular.user, size: 40, color: AppTheme.primaryColor.withOpacity(0.5))
+                            ? Icon(Icons.person_rounded, size: 40, color: AppTheme.primaryColor.withOpacity(0.5))
                             : null,
                       ),
                       Positioned(
@@ -242,7 +241,7 @@ class _QuickAddShopCustomerSheetState extends ConsumerState<QuickAddShopCustomer
                 height: 52,
                 child: ElevatedButton.icon(
                   onPressed: _submit,
-                  icon: Icon(_isEditing ? Icons.save_rounded : PhosphorIconsFill.userPlus, size: 18),
+                  icon: Icon(_isEditing ? Icons.save_rounded : Icons.person_add_rounded, size: 18),
                   label: Text(
                     _isEditing ? 'Save Changes' : 'Add Customer',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),

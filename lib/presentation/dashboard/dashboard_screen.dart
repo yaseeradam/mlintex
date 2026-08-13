@@ -11,7 +11,6 @@ import '../widgets/glass_container.dart';
 import '../widgets/quick_add_customer_sheet.dart';
 import '../widgets/add_debt_sheet.dart';
 import 'package:intl/intl.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -54,7 +53,7 @@ class DashboardScreen extends ConsumerWidget {
                   Expanded(child: _StatCard(
                     label: 'Customers',
                     value: (customersAsync.value?.length ?? 0).toString(),
-                    icon: PhosphorIconsFill.users,
+                    icon: Icons.people_rounded,
                     color: AppTheme.warningColor,
                     bg: AppTheme.warningColor.withOpacity(0.08),
                   )),
@@ -62,7 +61,7 @@ class DashboardScreen extends ConsumerWidget {
                   Expanded(child: _StatCard(
                     label: 'Total Debt',
                     value: '₦${currency.format(totalDebt.value ?? 0)}',
-                    icon: PhosphorIconsFill.receipt,
+                    icon: Icons.receipt_long_rounded,
                     color: AppTheme.errorColor,
                     bg: AppTheme.errorColor.withOpacity(0.08),
                     small: true,
@@ -311,7 +310,7 @@ class _QuickActions extends StatelessWidget {
         Row(children: [
           Expanded(child: _ActionTile(
             label: 'Add Customer',
-            icon: PhosphorIconsFill.userPlus,
+            icon: Icons.person_add_rounded,
             color: AppTheme.warningColor,
             onTap: () => showModalBottomSheet(context: context, isScrollControlled: true,
                 backgroundColor: Colors.transparent, builder: (_) => const QuickAddCustomerSheet()),
@@ -319,7 +318,7 @@ class _QuickActions extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(child: _ActionTile(
             label: 'New Debt',
-            icon: PhosphorIconsFill.receipt,
+            icon: Icons.receipt_long_rounded,
             color: AppTheme.errorColor,
             onTap: () => showModalBottomSheet(context: context, isScrollControlled: true,
                 backgroundColor: Colors.transparent, builder: (_) => const AddDebtSheet()),
@@ -406,7 +405,7 @@ class _RecentActivity extends ConsumerWidget {
               return ModernCard(
                 padding: const EdgeInsets.all(28),
                 child: Column(children: [
-                  Icon(PhosphorIconsRegular.receipt, size: 44, color: textMuted.withOpacity(0.4)),
+                  Icon(Icons.receipt_long_rounded, size: 44, color: textMuted.withOpacity(0.4)),
                   const SizedBox(height: 10),
                   Text('No sales yet. Start selling!', style: TextStyle(color: textMuted, fontSize: 14)),
                 ]),
@@ -431,7 +430,7 @@ class _RecentActivity extends ConsumerWidget {
                         color: AppTheme.primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(PhosphorIconsFill.receipt, color: AppTheme.primaryColor, size: 18),
+                      child: const Icon(Icons.receipt_long_rounded, color: AppTheme.primaryColor, size: 18),
                     ),
                     const SizedBox(width: 12),
                     Expanded(child: Column(
