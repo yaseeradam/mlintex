@@ -62,47 +62,54 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
 
     AppFeedback.showLoading(context);
 
-    final debtId = const Uuid().v4();
-    final note = _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
-    final amount = CurrencyInputFormatter.parse(_amountController.text.trim());
+    try {
+      final debtId = const Uuid().v4();
+      final note = _noteController.text.trim().isEmpty ? null : _noteController.text.trim();
+      final amount = CurrencyInputFormatter.parse(_amountController.text.trim());
 
-    await ref.read(debtNotifierProvider.notifier).addDebt(
-          customerId: _selectedCustomerId!,
-          customerName: _selectedCustomerName!,
-          amount: amount,
-          dueDate: _dueDate,
-          note: note,
+      await ref.read(debtNotifierProvider.notifier).addDebt(
+            customerId: _selectedCustomerId!,
+            customerName: _selectedCustomerName!,
+            amount: amount,
+            dueDate: _dueDate,
+            note: note,
+          );
+
+      if (_reminderEnabled) {
+        final reminderDateTime = DateTime(
+          _dueDate.year,
+          _dueDate.month,
+          _dueDate.day,
+          _reminderTime.hour,
+          _reminderTime.minute,
         );
+        if (reminderDateTime.isAfter(DateTime.now())) {
+          await NotificationService.scheduleDebtReminder(
+            debtId: debtId,
+            customerName: _selectedCustomerName!,
+            amount: amount,
+            scheduledDate: reminderDateTime,
+            note: note,
+          );
+        }
+      }
 
-    if (_reminderEnabled) {
-      final reminderDateTime = DateTime(
-        _dueDate.year,
-        _dueDate.month,
-        _dueDate.day,
-        _reminderTime.hour,
-        _reminderTime.minute,
-      );
-      if (reminderDateTime.isAfter(DateTime.now())) {
-        await NotificationService.scheduleDebtReminder(
-          debtId: debtId,
-          customerName: _selectedCustomerName!,
-          amount: amount,
-          scheduledDate: reminderDateTime,
-          note: note,
+      if (mounted) {
+        AppFeedback.hideLoading(context);
+        Navigator.pop(context);
+        AppFeedback.showSuccess(
+          context,
+          'Debt Added',
+          _reminderEnabled
+              ? 'Debt recorded. Reminder set for ${DateFormat('MMM d').format(_dueDate)} at ${_reminderTime.format(context)}.'
+              : 'Debt has been recorded successfully.',
         );
       }
-    }
-
-    if (mounted) {
-      AppFeedback.hideLoading(context);
-      Navigator.pop(context);
-      AppFeedback.showSuccess(
-        context,
-        'Debt Added',
-        _reminderEnabled
-            ? 'Debt recorded. Reminder set for ${DateFormat('MMM d').format(_dueDate)} at ${_reminderTime.format(context)}.'
-            : 'Debt has been recorded successfully.',
-      );
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.hideLoading(context);
+        AppFeedback.showError(context, 'Error', 'Failed to record debt. Please try again.');
+      }
     }
   }
 
