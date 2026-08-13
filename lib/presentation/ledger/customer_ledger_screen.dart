@@ -368,15 +368,16 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
           pw.Table(
             border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
             columnWidths: {
-              0: const pw.FixedColumnWidth(80),   // Date
-              1: const pw.FlexColumnWidth(2.5),  // Item/Desc
-              2: const pw.FlexColumnWidth(1.2),  // Price (₦)
-              3: const pw.FlexColumnWidth(0.8),  // Qty
-              4: const pw.FlexColumnWidth(1.3),  // IN (₦)
-              5: const pw.FlexColumnWidth(1.3),  // OUT (₦)
-              6: const pw.FlexColumnWidth(1.5),  // Balance (₦)
+              0: const pw.FixedColumnWidth(72),   // Date
+              1: const pw.FlexColumnWidth(2.5),   // Item/Desc
+              2: const pw.FlexColumnWidth(0.7),   // Qty
+              3: const pw.FlexColumnWidth(1.4),   // Price (₦) / method for payments
+              4: const pw.FlexColumnWidth(1.3),   // OUT (₦)
+              5: const pw.FlexColumnWidth(1.3),   // Total Amt
+              6: const pw.FlexColumnWidth(1.5),   // Balance (₦)
             },
             children: [
+              // Header row
               pw.TableRow(
                 decoration: const pw.BoxDecoration(color: PdfColors.grey200),
                 children: [
@@ -394,13 +395,21 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
                 final entry = e.value;
                 final isSale = entry.type == LedgerEntryType.sale;
                 final rowColor = i.isOdd ? PdfColors.grey50 : PdfColors.white;
-                
+
+                // Same logic as UI table
                 final desc = isSale ? (entry.inItem ?? '') : '';
-                final qtyStr = isSale ? entry.quantity?.toString() ?? '1' : '—';
-                final priceStr = isSale ? fmt.format(entry.price) : (entry.outItem ?? '');
-                final goodsTotal = '${PdfTheme.naira}${fmt.format(entry.totalAmount)}';
-                final paymentReceived = !isSale ? fmt.format(entry.totalAmount) : '—';
-                
+                final qtyStr = isSale ? (entry.quantity?.toString() ?? '1') : '—';
+                // Price col: unit price for sales, payment method name for payments
+                final priceStr = isSale
+                    ? fmt.format(entry.price)
+                    : (entry.outItem ?? '');
+                // OUT col: payment amount for payments, — for sales
+                final outStr = !isSale
+                    ? '${PdfTheme.naira}${fmt.format(entry.totalAmount)}'
+                    : '—';
+                // Total Amt col: always the total
+                final totalAmtStr = '${PdfTheme.naira}${fmt.format(entry.totalAmount)}';
+
                 return pw.TableRow(
                   decoration: pw.BoxDecoration(color: rowColor),
                   children: [
@@ -408,12 +417,8 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
                     dCell(desc, bold: isSale),
                     dCell(qtyStr, alignment: pw.Alignment.center),
                     dCell(priceStr, alignment: pw.Alignment.centerRight),
-                    dCell(
-                      !isSale ? '${PdfTheme.naira}$paymentReceived' : '—',
-                      bold: !isSale,
-                      alignment: pw.Alignment.centerRight,
-                    ),
-                    dCell(goodsTotal, bold: true, alignment: pw.Alignment.centerRight),
+                    dCell(outStr, bold: !isSale, alignment: pw.Alignment.centerRight),
+                    dCell(totalAmtStr, bold: true, alignment: pw.Alignment.centerRight),
                     dCell('${PdfTheme.naira}${fmt.format(entry.runningBalance)}', bold: true, alignment: pw.Alignment.centerRight),
                   ],
                 );
@@ -1020,13 +1025,13 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
           pw.Table(
             border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
             columnWidths: {
-              0: const pw.FixedColumnWidth(80),   // Date
-              1: const pw.FlexColumnWidth(2.5),  // Item/Desc
-              2: const pw.FlexColumnWidth(0.8),  // Qty
-              3: const pw.FlexColumnWidth(1.2),  // Price (₦)
-              4: const pw.FlexColumnWidth(1.3),  // Total Amt
-              5: const pw.FlexColumnWidth(1.3),  // OUT (₦)
-              6: const pw.FlexColumnWidth(1.5),  // Balance (₦)
+              0: const pw.FixedColumnWidth(72),   // Date
+              1: const pw.FlexColumnWidth(2.5),   // Item/Desc
+              2: const pw.FlexColumnWidth(0.7),   // Qty
+              3: const pw.FlexColumnWidth(1.4),   // Price (₦) / method for payments
+              4: const pw.FlexColumnWidth(1.3),   // OUT (₦)
+              5: const pw.FlexColumnWidth(1.3),   // Total Amt
+              6: const pw.FlexColumnWidth(1.5),   // Balance (₦)
             },
             children: [
               pw.TableRow(
