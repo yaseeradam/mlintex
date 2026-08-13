@@ -20,7 +20,7 @@ class ProductStyleUtil {
     ),
     'brocade': ProductStyleData(
       colors: [const Color(0xFF0F766E), const Color(0xFF0D9488)],
-      icon: Icons.star_roundedFour,
+      icon: Icons.auto_awesome_rounded,
     ),
     'atiku': ProductStyleData(
       colors: [const Color(0xFF0F172A), const Color(0xFF1E293B)],

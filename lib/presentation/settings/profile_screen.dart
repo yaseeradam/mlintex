@@ -237,7 +237,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           obscureText: true,
                           decoration: const InputDecoration(
                             labelText: 'New Password',
-                            prefixIcon: Icon(Icons.lock_outline_roundedKey),
+                            prefixIcon: Icon(Icons.key_rounded),
                           ),
                         ),
                         const SizedBox(height: 6),
