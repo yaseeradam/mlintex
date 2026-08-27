@@ -8,6 +8,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../data/datasources/sync_service.dart';
 import '../widgets/app_feedback.dart';
 import '../widgets/glass_container.dart';
+import '../../core/services/backup_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -176,6 +177,26 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
         _SettingsGroup(
           children: [
             _ActionTile(
+              icon: Icons.upload_file_rounded,
+              iconColor: AppTheme.primaryColor,
+              title: 'Export Backup (Save / Share)',
+              subtitle: 'Save all your sales, ledgers, and debts to a file',
+              trailing: const Icon(Icons.chevron_right_rounded,
+                  color: AppTheme.textMuted, size: 20),
+              onTap: () => BackupService.exportBackup(context),
+            ),
+            const Divider(height: 1, indent: 56),
+            _ActionTile(
+              icon: Icons.download_for_offline_rounded,
+              iconColor: AppTheme.accentColor,
+              title: 'Restore Backup',
+              subtitle: 'Import data from a saved backup file',
+              trailing: const Icon(Icons.chevron_right_rounded,
+                  color: AppTheme.textMuted, size: 20),
+              onTap: () => _showRestoreDialog(context),
+            ),
+            const Divider(height: 1, indent: 56),
+            _ActionTile(
               icon: Icons.cloud_upload_outlined,
               iconColor: AppTheme.successColor,
               title: 'Manual Sync',
@@ -185,7 +206,7 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Icon(Icons.chevron_right_rounded,
+                  : const Icon(Icons.chevron_right_rounded,
                       color: AppTheme.textMuted, size: 20),
               onTap: isSyncing ? null : () => ref.read(syncServiceProvider).syncAll(),
             ),
@@ -237,8 +258,69 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
         ],
       ),
     );
+  void _showRestoreDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.download_for_offline_rounded, color: AppTheme.accentColor),
+            SizedBox(width: 10),
+            Text('Restore Backup', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Paste the contents of your backup JSON file below to restore your data:',
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLines: 6,
+              style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+              decoration: InputDecoration(
+                hintText: '{"version": 1, "products": [...]}',
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final text = controller.text.trim();
+              if (text.isEmpty) return;
+              Navigator.pop(dialogCtx);
+              final success = await BackupService.importBackupFromRawJson(context, text);
+              if (success && context.mounted) {
+                setState(() {});
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Restore Data'),
+          ),
+        ],
+      ),
+    );
   }
-
 }
 
 class _SettingsGroup extends StatelessWidget {
