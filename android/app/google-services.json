@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "813733906604",
+    "project_id": "mlintex-17ad8",
+    "storage_bucket": "mlintex-17ad8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:813733906604:android:3075f9f91ddcde1dc27709",
+        "android_client_info": {
+          "package_name": "com.example.shop_manager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0bfuzfVO6PR28erEWn0dzVuwAa74vCn8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
