@@ -158,7 +158,6 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
         ),
         const SizedBox(height: 24),
 
-
         _SectionHeader('Preferences'),
         _SettingsGroup(
           children: [
@@ -258,6 +257,8 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
         ],
       ),
     );
+  }
+
   void _showRestoreDialog(BuildContext context) {
     final controller = TextEditingController();
     showDialog(
