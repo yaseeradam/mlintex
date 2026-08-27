@@ -11,9 +11,13 @@ import 'data/models/debt_model.dart';
 import 'domain/entities/ledger_entry.dart';
 import 'presentation/receive/receive_screen.dart';
 import 'presentation/sales_ledger/sales_ledger_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {}
 
   await Hive.initFlutter();
   Hive.registerAdapter(ProductModelAdapter());

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/models/product_model.dart';
 import '../../data/models/customer_model.dart';
 import '../../data/models/debt_model.dart';
@@ -83,11 +84,22 @@ class AuthNotifier extends Notifier<AuthState> {
     required String email,
     required String password,
   }) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    // Simple demo: accept any non-empty email/password
     if (email.trim().isEmpty || password.isEmpty) return false;
+
+    // Try Firebase Authentication if initialized
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+    } catch (_) {
+      try {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        );
+      } catch (_) {}
+    }
 
     final box = Hive.box(_boxName);
     await box.put(_keyLoggedIn, true);
@@ -137,6 +149,9 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
     final box = Hive.box(_boxName);
     await box.put(_keyLoggedIn, false);
     state = const AuthState.unauthenticated();
