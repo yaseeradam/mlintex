@@ -22,9 +22,9 @@ final shopLedgerBoxProvider = Provider<Box<LedgerEntry>>((ref) {
 final customerLedgerProvider =
     StreamProvider.family<List<LedgerEntry>, String>((ref, customerId) async* {
   final box = ref.watch(customerLedgerBoxProvider);
-  yield _entriesFor(box, customerId);
+  yield entriesFor(box, customerId);
   await for (final _ in box.watch()) {
-    yield _entriesFor(box, customerId);
+    yield entriesFor(box, customerId);
   }
 });
 
@@ -54,9 +54,9 @@ final customerLedgerBalancesProvider = StreamProvider<Map<String, double>>((ref)
 final shopLedgerProvider =
     StreamProvider.family<List<LedgerEntry>, String>((ref, customerId) async* {
   final box = ref.watch(shopLedgerBoxProvider);
-  yield _entriesFor(box, customerId);
+  yield entriesFor(box, customerId);
   await for (final _ in box.watch()) {
-    yield _entriesFor(box, customerId);
+    yield entriesFor(box, customerId);
   }
 });
 
@@ -82,7 +82,7 @@ final shopLedgerBalancesProvider = StreamProvider<Map<String, double>>((ref) asy
   }
 });
 
-List<LedgerEntry> _entriesFor(Box<LedgerEntry> box, String customerId) {
+List<LedgerEntry> entriesFor(Box<LedgerEntry> box, String customerId) {
   final entries = box.values
       .where((e) => e.customerId == customerId)
       .toList()

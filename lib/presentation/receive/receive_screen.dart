@@ -207,7 +207,7 @@ class ReceiveUiRow {
   });
 }
 
-List<ReceiveUiRow> _buildUiRows(List<ReceiveEntry> entries) {
+List<ReceiveUiRow> buildUiRows(List<ReceiveEntry> entries) {
   final List<ReceiveUiRow> rows = [];
   for (final entry in entries) {
     final isEntryPaymentOnly = entry.productName.trim().isEmpty ||
@@ -384,7 +384,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                     ),
                     const SizedBox(height: 16),
                     _ReceiveFeed(
-                      rows: _buildUiRows(entries),
+                      rows: buildUiRows(entries),
                       fmt: _fmt,
                       dateFmt: _dateFmt,
                       cardBg: cardBg,
@@ -808,7 +808,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     final auth = ref.read(authProvider);
     final shopName = auth.shopName.isEmpty || auth.shopName.toLowerCase() == 'admin' ? 'M Lin Tex' : auth.shopName;
 
-    final rows = _buildUiRows(entries);
+    final rows = buildUiRows(entries);
 
     // Compute running balance: stock IN adds debt, payments OUT reduce it
     double runningBalance = 0;
@@ -1010,7 +1010,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     final headerBg = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
 
-    final rows = _buildUiRows(entries);
+    final rows = buildUiRows(entries);
 
     // Compute running balance
     double runningBal = 0;
