@@ -15,6 +15,7 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/pdf_theme.dart';
 import '../../core/utils/file_saver.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/services/pending_sync_tracker.dart';
 
 // ── Model ──────────────────────────────────────────────────────────────────
 
@@ -127,10 +128,17 @@ class ReceiveNotifier extends Notifier<void> {
       description: description ?? '',
     );
     await _box.put(e.id, e);
+    PendingSyncTracker.markPending(_box.name, e.id);
   }
 
-  Future<void> update(ReceiveEntry e) async => _box.put(e.id, e);
-  Future<void> delete(String id) async => _box.delete(id);
+  Future<void> update(ReceiveEntry e) async {
+    await _box.put(e.id, e);
+    PendingSyncTracker.markPending(_box.name, e.id);
+  }
+  Future<void> delete(String id) async {
+    await _box.delete(id);
+    PendingSyncTracker.markPending(_box.name, id);
+  }
 }
 
 final receiveNotifierProvider = NotifierProvider<ReceiveNotifier, void>(ReceiveNotifier.new);
@@ -164,6 +172,10 @@ class ReceiveUiRow {
 List<ReceiveUiRow> _buildUiRows(List<ReceiveEntry> entries) {
   final List<ReceiveUiRow> rows = [];
   for (final entry in entries) {
+    final isEntryPaymentOnly = entry.productName.trim().isEmpty ||
+        entry.productName.trim().toLowerCase() == 'payment only' ||
+        (entry.price == 0 && entry.quantity == 0 && entry.totalAmount == 0 && (entry.payment ?? 0) > 0);
+
     if (entry.payment != null && entry.payment! > 0 && entry.paymentDate != null) {
       final isSameDay = entry.date.year == entry.paymentDate!.year &&
           entry.date.month == entry.paymentDate!.month &&
@@ -172,12 +184,13 @@ List<ReceiveUiRow> _buildUiRows(List<ReceiveEntry> entries) {
         rows.add(ReceiveUiRow(
           id: entry.id,
           displayDate: entry.date,
-          productName: entry.productName.trim().isEmpty ? 'Payment Only' : entry.productName,
+          productName: isEntryPaymentOnly ? '' : entry.productName,
           payment: entry.payment ?? 0.0,
           price: entry.price,
           quantity: entry.quantity,
           totalAmount: entry.totalAmount,
           originalEntry: entry,
+          isPaymentRow: isEntryPaymentOnly,
         ));
       } else {
         if (entry.price > 0 || entry.quantity > 0 || entry.totalAmount > 0) {
@@ -190,14 +203,13 @@ List<ReceiveUiRow> _buildUiRows(List<ReceiveEntry> entries) {
             quantity: entry.quantity,
             totalAmount: entry.totalAmount,
             originalEntry: entry,
+            isPaymentRow: false,
           ));
         }
         rows.add(ReceiveUiRow(
           id: '${entry.id}_pay',
           displayDate: entry.paymentDate!,
-          productName: entry.productName.trim().isEmpty
-              ? 'Payment Only'
-              : 'Payment: ${entry.productName}',
+          productName: '',
           payment: entry.payment ?? 0.0,
           price: 0.0,
           quantity: 0,
@@ -210,12 +222,13 @@ List<ReceiveUiRow> _buildUiRows(List<ReceiveEntry> entries) {
       rows.add(ReceiveUiRow(
         id: entry.id,
         displayDate: entry.date,
-        productName: entry.productName.trim().isEmpty ? 'Payment Only' : entry.productName,
+        productName: isEntryPaymentOnly ? '' : entry.productName,
         payment: entry.payment ?? 0.0,
         price: entry.price,
         quantity: entry.quantity,
         totalAmount: entry.totalAmount,
         originalEntry: entry,
+        isPaymentRow: isEntryPaymentOnly,
       ));
     }
   }
@@ -512,24 +525,19 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                   pw.Container(
                     alignment: pw.Alignment.centerLeft,
                     padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text(
-                          entry.productName.trim().isEmpty ? 'Payment Only' : entry.productName,
-                          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-                        ),
-                        if (entry.description != null && entry.description!.trim().isNotEmpty) ...[
-                          pw.SizedBox(height: 2),
-                          pw.Text(
-                            entry.description!,
-                            style: const pw.TextStyle(fontSize: 6.5, color: PdfColors.grey700),
-                          ),
-                        ],
-                      ],
+                    child: pw.Text(
+                      entry.productName.trim().isEmpty ? 'Payment Only' : entry.productName,
+                      style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                     ),
                   ),
-                  dCell(entry.price == 0.0 ? '—' : '${PdfTheme.naira}${fmt.format(entry.price)}', alignment: pw.Alignment.centerRight),
+                  dCell(
+                    entry.price == 0.0
+                        ? (entry.description?.trim().isNotEmpty == true ? entry.description!.trim() : '—')
+                        : (entry.description?.trim().isNotEmpty == true
+                            ? '${PdfTheme.naira}${fmt.format(entry.price)}\n${entry.description!.trim()}'
+                            : '${PdfTheme.naira}${fmt.format(entry.price)}'),
+                    alignment: pw.Alignment.centerRight,
+                  ),
                   dCell(entry.quantity == 0 ? '—' : '${entry.quantity}', alignment: pw.Alignment.center),
                   dCell('${PdfTheme.naira}${fmt.format(entry.totalAmount)}', bold: true, alignment: pw.Alignment.centerRight),
                   dCell('${PdfTheme.naira}${fmt.format(entry.payment ?? 0.0)}', alignment: pw.Alignment.centerRight),
@@ -784,10 +792,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       child: pw.Text(t, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
     );
 
-    pw.Widget dCell(String t, {pw.Alignment alignment = pw.Alignment.centerLeft, bool bold = false, PdfColor? color}) => pw.Container(
+    pw.Widget dCell(String t, {pw.Alignment alignment = pw.Alignment.centerLeft, bool bold = false, PdfColor? color, pw.Widget? child}) => pw.Container(
       alignment: alignment,
       padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-      child: pw.Text(t,
+      child: child ?? pw.Text(t,
         style: pw.TextStyle(
           fontSize: 7.5,
           fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
@@ -861,7 +869,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                   : const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF8FAFC));
 
               // Payment-only = either a split payment row OR an entry with empty product name
-              final isPaymentOnly = row.originalEntry.productName.trim().isEmpty;
+              final isPaymentOnly = row.originalEntry.productName.trim().isEmpty ||
+                  row.originalEntry.productName.trim().toLowerCase() == 'payment only' ||
+                  row.productName.trim().toLowerCase() == 'payment only' ||
+                  (row.price == 0 && row.quantity == 0);
               final isPayment = row.isPaymentRow || isPaymentOnly;
 
               // IN column: product name only for stock delivery rows
@@ -903,8 +914,23 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                     ),
                   ),
                   // OUT column
-                  dCell(outText, alignment: pw.Alignment.centerRight,
-                    color: outText.isNotEmpty ? PdfColors.blue800 : null),
+                  dCell(
+                    outText,
+                    alignment: pw.Alignment.centerRight,
+                    color: outText.isNotEmpty ? PdfColors.blue800 : null,
+                    child: isPayment
+                        ? pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.end,
+                            children: [
+                              pw.Text('Payment Only', style: pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold, color: PdfColors.grey600)),
+                              if (outText.isNotEmpty) ...[
+                                pw.SizedBox(height: 1),
+                                pw.Text(outText, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
+                              ],
+                            ],
+                          )
+                        : null,
+                  ),
                   // Price column: description for payments, price amount for stock
                   dCell(priceText,
                     alignment: isPayment ? pw.Alignment.centerLeft : pw.Alignment.centerRight),
@@ -1008,7 +1034,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                             final row = e.value;
                             final bal = runningBalances[i];
                             final rowBg = i.isEven ? bg : (isDark ? const Color(0xFF1A2535) : const Color(0xFFF8FAFC));
-                            final isPaymentOnly = row.originalEntry.productName.trim().isEmpty;
+                            final isPaymentOnly = row.originalEntry.productName.trim().isEmpty ||
+                                row.originalEntry.productName.trim().toLowerCase() == 'payment only' ||
+                                row.productName.trim().toLowerCase() == 'payment only' ||
+                                (row.price == 0 && row.quantity == 0);
                             final isPayment = row.isPaymentRow || isPaymentOnly;
 
                             final inText = isPayment ? '' : row.productName;
@@ -1047,7 +1076,38 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                                    ),
                                  ),
                                 // OUT column
-                                _tCell(outStr, AppTheme.primaryColor),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                                  child: isPayment
+                                      ? Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Text(
+                                              'Payment Only',
+                                              style: TextStyle(
+                                                fontSize: 8.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF64748B),
+                                              ),
+                                            ),
+                                            if (outStr.isNotEmpty)
+                                              Text(
+                                                outStr,
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppTheme.primaryColor,
+                                                ),
+                                              ),
+                                          ],
+                                        )
+                                      : Text(
+                                          outStr,
+                                          textAlign: TextAlign.right,
+                                          style: const TextStyle(fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.w400),
+                                        ),
+                                ),
                                 // Price column
                                 _tCell(priceStr, textColor),
                                 // Qty column
@@ -1375,6 +1435,7 @@ class _ReceiveFeed extends StatelessWidget {
     bool showRightDivider = true,
     double fontSize = 11,
     EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+    Widget? child,
   }) {
     return Container(
       width: width,
@@ -1386,7 +1447,7 @@ class _ReceiveFeed extends StatelessWidget {
             ? const Border(right: BorderSide(color: Color(0xFFE2E8F0), width: 0.8))
             : null,
       ),
-      child: Text(
+      child: child ?? Text(
         text,
         style: TextStyle(
           fontSize: fontSize,
@@ -1403,7 +1464,10 @@ class _ReceiveFeed extends StatelessWidget {
   }
 
   void _showRowActionMenu(BuildContext context, ReceiveEntry entry) {
-    const accentColor = Color(0xFF10B981);
+    final isPaymentOnly = entry.productName.trim().isEmpty ||
+        entry.productName.trim().toLowerCase() == 'payment only' ||
+        (entry.price == 0 && entry.quantity == 0 && (entry.payment ?? 0) > 0);
+    final accentColor = isPaymentOnly ? AppTheme.primaryColor : const Color(0xFF10B981);
     final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(entry.date);
 
     showModalBottomSheet(
@@ -1446,8 +1510,8 @@ class _ReceiveFeed extends StatelessWidget {
                       color: accentColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.arrow_circle_down_rounded,
+                    child: Icon(
+                      isPaymentOnly ? Icons.payment_rounded : Icons.arrow_circle_down_rounded,
                       color: accentColor,
                       size: 22,
                     ),
@@ -1458,7 +1522,7 @@ class _ReceiveFeed extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          entry.productName.trim().isEmpty ? 'Payment Only' : entry.productName,
+                          isPaymentOnly ? 'Payment Only' : entry.productName,
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
@@ -1498,16 +1562,18 @@ class _ReceiveFeed extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '₦${fmt.format(entry.totalAmount)}',
-                        style: const TextStyle(
+                        isPaymentOnly
+                            ? '₦${fmt.format(entry.payment ?? 0.0)}'
+                            : '₦${fmt.format(entry.totalAmount)}',
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF15803D),
+                          color: isPaymentOnly ? AppTheme.primaryColor : const Color(0xFF15803D),
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'STOCK IN',
+                      Text(
+                        isPaymentOnly ? 'PAYMENT (OUT)' : 'STOCK IN',
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.w800,
@@ -1707,11 +1773,24 @@ class _ReceiveFeed extends StatelessWidget {
                           final bal = runningBalances[index];
 
                           final dateStr = DateFormat('dd/MM/yy HH:mm').format(row.displayDate);
+                          final isPayment = row.isPaymentRow ||
+                              row.originalEntry.productName.trim().isEmpty ||
+                              row.originalEntry.productName.trim().toLowerCase() == 'payment only' ||
+                              row.productName.trim().toLowerCase() == 'payment only' ||
+                              (row.price == 0 && row.quantity == 0);
+
                           // IN: product name for delivery rows; blank for payment-only rows
-                          final inText = row.isPaymentRow ? '' : row.productName;
-                          final priceStr = row.price == 0.0 ? '' : fmt.format(row.price);
-                          final qtyStr = row.quantity == 0 ? '' : row.quantity.toString();
-                          final totalStr = row.totalAmount == 0.0 ? '' : '₦${fmt.format(row.totalAmount)}';
+                          final inText = isPayment ? '' : row.productName;
+                          final hasDesc = row.originalEntry.description != null &&
+                              row.originalEntry.description!.trim().isNotEmpty;
+                          final descStr = hasDesc ? row.originalEntry.description!.trim() : '';
+                          final priceStr = isPayment
+                              ? descStr
+                              : (row.price == 0.0
+                                  ? descStr
+                                  : (hasDesc ? '${fmt.format(row.price)}\n$descStr' : fmt.format(row.price)));
+                          final qtyStr = isPayment || row.quantity == 0 ? '' : row.quantity.toString();
+                          final totalStr = isPayment || row.totalAmount == 0.0 ? '' : '₦${fmt.format(row.totalAmount)}';
                           // OUT: payment made
                           final outStr = row.payment == 0.0 ? '' : '₦${fmt.format(row.payment)}';
                           final balStr = '₦${fmt.format(bal)}';
@@ -1756,27 +1835,44 @@ class _ReceiveFeed extends StatelessWidget {
                                                 maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
-                                            if (row.originalEntry.description != null &&
-                                                row.originalEntry.description!.trim().isNotEmpty) ...[
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                row.originalEntry.description!,
-                                                style: const TextStyle(
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: Color(0xFF64748B),
-                                                ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
                                           ],
                                         ),
                                       ),
                                       _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
                                       _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
-                                      _buildCell(outStr, width: outWidth, alignment: Alignment.centerRight,
-                                        textColor: outStr.isNotEmpty ? AppTheme.primaryColor : const Color(0xFF94A3B8)),
+                                      _buildCell(
+                                        outStr,
+                                        width: outWidth,
+                                        alignment: Alignment.centerRight,
+                                        textColor: outStr.isNotEmpty ? AppTheme.primaryColor : const Color(0xFF94A3B8),
+                                        child: isPayment
+                                            ? Column(
+                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const Text(
+                                                    'Payment Only',
+                                                    style: TextStyle(
+                                                      fontSize: 9.5,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: Color(0xFF64748B),
+                                                    ),
+                                                  ),
+                                                  if (outStr.isNotEmpty) ...[
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      outStr,
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: AppTheme.primaryColor,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              )
+                                            : null,
+                                      ),
                                       _buildCell(
                                         totalStr,
                                         width: totalWidth,

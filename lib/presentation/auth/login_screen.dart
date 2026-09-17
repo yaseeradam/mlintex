@@ -78,7 +78,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     if (mounted) {
       AppFeedback.hideLoading(context);
       if (!success) {
-        AppFeedback.showError(context, 'Login Failed', 'Invalid credentials. Please try again.');
+        AppFeedback.showError(context, 'Access Denied', 'Invalid credentials or unauthorized account. Please check your details.');
       }
     }
   }
@@ -239,7 +239,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             _buildInput(
               controller: _emailController,
               label: 'Email Address',
-              hint: 'admin@shop.com',
+              hint: 'mlintex@gmail.com',
               icon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
               validator: (v) => v!.trim().isEmpty ? 'Email is required' : null,
@@ -250,7 +250,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             _buildInput(
               controller: _passwordController,
               label: 'Password',
-              hint: 'Enter your password',
+              hint: 'Enter password',
               icon: Icons.lock_outline,
               obscureText: _obscurePassword,
               suffixIcon: IconButton(
@@ -351,14 +351,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       child: Row(
         children: [
           Icon(
-            Icons.info_outline_rounded,
+            Icons.lock_outline_rounded,
             color: AppTheme.primaryLight,
             size: 18,
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Demo Mode: Enter any email and password to sign in.',
+              'Authorized Access Only. Account registration is disabled.',
               style: TextStyle(
                 fontSize: 12,
                 color: AppTheme.primaryLight,

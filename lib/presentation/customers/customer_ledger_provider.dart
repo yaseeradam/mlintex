@@ -4,6 +4,8 @@ import '../../domain/entities/customer_ledger_entry.dart';
 import '../../domain/repositories/customer_ledger_repository.dart';
 import '../../core/providers/repository_providers.dart';
 
+import '../products/product_provider.dart';
+
 List<CustomerLedgerEntry> _computeBalances(List<CustomerLedgerEntry> entries) {
   double balance = 0;
   final result = <CustomerLedgerEntry>[];
@@ -60,6 +62,18 @@ class CustomerLedgerNotifier extends Notifier<AsyncValue<void>> {
         updatedAt: DateTime.now(),
       );
       await _repo.addEntry(entry);
+
+      // Automatically deduct store product stock if matching product exists
+      try {
+        final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+        final matches = allProds.where(
+          (p) => p.name.trim().toLowerCase() == itemName.trim().toLowerCase(),
+        );
+        if (matches.isNotEmpty) {
+          await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, -quantity);
+        }
+      } catch (_) {}
+
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);

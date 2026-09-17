@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/models/product_model.dart';
 import '../../data/models/customer_model.dart';
 import '../../data/models/debt_model.dart';
@@ -84,18 +85,24 @@ class AuthNotifier extends Notifier<AuthState> {
     required String email,
     required String password,
   }) async {
-    if (email.trim().isEmpty || password.isEmpty) return false;
+    final cleanEmail = email.trim().toLowerCase();
+    
+    // Strict restriction to single authorized user credentials (accepting mlintex@gmail.com or mlintext@gmail.com)
+    final isAuthorizedEmail = cleanEmail == 'mlintex@gmail.com' || cleanEmail == 'mlintext@gmail.com';
+    if (!isAuthorizedEmail || password != 'mlintex123') {
+      return false;
+    }
 
-    // Try Firebase Authentication if initialized
+    // Try Firebase Authentication for the authorized account (auto-create on cloud if first time)
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email.trim(),
+        email: cleanEmail,
         password: password,
       );
-    } catch (_) {
+    } catch (e) {
       try {
         await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: email.trim(),
+          email: cleanEmail,
           password: password,
         );
       } catch (_) {}
@@ -103,48 +110,69 @@ class AuthNotifier extends Notifier<AuthState> {
 
     final box = Hive.box(_boxName);
     await box.put(_keyLoggedIn, true);
-    await box.put(_keyEmail, email.trim());
+    await box.put(_keyEmail, cleanEmail);
 
-    // Derive shop name from email for demo — default to M Lin Tex
-    final name = email.contains('@')
-        ? email.split('@').first
-            .split('.')
-            .map((s) => s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : s)
-            .join(' ')
-        : 'M Lin Tex';
+    final rawShops = box.get(_keyShops, defaultValue: <dynamic>[]) as List<dynamic>;
+    final activeShopId = box.get(_keyActiveShopId, defaultValue: '1') as String;
 
-    // If derived name looks generic (admin, user, test), use app name
-    final shopName = ['admin', 'user', 'test', 'shop'].contains(name.toLowerCase())
-        ? 'M Lin Tex'
-        : name;
+    if (rawShops.isEmpty) {
+      const shopName = 'M Lin Tex';
+      final defaultShop = {
+        'id': '1',
+        'name': shopName,
+        'phone': '',
+        'shopNumber': '',
+        'address': '',
+        'logoPath': null,
+      };
 
-    final defaultShop = {
-      'id': '1',
-      'name': shopName,
-      'phone': '',
-      'shopNumber': '',
-      'address': '',
-      'logoPath': null,
-    };
+      await box.put(_keyName, shopName);
+      await box.put(_keyPhone, '');
+      await box.put(_keyShopNumber, '');
+      await box.put(_keyAddress, '');
+      await box.delete(_keyLogoPath);
+      await box.put(_keyShops, [defaultShop]);
+      await box.put(_keyActiveShopId, '1');
 
-    await box.put(_keyName, shopName);
-    await box.put(_keyPhone, '');
-    await box.put(_keyShopNumber, '');
-    await box.put(_keyAddress, '');
-    await box.delete(_keyLogoPath);
-    await box.put(_keyShops, [defaultShop]);
-    await box.put(_keyActiveShopId, '1');
+      state = const AuthState.authenticated(
+        email: 'mlintex@gmail.com',
+        shopName: shopName,
+        phone: '',
+        shopNumber: '',
+        address: '',
+        logoPath: null,
+        shops: [
+          {
+            'id': '1',
+            'name': shopName,
+            'phone': '',
+            'shopNumber': '',
+            'address': '',
+            'logoPath': null,
+          }
+        ],
+        activeShopId: '1',
+      );
+    } else {
+      final shops = List<Map<dynamic, dynamic>>.from(
+        rawShops.map((s) => Map<dynamic, dynamic>.from(s as Map)),
+      );
+      final activeShop = shops.firstWhere(
+        (s) => s['id'] == activeShopId,
+        orElse: () => shops.first,
+      );
 
-    state = AuthState.authenticated(
-      email: email.trim(),
-      shopName: shopName,
-      phone: '',
-      shopNumber: '',
-      address: '',
-      logoPath: null,
-      shops: [defaultShop],
-      activeShopId: '1',
-    );
+      state = AuthState.authenticated(
+        email: cleanEmail,
+        shopName: activeShop['name'] as String? ?? 'M Lin Tex',
+        phone: activeShop['phone'] as String? ?? '',
+        shopNumber: activeShop['shopNumber'] as String? ?? '',
+        address: activeShop['address'] as String? ?? '',
+        logoPath: activeShop['logoPath'] as String?,
+        shops: shops,
+        activeShopId: activeShopId,
+      );
+    }
     return true;
   }
 
@@ -228,13 +256,13 @@ class AuthNotifier extends Notifier<AuthState> {
     );
   }
 
-  void updateActiveShop({
+  Future<void> updateActiveShop({
     required String name,
     required String phone,
     required String shopNumber,
     required String address,
     String? logoPath,
-  }) {
+  }) async {
     if (!state.isAuthenticated) return;
 
     final box = Hive.box(_boxName);
@@ -253,15 +281,15 @@ class AuthNotifier extends Notifier<AuthState> {
       };
     }
 
-    box.put(_keyShops, shops);
-    box.put(_keyName, name);
-    box.put(_keyPhone, phone);
-    box.put(_keyShopNumber, shopNumber);
-    box.put(_keyAddress, address);
+    await box.put(_keyShops, shops);
+    await box.put(_keyName, name);
+    await box.put(_keyPhone, phone);
+    await box.put(_keyShopNumber, shopNumber);
+    await box.put(_keyAddress, address);
     if (logoPath != null) {
-      box.put(_keyLogoPath, logoPath);
+      await box.put(_keyLogoPath, logoPath);
     } else {
-      box.delete(_keyLogoPath);
+      await box.delete(_keyLogoPath);
     }
 
     state = state.copyWith(
@@ -272,6 +300,39 @@ class AuthNotifier extends Notifier<AuthState> {
       logoPath: logoPath,
       shops: shops,
     );
+
+    // Sync profile metadata to Firestore
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('profile')
+            .doc('shop_info')
+            .set({
+          'activeShopId': activeId,
+          'name': name,
+          'phone': phone,
+          'shopNumber': shopNumber,
+          'address': address,
+          'updatedAt': DateTime.now().toIso8601String(),
+        }, SetOptions(merge: true));
+      }
+    } catch (_) {}
+  }
+
+  Future<bool> updatePassword(String newPassword) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.updatePassword(newPassword);
+        return true;
+      }
+    } catch (e) {
+      return false;
+    }
+    return true;
   }
 
   Future<void> deleteShop(String id) async {

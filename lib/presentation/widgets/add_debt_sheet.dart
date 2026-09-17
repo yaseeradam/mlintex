@@ -105,10 +105,15 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
               : 'Debt has been recorded successfully.',
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('Error recording debt: $e\n$st');
       if (mounted) {
         AppFeedback.hideLoading(context);
-        AppFeedback.showError(context, 'Error', 'Failed to record debt. Please try again.');
+        AppFeedback.showError(
+          context,
+          'Error',
+          'Failed to record debt: ${e.toString().replaceAll('Exception: ', '')}',
+        );
       }
     }
   }

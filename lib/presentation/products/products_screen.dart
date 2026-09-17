@@ -118,7 +118,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     ),
                     const SizedBox(height: 16),
                     _FinancialSummaryCard(
-                      totalYards: products.fold<double>(0, (s, p) => s + (p.quantity as num).toDouble()),
+                      totalQuantity: products.fold<double>(0, (s, p) => s + (p.quantity as num).toDouble()),
                       totalCount: products.length,
                       lowStockCount: lowStock,
                       fmt: _fmt,
@@ -398,7 +398,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                         _buildHeaderCell('Product', width: productWidth),
                         _buildHeaderCell('Category', width: categoryWidth),
                         _buildHeaderCell('Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
-                        _buildHeaderCell('Qty (yds)', width: qtyWidth, alignment: Alignment.center),
+                        _buildHeaderCell('Quantity', width: qtyWidth, alignment: Alignment.center),
                         _buildHeaderCell('Total Value (₦)', width: totalWidth, alignment: Alignment.centerRight, showRightDivider: false),
                       ],
                     ),
@@ -1368,7 +1368,7 @@ class _HeaderCard extends StatelessWidget {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  'Global fabric stock, yards, and inventory items',
+                  'Global product inventory and stock levels',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.85),
                     fontSize: 10,
@@ -1385,13 +1385,13 @@ class _HeaderCard extends StatelessWidget {
 }
 
 class _FinancialSummaryCard extends StatelessWidget {
-  final double totalYards;
+  final double totalQuantity;
   final int totalCount;
   final int lowStockCount;
   final NumberFormat fmt;
 
   const _FinancialSummaryCard({
-    required this.totalYards,
+    required this.totalQuantity,
     required this.totalCount,
     required this.lowStockCount,
     required this.fmt,
@@ -1460,9 +1460,9 @@ class _FinancialSummaryCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          buildItem('TOTAL STOCK', '${fmt.format(totalYards)} yds', const Color(0xFF0F766E), const Color(0xFFF0FDFA), Icons.inventory_rounded),
+          buildItem('TOTAL QUANTITY', fmt.format(totalQuantity), const Color(0xFF0F766E), const Color(0xFFF0FDFA), Icons.inventory_rounded),
           const SizedBox(width: 8),
-          buildItem('FABRIC TYPES', '$totalCount', const Color(0xFF4F46E5), const Color(0xFFEEF2FF), Icons.category_rounded),
+          buildItem('PRODUCT TYPES', '$totalCount', const Color(0xFF4F46E5), const Color(0xFFEEF2FF), Icons.category_rounded),
           const SizedBox(width: 8),
           buildItem('LOW STOCK', '$lowStockCount', const Color(0xFFEF4444), const Color(0xFFFEF2F2), Icons.warning_rounded),
         ],
@@ -1636,7 +1636,7 @@ class _ProductCard extends StatelessWidget {
             ],
             const SizedBox(height: 2),
             Text(
-              '${product.quantity} yds',
+              'Qty: ${product.quantity}',
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1657,7 +1657,7 @@ class _ProductCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '₦${fmt.format(product.price)} / yd',
+                '₦${fmt.format(product.price)}',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 11,

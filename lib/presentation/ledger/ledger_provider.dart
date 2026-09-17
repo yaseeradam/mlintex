@@ -3,6 +3,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/ledger_entry.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/services/pending_sync_tracker.dart';
+
+import '../../core/providers/repository_providers.dart';
+import '../products/product_provider.dart';
 
 final customerLedgerBoxProvider = Provider<Box<LedgerEntry>>((ref) {
   final shopId = ref.watch(activeShopIdProvider);
@@ -119,6 +123,18 @@ class CustomerLedgerNotifier extends Notifier<void> {
       typeIndex: LedgerEntryType.sale.index,
     );
     await _box.put(entry.id, entry);
+    PendingSyncTracker.markPending(_box.name, entry.id);
+
+    // Automatically deduct store product stock if matching product exists
+    try {
+      final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+      final matches = allProds.where(
+        (p) => p.name.trim().toLowerCase() == itemName.trim().toLowerCase(),
+      );
+      if (matches.isNotEmpty) {
+        await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, -quantity);
+      }
+    } catch (_) {}
   }
 
   Future<void> addPaymentEntry({
@@ -138,14 +154,17 @@ class CustomerLedgerNotifier extends Notifier<void> {
       typeIndex: LedgerEntryType.payment.index,
     );
     await _box.put(entry.id, entry);
+    PendingSyncTracker.markPending(_box.name, entry.id);
   }
 
   Future<void> updateEntry(LedgerEntry updated) async {
     await _box.put(updated.id, updated);
+    PendingSyncTracker.markPending(_box.name, updated.id);
   }
 
   Future<void> deleteEntry(String id) async {
     await _box.delete(id);
+    PendingSyncTracker.markPending(_box.name, id);
   }
 }
 
@@ -176,6 +195,7 @@ class ShopLedgerNotifier extends Notifier<void> {
       typeIndex: LedgerEntryType.sale.index,
     );
     await _box.put(entry.id, entry);
+    PendingSyncTracker.markPending(_box.name, entry.id);
   }
 
   Future<void> addPaymentEntry({
@@ -195,14 +215,17 @@ class ShopLedgerNotifier extends Notifier<void> {
       typeIndex: LedgerEntryType.payment.index,
     );
     await _box.put(entry.id, entry);
+    PendingSyncTracker.markPending(_box.name, entry.id);
   }
 
   Future<void> updateEntry(LedgerEntry updated) async {
     await _box.put(updated.id, updated);
+    PendingSyncTracker.markPending(_box.name, updated.id);
   }
 
   Future<void> deleteEntry(String id) async {
     await _box.delete(id);
+    PendingSyncTracker.markPending(_box.name, id);
   }
 }
 

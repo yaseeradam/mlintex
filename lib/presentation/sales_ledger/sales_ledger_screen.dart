@@ -17,6 +17,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/repository_providers.dart';
 import '../../domain/entities/product.dart';
 import '../products/product_provider.dart';
+import '../../core/services/pending_sync_tracker.dart';
 
 // ── Model ──────────────────────────────────────────────────────────────────
 
@@ -110,15 +111,13 @@ class SalesLedgerNotifier extends Notifier<void> {
     final e = SalesLedgerEntry(id: const Uuid().v4(), date: DateTime.now(),
         inItem: item, price: price, quantity: qty, totalAmount: price * qty, typeIndex: 1, personName: personName);
     await _box.put(e.id, e);
+    PendingSyncTracker.markPending(_box.name, e.id);
 
     String? targetId = productId;
     if (targetId == null) {
       final allProds = await ref.read(productRepositoryProvider).getAllProducts();
-      final match = allProds.firstWhere(
-        (p) => p.name.toLowerCase() == item.toLowerCase(),
-        orElse: () => null as dynamic,
-      );
-      if (match != null) targetId = match.id;
+      final matches = allProds.where((p) => p.name.trim().toLowerCase() == item.trim().toLowerCase());
+      if (matches.isNotEmpty) targetId = matches.first.id;
     }
     if (targetId != null) {
       await ref.read(productNotifierProvider.notifier).updateQuantity(targetId, -qty);
@@ -129,6 +128,7 @@ class SalesLedgerNotifier extends Notifier<void> {
     final e = SalesLedgerEntry(id: const Uuid().v4(), date: DateTime.now(),
         outItem: bankOrCash, totalAmount: amount, typeIndex: 0, personName: personName);
     await _box.put(e.id, e);
+    PendingSyncTracker.markPending(_box.name, e.id);
   }
 
   Future<void> update(SalesLedgerEntry e, {String? productId}) async {
@@ -141,11 +141,8 @@ class SalesLedgerNotifier extends Notifier<void> {
         String? targetId = productId;
         if (targetId == null && e.inItem != null) {
           final allProds = await ref.read(productRepositoryProvider).getAllProducts();
-          final match = allProds.firstWhere(
-            (p) => p.name.toLowerCase() == e.inItem!.toLowerCase(),
-            orElse: () => null as dynamic,
-          );
-          if (match != null) targetId = match.id;
+          final matches = allProds.where((p) => p.name.trim().toLowerCase() == e.inItem!.trim().toLowerCase());
+          if (matches.isNotEmpty) targetId = matches.first.id;
         }
         if (targetId != null) {
           await ref.read(productNotifierProvider.notifier).updateQuantity(targetId, -diff);
@@ -153,6 +150,7 @@ class SalesLedgerNotifier extends Notifier<void> {
       }
     }
     await _box.put(e.id, e);
+    PendingSyncTracker.markPending(_box.name, e.id);
   }
 
   Future<void> delete(String id) async {
@@ -161,16 +159,14 @@ class SalesLedgerNotifier extends Notifier<void> {
       final qty = entry.quantity ?? 0;
       if (qty > 0 && entry.inItem != null) {
         final allProds = await ref.read(productRepositoryProvider).getAllProducts();
-        final match = allProds.firstWhere(
-          (p) => p.name.toLowerCase() == entry.inItem!.toLowerCase(),
-          orElse: () => null as dynamic,
-        );
-        if (match != null) {
-          await ref.read(productNotifierProvider.notifier).updateQuantity(match.id, qty);
+        final matches = allProds.where((p) => p.name.trim().toLowerCase() == entry.inItem!.trim().toLowerCase());
+        if (matches.isNotEmpty) {
+          await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, qty);
         }
       }
     }
     await _box.delete(id);
+    PendingSyncTracker.markPending(_box.name, id);
   }
 }
 
@@ -514,8 +510,8 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
           pw.Table(
             border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
             columnWidths: {
-              0: const pw.FixedColumnWidth(80),   // Date
-              1: const pw.FlexColumnWidth(1.8),  // Name
+              0: const pw.FlexColumnWidth(1.8),  // Buyer Name
+              1: const pw.FixedColumnWidth(80),   // Date
               2: const pw.FlexColumnWidth(2.0),  // Item/Desc
               3: const pw.FlexColumnWidth(1.2),  // Price (₦)
               4: const pw.FlexColumnWidth(0.8),  // Qty
@@ -527,8 +523,8 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
               pw.TableRow(
                 decoration: const pw.BoxDecoration(color: PdfColors.grey200),
                 children: [
+                  hCell('Buyer Name'),
                   hCell('Date'),
-                  hCell('Name'),
                   hCell('Item/Desc'),
                   hCell('Price (₦)', alignment: pw.Alignment.centerRight),
                   hCell('Qty', alignment: pw.Alignment.center),
@@ -539,8 +535,8 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
               ),
               pw.TableRow(
                 children: [
-                  dCell(dateFmt.format(entry.date)),
                   dCell(name, bold: true),
+                  dCell(dateFmt.format(entry.date)),
                   dCell(desc, bold: true),
                   dCell(priceStr, alignment: pw.Alignment.centerRight),
                   dCell(qtyStr, alignment: pw.Alignment.center),
@@ -832,7 +828,7 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
           children: [
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-              children: ['S/N', 'Date', 'Name', 'IN', 'OUT', 'Price', 'Qty', 'Total Amount', 'Total Balance']
+              children: ['S/N', 'Buyer Name', 'Date', 'IN', 'OUT', 'Price', 'Qty', 'Total Amount', 'Total Balance']
                   .map((h) => pw.Padding(padding: const pw.EdgeInsets.all(4),
                       child: pw.Text(h, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold))))
                   .toList(),
@@ -842,8 +838,8 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
               final isSale = entry.typeIndex == 1;
               return pw.TableRow(children: [
                 _c('${e.key + 1}'),
-                _c(dateFmt.format(entry.date)),
                 _c(entry.personName ?? '—'),
+                _c(dateFmt.format(entry.date)),
                 _c(isSale ? (entry.inItem ?? '') : ''),
                 _c(!isSale ? (entry.outItem ?? 'PAYMENT') : ''),
                 _c(entry.price != null ? '${PdfTheme.naira}${fmt.format(entry.price)}' : ''),
@@ -917,7 +913,7 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
                         children: [
                           TableRow(
                             decoration: BoxDecoration(color: headerBg),
-                            children: ['S/N', 'Date', 'Name', 'IN', 'OUT', 'Price', 'Qty', 'Total Amount', 'Total Balance']
+                            children: ['S/N', 'Buyer Name', 'Date', 'IN', 'OUT', 'Price', 'Qty', 'Total Amount', 'Total Balance']
                                 .map((h) => Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                       child: Text(h, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: textColor)),
@@ -933,8 +929,8 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
                               decoration: BoxDecoration(color: rowBg),
                               children: [
                                 _tCell('${i + 1}', mutedColor),
-                                _tCell(dateFmt.format(entry.date), mutedColor, size: 9),
                                 _tCell(entry.personName ?? '—', textColor, bold: true),
+                                _tCell(dateFmt.format(entry.date), mutedColor, size: 9),
                                 _tCell(isSale ? (entry.inItem ?? '') : '', textColor, bold: true),
                                 _tCell(!isSale ? (entry.outItem ?? 'PAYMENT') : '', AppTheme.successColor, bold: true),
                                 _tCell(entry.price != null ? '\u20a6${fmt.format(entry.price)}' : '', textColor),
@@ -1367,6 +1363,19 @@ class _SalesLedgerFeed extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 3),
+                        if (entry.personName != null && entry.personName!.trim().isNotEmpty) ...[
+                          Text(
+                            isSale ? 'Buyer: ${entry.personName!.trim()}' : 'From: ${entry.personName!.trim()}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF475569),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                        ],
                         Text(
                           dateStr,
                           style: const TextStyle(
@@ -1478,6 +1487,7 @@ class _SalesLedgerFeed extends StatelessWidget {
       }
     }
 
+    const double buyerWidth = 110;
     const double dateWidth = 65;
     const double itemWidth = 140;
     const double qtyWidth = 40;
@@ -1485,7 +1495,7 @@ class _SalesLedgerFeed extends StatelessWidget {
     const double totalAmtWidth = 90;
     const double outWidth = 90;
     const double balWidth = 95;
-    const double totalTableWidth = dateWidth + itemWidth + qtyWidth + priceWidth + totalAmtWidth + outWidth + balWidth; // 610
+    const double totalTableWidth = buyerWidth + dateWidth + itemWidth + qtyWidth + priceWidth + totalAmtWidth + outWidth + balWidth; // 720
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1548,6 +1558,7 @@ class _SalesLedgerFeed extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
+                          _buildHeaderCell('Buyer Name', width: buyerWidth),
                           _buildHeaderCell('Date', width: dateWidth),
                           _buildHeaderCell('Item/Desc', width: itemWidth),
                           _buildHeaderCell('Qty', width: qtyWidth, alignment: Alignment.center),
@@ -1589,6 +1600,9 @@ class _SalesLedgerFeed extends StatelessWidget {
                           final balStr = '₦${fmt.format(entry.runningBalance)}';
                           final balColor = entry.runningBalance > 0 ? balancePosColor : balanceNegColor;
                           
+                          final buyerStr = entry.personName != null && entry.personName!.trim().isNotEmpty
+                              ? entry.personName!.trim()
+                              : '—';
                           final dateStr = DateFormat('dd/MM/yy').format(entry.date);
                           final descStr = isSale ? (entry.inItem ?? '') : '';
                           final qtyStr = isSale && entry.quantity != null ? entry.quantity.toString() : '—';
@@ -1609,6 +1623,7 @@ class _SalesLedgerFeed extends StatelessWidget {
                                 ),
                                 child: Row(
                                   children: [
+                                    _buildCell(buyerStr, width: buyerWidth, bold: true, textColor: const Color(0xFF0F172A)),
                                     _buildCell(dateStr, width: dateWidth),
                                     _buildCell(descStr, width: itemWidth, bold: isSale),
                                     _buildCell(qtyStr, width: qtyWidth, alignment: Alignment.center),
@@ -1651,7 +1666,8 @@ class _SalesLedgerFeed extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          _buildCell('Totals', width: dateWidth, bold: true, textColor: const Color(0xFF475569)),
+                          _buildCell('Totals', width: buyerWidth, bold: true, textColor: const Color(0xFF475569)),
+                          _buildCell('—', width: dateWidth, bold: true, alignment: Alignment.center, textColor: textMuted),
                           _buildCell('IN: ₦${fmt.format(totalInSum)}', width: itemWidth, bold: true, textColor: const Color(0xFF1E3A8A), fontSize: 9.5),
                           _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
                           _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
@@ -1830,12 +1846,11 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
                     _selectedProductId = null;
                   }
                   if (_selectedProductId == null && _itemCtrl.text.isNotEmpty) {
-                    final Product? match = products.firstWhere(
-                      (p) => p.name.toLowerCase() == _itemCtrl.text.trim().toLowerCase(),
-                      orElse: () => null as dynamic,
+                    final matches = products.where(
+                      (p) => p.name.trim().toLowerCase() == _itemCtrl.text.trim().toLowerCase(),
                     );
-                    if (match != null) {
-                      _selectedProductId = match.id;
+                    if (matches.isNotEmpty) {
+                      _selectedProductId = matches.first.id;
                     }
                   }
                   return Container(
@@ -1896,10 +1911,8 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
               onChanged: (val) {
                 if (_isSale && _selectedProductId != null) {
                   final products = productsAsync.value ?? [];
-                  final Product? match = products.firstWhere(
-                    (p) => p.id == _selectedProductId,
-                    orElse: () => null as dynamic,
-                  );
+                  final matches = products.where((p) => p.id == _selectedProductId);
+                  final Product? match = matches.isNotEmpty ? matches.first : null;
                   if (match == null || match.name != val) {
                     setState(() {
                       _selectedProductId = null;
@@ -1910,11 +1923,13 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
               validator: (v) => v!.trim().isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 14),
-            _lbl('Name', textMuted),
+            _lbl(_isSale ? 'Buyer Name' : 'Customer Name', textMuted),
             TextFormField(
               controller: _personCtrl,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(hintText: 'e.g. JOHN DOE'),
+              decoration: InputDecoration(
+                hintText: _isSale ? 'e.g. JOHN DOE (Buyer)' : 'e.g. JOHN DOE',
+              ),
               validator: (v) => v!.trim().isEmpty ? 'Required' : null,
             ),
             if (_isSale) ...[
@@ -1942,7 +1957,8 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
                         if (q == null || q <= 0) return 'Must be > 0';
                         if (_isSale && _selectedProductId != null) {
                           final products = productsAsync.value ?? [];
-                          final Product? prod = products.firstWhere((p) => p.id == _selectedProductId, orElse: () => null as dynamic);
+                          final matches = products.where((p) => p.id == _selectedProductId);
+                          final Product? prod = matches.isNotEmpty ? matches.first : null;
                           if (prod != null) {
                             int allowedQty = prod.quantity;
                             if (widget.existing != null && widget.existing!.typeIndex == 1) {

@@ -12,6 +12,9 @@ import 'domain/entities/ledger_entry.dart';
 import 'presentation/receive/receive_screen.dart';
 import 'presentation/sales_ledger/sales_ledger_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'core/services/pending_sync_tracker.dart';
+import 'core/services/connectivity_service.dart';
+import 'core/providers/sync_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,12 +38,7 @@ Future<void> main() async {
   // Shop-specific boxes
   await Hive.openBox<ProductModel>('products_$activeShopId');
 
-  // Clear corrupted customer data if adapter changed
-  final customerBox = await Hive.openBox<CustomerModel>('customers_$activeShopId');
-  if (customerBox.isNotEmpty) {
-    final names = customerBox.values.map((c) => c.name).toSet();
-    if (names.length == 1) await customerBox.clear(); // all same name = corrupted
-  }
+  await Hive.openBox<CustomerModel>('customers_$activeShopId');
 
   await Hive.openBox<DebtModel>('debts_$activeShopId');
   await Hive.openBox<SaleModel>('sales_$activeShopId');
@@ -57,8 +55,28 @@ Future<void> main() async {
   await Hive.openBox<SalesLedgerEntry>('sales_ledger_$activeShopId');
 
   await NotificationService.init();
+  await PendingSyncTracker.init();
 
   final container = ProviderContainer();
+
+  // Set up automatic background sync (on reconnect & every 15 seconds)
+  final connectivityService = ConnectivityService();
+  connectivityService.onReconnect = () {
+    try {
+      container.read(syncServiceProvider).syncAll();
+    } catch (_) {}
+  };
+  connectivityService.onSyncTick = () {
+    try {
+      container.read(syncServiceProvider).syncAll();
+    } catch (_) {}
+  };
+  await connectivityService.init();
+
+  // Initial background sync trigger on app startup
+  try {
+    container.read(syncServiceProvider).syncAll();
+  } catch (_) {}
 
   runApp(
     UncontrolledProviderScope(

@@ -21,55 +21,10 @@ class MockDataSeeder {
 
   MockDataSeeder(this._productDS, this._customerDS, this._saleDS, this._debtDS);
 
-  /// Seeds Hive with realistic retail mock data. Skips if data already exists.
+  /// Production Mode: Mock seeding and data deletion are disabled.
   Future<void> seedIfEmpty() async {
-    final existing = await _productDS.getAllProducts();
-    
-    // Check if the database contains the old generic/grocery mock data (e.g. beverages)
-    final bool isOldGroceryData = existing.isNotEmpty && existing.any((p) => p.category == 'Beverages' || p.price < 50);
-    
-    if (isOldGroceryData) {
-      // Clean up old data to allow a clean transition to premium textile items!
-      for (final p in existing) {
-        await _productDS.deleteProduct(p.id);
-      }
-      final customers = await _customerDS.getAllCustomers();
-      for (final c in customers) {
-        await _customerDS.deleteCustomer(c.id);
-      }
-      final sales = await _saleDS.getAllSales();
-      for (final s in sales) {
-        await _saleDS.deleteSale(s.id);
-      }
-      final debts = await _debtDS.getAllDebts();
-      for (final d in debts) {
-        await _debtDS.deleteDebt(d.id);
-      }
-    } else if (existing.isNotEmpty) {
-      // Re-check customers — if they have corrupted names (e.g. all same name)
-      // clear and re-seed customers only
-      final customers = await _customerDS.getAllCustomers();
-      if (customers.isNotEmpty) {
-        final names = customers.map((c) => c.name).toSet();
-        // If all customers have the same name, data is corrupted — re-seed
-        if (names.length == 1) {
-          for (final c in customers) {
-            await _customerDS.deleteCustomer(c.id);
-          }
-          await _seedCustomers();
-        }
-      }
-      // Seed ledger entries for existing customers if empty
-      final currentCustomers = await _customerDS.getAllCustomers();
-      await _seedLedger(currentCustomers);
-      return;
-    }
-
-    await _seedProducts();
-    final customers = await _seedCustomers();
-    await _seedSales(customers);
-    await _seedDebts(customers);
-    await _seedLedger(customers);
+    // Production mode — no mock data or data deletion
+    return;
   }
 
   Future<void> _seedLedger(List<CustomerModel> customers) async {

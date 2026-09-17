@@ -40,4 +40,23 @@ class DebtLocalDataSource {
     final box = await _box;
     return box.values.where((d) => !d.isSynced).toList();
   }
+
+  Future<void> markAsSynced(String id) async {
+    final box = await _box;
+    final debt = box.get(id);
+    if (debt != null) {
+      await box.put(id, DebtModel(
+        id: debt.id,
+        customerId: debt.customerId,
+        customerName: debt.customerName,
+        amount: debt.amount,
+        paidAmount: debt.paidAmount,
+        dueDate: debt.dueDate,
+        note: debt.note,
+        isPaid: debt.isPaid,
+        updatedAt: debt.updatedAt,
+        isSynced: true,
+      ));
+    }
+  }
 }

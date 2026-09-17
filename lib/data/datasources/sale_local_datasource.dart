@@ -42,4 +42,21 @@ class SaleLocalDataSource {
         .where((s) => s.saleDate.isAfter(start) && s.saleDate.isBefore(end))
         .toList();
   }
+
+  Future<void> markAsSynced(String id) async {
+    final box = await _box;
+    final sale = box.get(id);
+    if (sale != null) {
+      await box.put(id, SaleModel(
+        id: sale.id,
+        items: sale.items,
+        totalAmount: sale.totalAmount,
+        customerId: sale.customerId,
+        customerName: sale.customerName,
+        saleDate: sale.saleDate,
+        paymentMethod: sale.paymentMethod,
+        isSynced: true,
+      ));
+    }
+  }
 }

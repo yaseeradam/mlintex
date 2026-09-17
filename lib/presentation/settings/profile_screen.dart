@@ -265,19 +265,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  void _saveProfile() {
+  Future<void> _saveProfile() async {
     FocusScope.of(context).unfocus();
     final newName = _nameController.text.trim();
     final newPhone = _phoneController.text.trim();
     final newShopNumber = _shopNumberController.text.trim();
     final newAddress = _addressController.text.trim();
+    final newPassword = _passwordController.text.trim();
 
     if (newName.isEmpty) {
       AppFeedback.showError(context, 'Validation Error', 'Shop name cannot be empty.');
       return;
     }
 
-    ref.read(authProvider.notifier).updateActiveShop(
+    AppFeedback.showLoading(context);
+
+    await ref.read(authProvider.notifier).updateActiveShop(
           name: newName,
           phone: newPhone,
           shopNumber: newShopNumber,
@@ -285,15 +288,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           logoPath: _logoPath,
         );
 
-    if (_passwordController.text.isNotEmpty) {
-      AppFeedback.showError(context, 'Notice', 'Password resets require Firebase Authentication. Coming soon!');
-      return;
+    if (newPassword.isNotEmpty) {
+      if (newPassword.length < 6) {
+        if (mounted) {
+          AppFeedback.hideLoading(context);
+          AppFeedback.showError(context, 'Password Error', 'Password must be at least 6 characters.');
+        }
+        return;
+      }
+      final passSuccess = await ref.read(authProvider.notifier).updatePassword(newPassword);
+      if (!passSuccess && mounted) {
+        AppFeedback.hideLoading(context);
+        AppFeedback.showError(context, 'Password Error', 'Failed to update password. Please try logging in again first.');
+        return;
+      }
     }
 
-    AppFeedback.showSuccess(context, 'Profile Updated', 'Your profile details have been saved successfully.');
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) context.pop();
-    });
+    if (mounted) {
+      AppFeedback.hideLoading(context);
+      AppFeedback.showSuccess(context, 'Profile Updated', 'Your profile details have been saved successfully.');
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) context.pop();
+      });
+    }
   }
 }
 

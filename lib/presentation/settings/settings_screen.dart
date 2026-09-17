@@ -6,7 +6,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../data/datasources/sync_service.dart';
-import '../widgets/app_feedback.dart';
 import '../widgets/glass_container.dart';
 import '../../core/services/backup_service.dart';
 
@@ -199,6 +198,22 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
               icon: Icons.cloud_upload_outlined,
               iconColor: AppTheme.successColor,
               title: 'Manual Sync',
+              subtitle: syncStatus.when(
+                data: (status) {
+                  switch (status) {
+                    case SyncStatus.synced:
+                      return '✓ All data synced';
+                    case SyncStatus.syncing:
+                      return 'Syncing...';
+                    case SyncStatus.pending:
+                      return 'Changes pending upload';
+                    case SyncStatus.error:
+                      return '⚠ Sync failed — tap to retry';
+                  }
+                },
+                loading: () => 'Checking...',
+                error: (_, __) => 'Status unknown',
+              ),
               trailing: isSyncing
                   ? const SizedBox(
                       width: 16,

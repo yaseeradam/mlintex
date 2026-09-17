@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/sync_service.dart';
 import 'repository_providers.dart';
+import 'auth_provider.dart';
 
 final syncServiceProvider = Provider<SyncService>(
   (ref) => SyncService(
@@ -8,6 +9,8 @@ final syncServiceProvider = Provider<SyncService>(
     ref.watch(customerLocalDataSourceProvider),
     ref.watch(saleLocalDataSourceProvider),
     ref.watch(debtLocalDataSourceProvider),
+    ref.watch(shopCustomerLocalDataSourceProvider),
+    ref.watch(activeShopIdProvider),
   ),
 );
 
