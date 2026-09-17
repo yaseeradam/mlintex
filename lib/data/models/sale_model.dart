@@ -17,11 +17,15 @@ class SaleItemModel {
   @HiveField(3)
   final int quantity;
 
+  @HiveField(4)
+  final double? costPrice;
+
   SaleItemModel({
     required this.productId,
     required this.productName,
     required this.unitPrice,
     required this.quantity,
+    this.costPrice,
   });
 
   factory SaleItemModel.fromEntity(SaleItem item) => SaleItemModel(
@@ -29,6 +33,7 @@ class SaleItemModel {
         productName: item.productName,
         unitPrice: item.unitPrice,
         quantity: item.quantity,
+        costPrice: item.costPrice,
       );
 
   SaleItem toEntity() => SaleItem(
@@ -36,6 +41,7 @@ class SaleItemModel {
         productName: productName,
         unitPrice: unitPrice,
         quantity: quantity,
+        costPrice: costPrice,
       );
 
   factory SaleItemModel.fromMap(Map<String, dynamic> map) => SaleItemModel(
@@ -43,6 +49,7 @@ class SaleItemModel {
         productName: map['productName'] as String,
         unitPrice: (map['unitPrice'] as num).toDouble(),
         quantity: map['quantity'] as int,
+        costPrice: (map['costPrice'] as num?)?.toDouble(),
       );
 
   Map<String, dynamic> toMap() => {
@@ -50,6 +57,7 @@ class SaleItemModel {
         'productName': productName,
         'unitPrice': unitPrice,
         'quantity': quantity,
+        'costPrice': costPrice,
       };
 }
 

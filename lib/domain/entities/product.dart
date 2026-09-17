@@ -2,6 +2,7 @@ class Product {
   final String id;
   final String name;
   final double price;
+  final double costPrice;
   final int quantity;
   final String? category;
   final String? barcode;
@@ -13,6 +14,7 @@ class Product {
     required this.id,
     required this.name,
     required this.price,
+    this.costPrice = 0.0,
     required this.quantity,
     this.category,
     this.barcode,
@@ -25,6 +27,7 @@ class Product {
     String? id,
     String? name,
     double? price,
+    double? costPrice,
     int? quantity,
     String? category,
     String? barcode,
@@ -36,6 +39,7 @@ class Product {
       id: id ?? this.id,
       name: name ?? this.name,
       price: price ?? this.price,
+      costPrice: costPrice ?? this.costPrice,
       quantity: quantity ?? this.quantity,
       category: category ?? this.category,
       barcode: barcode ?? this.barcode,

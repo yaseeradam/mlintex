@@ -24,6 +24,7 @@ class QuickAddProductSheet extends ConsumerStatefulWidget {
 class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
+  final _costPriceController = TextEditingController();
   final _quantityController = TextEditingController();
   final _categoryController = TextEditingController();
   final _receiveQtyController = TextEditingController();
@@ -43,6 +44,8 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
       final p = widget.existing as Product;
       _nameController.text = p.name;
       _priceController.text = p.price.toStringAsFixed(2);
+      _costPriceController.text =
+          p.costPrice > 0 ? p.costPrice.toStringAsFixed(2) : '';
       _quantityController.text = p.quantity.toString();
       _categoryController.text = p.category ?? '';
       _avatarPath = p.imagePath;
@@ -59,6 +62,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
+    _costPriceController.dispose();
     _quantityController.dispose();
     _categoryController.dispose();
     _receiveQtyController.dispose();
@@ -99,6 +103,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
     try {
       final name = _nameController.text.trim();
       final price = double.parse(_priceController.text.trim().replaceAll(',', ''));
+      final costPrice = CurrencyInputFormatter.parse(_costPriceController.text);
       final quantity = int.parse(_quantityController.text.trim());
       final category = _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim();
       final receiveQty = int.tryParse(_receiveQtyController.text.trim()) ?? 0;
@@ -111,6 +116,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
           existing.copyWith(
             name: name,
             price: price,
+            costPrice: costPrice,
             quantity: quantity,
             category: category,
             imagePath: _avatarPath,
@@ -122,6 +128,7 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
         await notifier.addProduct(
           name: name,
           price: price,
+          costPrice: costPrice,
           quantity: quantity,
           category: category,
           imagePath: _avatarPath,
@@ -255,14 +262,14 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
               ),
               const SizedBox(height: 14),
 
-              // Price & Quantity in a Row
+              // Selling Price & Cost Price in a Row
               Row(
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _lbl('Price *', textMuted),
+                        _lbl('Selling Price *', textMuted),
                         TextFormField(
                           controller: _priceController,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -286,18 +293,31 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _lbl('Quantity *', textMuted),
+                        _lbl('Cost Price (₦)', textMuted),
                         TextFormField(
-                          controller: _quantityController,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          decoration: const InputDecoration(hintText: '0'),
-                          validator: (v) => v!.trim().isEmpty ? 'Required' : null,
+                          controller: _costPriceController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [CurrencyInputFormatter()],
+                          decoration: const InputDecoration(
+                            hintText: '0.00',
+                            prefixText: '₦ ',
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 14),
+
+              // Quantity in Stock
+              _lbl('Quantity in Stock *', textMuted),
+              TextFormField(
+                controller: _quantityController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(hintText: '0'),
+                validator: (v) => v!.trim().isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 14),
 

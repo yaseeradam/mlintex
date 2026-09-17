@@ -32,10 +32,14 @@ class ProductModel extends HiveObject {
   @HiveField(8)
   final String? imagePath;
 
+  @HiveField(9)
+  final double costPrice;
+
   ProductModel({
     required this.id,
     required this.name,
     required this.price,
+    this.costPrice = 0.0,
     required this.quantity,
     this.category,
     this.barcode,
@@ -48,6 +52,7 @@ class ProductModel extends HiveObject {
         id: product.id,
         name: product.name,
         price: product.price,
+        costPrice: product.costPrice,
         quantity: product.quantity,
         category: product.category,
         barcode: product.barcode,
@@ -60,6 +65,7 @@ class ProductModel extends HiveObject {
         id: id,
         name: name,
         price: price,
+        costPrice: costPrice,
         quantity: quantity,
         category: category,
         barcode: barcode,
@@ -72,6 +78,7 @@ class ProductModel extends HiveObject {
         id: map['id'] as String,
         name: map['name'] as String,
         price: (map['price'] as num).toDouble(),
+        costPrice: (map['costPrice'] as num?)?.toDouble() ?? 0.0,
         quantity: map['quantity'] as int,
         category: map['category'] as String?,
         barcode: map['barcode'] as String?,
@@ -84,6 +91,7 @@ class ProductModel extends HiveObject {
         'id': id,
         'name': name,
         'price': price,
+        'costPrice': costPrice,
         'quantity': quantity,
         'category': category,
         'barcode': barcode,

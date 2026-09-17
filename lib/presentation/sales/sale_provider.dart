@@ -6,6 +6,7 @@ import '../../domain/entities/customer.dart';
 import '../../domain/repositories/sale_repository.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../../core/providers/repository_providers.dart';
+import '../products/product_provider.dart';
 
 /// Cart item for active sale
 class CartItem {
@@ -100,6 +101,7 @@ class SaleNotifier extends Notifier<AsyncValue<void>> {
               productId: c.product.id,
               productName: c.product.name,
               unitPrice: c.product.price,
+              costPrice: c.product.costPrice,
               quantity: c.quantity,
             ),
           )
@@ -144,3 +146,69 @@ class SaleNotifier extends Notifier<AsyncValue<void>> {
 final saleNotifierProvider = NotifierProvider<SaleNotifier, AsyncValue<void>>(
   SaleNotifier.new,
 );
+
+/// Total Profit calculated across all sales.
+/// Uses each SaleItem's snapshot costPrice, falling back to the current product costPrice.
+final totalProfitProvider = Provider<double>((ref) {
+  final salesAsync = ref.watch(salesProvider);
+  final productsAsync = ref.watch(productsProvider);
+
+  final sales = salesAsync.value ?? [];
+  final products = productsAsync.value ?? [];
+
+  final productCostById = <String, double>{
+    for (final p in products) p.id: p.costPrice,
+  };
+  final productCostByName = <String, double>{
+    for (final p in products) p.name.trim().toLowerCase(): p.costPrice,
+  };
+
+  double totalProfit = 0.0;
+  for (final sale in sales) {
+    for (final item in sale.items) {
+      final cost = item.costPrice ??
+          productCostById[item.productId] ??
+          productCostByName[item.productName.trim().toLowerCase()] ??
+          0.0;
+      totalProfit += (item.unitPrice - cost) * item.quantity;
+    }
+  }
+
+  return totalProfit;
+});
+
+/// Today's Profit calculated from today's sales.
+final todayProfitProvider = Provider<double>((ref) {
+  final salesAsync = ref.watch(salesProvider);
+  final productsAsync = ref.watch(productsProvider);
+
+  final sales = salesAsync.value ?? [];
+  final products = productsAsync.value ?? [];
+
+  final productCostById = <String, double>{
+    for (final p in products) p.id: p.costPrice,
+  };
+  final productCostByName = <String, double>{
+    for (final p in products) p.name.trim().toLowerCase(): p.costPrice,
+  };
+
+  final now = DateTime.now();
+  final todayStart = DateTime(now.year, now.month, now.day);
+  final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+
+  double todayProfit = 0.0;
+  for (final sale in sales) {
+    if (sale.saleDate.isAfter(todayStart.subtract(const Duration(milliseconds: 1))) &&
+        sale.saleDate.isBefore(todayEnd.add(const Duration(milliseconds: 1)))) {
+      for (final item in sale.items) {
+        final cost = item.costPrice ??
+            productCostById[item.productId] ??
+            productCostByName[item.productName.trim().toLowerCase()] ??
+            0.0;
+        todayProfit += (item.unitPrice - cost) * item.quantity;
+      }
+    }
+  }
+
+  return todayProfit;
+});

@@ -21,13 +21,14 @@ class SaleItemModelAdapter extends TypeAdapter<SaleItemModel> {
       productName: fields[1] as String,
       unitPrice: fields[2] as double,
       quantity: fields[3] as int,
+      costPrice: fields[4] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, SaleItemModel obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.productId)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class SaleItemModelAdapter extends TypeAdapter<SaleItemModel> {
       ..writeByte(2)
       ..write(obj.unitPrice)
       ..writeByte(3)
-      ..write(obj.quantity);
+      ..write(obj.quantity)
+      ..writeByte(4)
+      ..write(obj.costPrice);
   }
 
   @override

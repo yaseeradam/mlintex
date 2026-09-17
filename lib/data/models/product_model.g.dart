@@ -26,13 +26,14 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       updatedAt: fields[6] as DateTime,
       isSynced: fields[7] as bool,
       imagePath: fields[8] as String?,
+      costPrice: (fields[9] as num?)?.toDouble() ?? 0.0,
     );
   }
 
   @override
   void write(BinaryWriter writer, ProductModel obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -50,7 +51,9 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       ..writeByte(7)
       ..write(obj.isSynced)
       ..writeByte(8)
-      ..write(obj.imagePath);
+      ..write(obj.imagePath)
+      ..writeByte(9)
+      ..write(obj.costPrice);
   }
 
   @override

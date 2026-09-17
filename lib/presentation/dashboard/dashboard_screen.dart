@@ -19,6 +19,8 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final customersAsync = ref.watch(customersProvider);
     final todayRevenue = ref.watch(todayRevenueProvider);
+    final totalProfit = ref.watch(totalProfitProvider);
+    final todayProfit = ref.watch(todayProfitProvider);
     final totalDebt = ref.watch(totalOutstandingProvider);
     final syncStatus = ref.watch(syncStatusProvider);
     final authState = ref.watch(authProvider);
@@ -41,6 +43,7 @@ class DashboardScreen extends ConsumerWidget {
                 syncStatus: syncStatus.value,
                 onSyncTap: isSyncing ? null : () => ref.read(syncServiceProvider).syncAll(),
                 todayRevenue: todayRevenue.value ?? 0,
+                todayProfit: todayProfit,
                 currency: currency,
               ),
             ),
@@ -49,24 +52,48 @@ class DashboardScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: Row(children: [
-                  Expanded(child: _StatCard(
-                    label: 'Customers',
-                    value: (customersAsync.value?.length ?? 0).toString(),
-                    icon: Icons.people_rounded,
-                    color: AppTheme.warningColor,
-                    bg: AppTheme.warningColor.withOpacity(0.08),
-                  )),
-                  const SizedBox(width: 12),
-                  Expanded(child: _StatCard(
-                    label: 'Total Debt',
-                    value: '₦${currency.format(totalDebt.value ?? 0)}',
-                    icon: Icons.receipt_long_rounded,
-                    color: AppTheme.errorColor,
-                    bg: AppTheme.errorColor.withOpacity(0.08),
-                    small: true,
-                  )),
-                ]),
+                child: Column(
+                  children: [
+                    Row(children: [
+                      Expanded(child: _StatCard(
+                        label: 'Total Profit',
+                        value: '₦${currency.format(totalProfit)}',
+                        icon: Icons.trending_up_rounded,
+                        color: const Color(0xFF10B981),
+                        bg: const Color(0xFF10B981).withOpacity(0.1),
+                        small: true,
+                      )),
+                      const SizedBox(width: 12),
+                      Expanded(child: _StatCard(
+                        label: 'Total Debt',
+                        value: '₦${currency.format(totalDebt.value ?? 0)}',
+                        icon: Icons.receipt_long_rounded,
+                        color: AppTheme.errorColor,
+                        bg: AppTheme.errorColor.withOpacity(0.08),
+                        small: true,
+                      )),
+                    ]),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Expanded(child: _StatCard(
+                        label: 'Customers',
+                        value: (customersAsync.value?.length ?? 0).toString(),
+                        icon: Icons.people_rounded,
+                        color: AppTheme.warningColor,
+                        bg: AppTheme.warningColor.withOpacity(0.08),
+                      )),
+                      const SizedBox(width: 12),
+                      Expanded(child: _StatCard(
+                        label: "Today's Profit",
+                        value: '₦${currency.format(todayProfit)}',
+                        icon: Icons.query_stats_rounded,
+                        color: AppTheme.primaryColor,
+                        bg: AppTheme.primaryColor.withOpacity(0.08),
+                        small: true,
+                      )),
+                    ]),
+                  ],
+                ),
               ),
             ),
 
@@ -102,6 +129,7 @@ class _HeroBanner extends StatelessWidget {
   final SyncStatus? syncStatus;
   final VoidCallback? onSyncTap;
   final double todayRevenue;
+  final double todayProfit;
   final NumberFormat currency;
 
   const _HeroBanner({
@@ -110,6 +138,7 @@ class _HeroBanner extends StatelessWidget {
     required this.syncStatus,
     required this.onSyncTap,
     required this.todayRevenue,
+    required this.todayProfit,
     required this.currency,
   });
 
@@ -221,6 +250,21 @@ class _HeroBanner extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(DateFormat('MMM d, yyyy').format(DateTime.now()),
                     style: const TextStyle(color: Colors.white70, fontSize: 11)),
+              ]),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.25),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFF34D399).withOpacity(0.4)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.trending_up_rounded, size: 12, color: Color(0xFF6EE7B7)),
+                const SizedBox(width: 4),
+                Text("Today's Profit: ₦${currency.format(todayProfit)}",
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
               ]),
             ),
           ]),

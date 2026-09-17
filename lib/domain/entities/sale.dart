@@ -3,27 +3,32 @@ class SaleItem {
   final String productName;
   final double unitPrice;
   final int quantity;
+  final double? costPrice;
 
   const SaleItem({
     required this.productId,
     required this.productName,
     required this.unitPrice,
     required this.quantity,
+    this.costPrice,
   });
 
   double get subtotal => unitPrice * quantity;
+  double get profit => (unitPrice - (costPrice ?? 0.0)) * quantity;
 
   SaleItem copyWith({
     String? productId,
     String? productName,
     double? unitPrice,
     int? quantity,
+    double? costPrice,
   }) {
     return SaleItem(
       productId: productId ?? this.productId,
       productName: productName ?? this.productName,
       unitPrice: unitPrice ?? this.unitPrice,
       quantity: quantity ?? this.quantity,
+      costPrice: costPrice ?? this.costPrice,
     );
   }
 }
