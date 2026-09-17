@@ -1,5 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/customer_ledger_model.dart';
+import '../../core/services/pending_sync_tracker.dart';
 
 class CustomerLedgerLocalDataSource {
   static const String _boxName = 'customer_ledger';
@@ -23,11 +24,13 @@ class CustomerLedgerLocalDataSource {
   Future<void> saveEntry(CustomerLedgerEntryModel entry) async {
     final box = await _box;
     await box.put(entry.id, entry.toMap());
+    PendingSyncTracker.markPending(box.name, entry.id);
   }
 
   Future<void> deleteEntry(String id) async {
     final box = await _box;
     await box.delete(id);
+    PendingSyncTracker.markPendingDelete(box.name, id);
   }
 
   Future<void> deleteAllForCustomer(String customerId) async {
@@ -38,6 +41,9 @@ class CustomerLedgerLocalDataSource {
         .map((e) => e.id)
         .toList();
     await box.deleteAll(keys);
+    for (final key in keys) {
+      PendingSyncTracker.markPendingDelete(box.name, key);
+    }
   }
 
   Stream<List<CustomerLedgerEntryModel>> watchEntriesForCustomer(

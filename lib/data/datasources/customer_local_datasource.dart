@@ -1,5 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/customer_model.dart';
+import '../../core/services/pending_sync_tracker.dart';
 
 class CustomerLocalDataSource {
   static const String _boxName = 'customers';
@@ -28,6 +29,7 @@ class CustomerLocalDataSource {
   Future<void> deleteCustomer(String id) async {
     final box = await _box;
     await box.delete(id);
+    PendingSyncTracker.markPendingDelete(box.name, id);
   }
 
   Stream<List<CustomerModel>> watchCustomers() async* {

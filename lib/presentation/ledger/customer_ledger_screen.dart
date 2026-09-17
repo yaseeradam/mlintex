@@ -436,7 +436,11 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
   }
 
   Future<void> _exportImage() async {
-    final entries = await ref.read(customerLedgerProvider(widget.customerId).future);
+    final entries = await ref.read(
+      widget.isShop
+          ? shopLedgerProvider(widget.customerId).future
+          : customerLedgerProvider(widget.customerId).future,
+    );
     if (!mounted) return;
     final auth = ref.read(authProvider);
     final fmt = NumberFormat('#,##0', 'en_US');

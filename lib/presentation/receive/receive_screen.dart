@@ -16,6 +16,8 @@ import '../../core/utils/pdf_theme.dart';
 import '../../core/utils/file_saver.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/pending_sync_tracker.dart';
+import '../../core/providers/repository_providers.dart';
+import '../products/product_provider.dart';
 
 // ── Model ──────────────────────────────────────────────────────────────────
 
@@ -129,15 +131,51 @@ class ReceiveNotifier extends Notifier<void> {
     );
     await _box.put(e.id, e);
     PendingSyncTracker.markPending(_box.name, e.id);
+
+    // Increment inventory if matching product exists
+    if (qty > 0 && product.trim().isNotEmpty) {
+      try {
+        final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+        final matches = allProds.where((p) => p.name.trim().toLowerCase() == product.trim().toLowerCase());
+        if (matches.isNotEmpty) {
+          await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, qty);
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> update(ReceiveEntry e) async {
+    final old = _box.get(e.id);
+    final oldQty = old?.quantity ?? 0;
+    final delta = e.quantity - oldQty;
+
     await _box.put(e.id, e);
     PendingSyncTracker.markPending(_box.name, e.id);
+
+    if (delta != 0 && e.productName.trim().isNotEmpty) {
+      try {
+        final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+        final matches = allProds.where((p) => p.name.trim().toLowerCase() == e.productName.trim().toLowerCase());
+        if (matches.isNotEmpty) {
+          await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, delta);
+        }
+      } catch (_) {}
+    }
   }
+
   Future<void> delete(String id) async {
+    final old = _box.get(id);
+    if (old != null && old.quantity > 0 && old.productName.trim().isNotEmpty) {
+      try {
+        final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+        final matches = allProds.where((p) => p.name.trim().toLowerCase() == old.productName.trim().toLowerCase());
+        if (matches.isNotEmpty) {
+          await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, -old.quantity);
+        }
+      } catch (_) {}
+    }
     await _box.delete(id);
-    PendingSyncTracker.markPending(_box.name, id);
+    PendingSyncTracker.markPendingDelete(_box.name, id);
   }
 }
 
@@ -240,8 +278,8 @@ List<ReceiveUiRow> _buildUiRows(List<ReceiveEntry> entries) {
     if (dayCmp != 0) return dayCmp;
 
     // Same day: Deliveries first, Payments second
-    final aIsPayment = a.isPaymentRow || a.originalEntry.productName.trim().isEmpty;
-    final bIsPayment = b.isPaymentRow || b.originalEntry.productName.trim().isEmpty;
+    final aIsPayment = a.isPaymentRow;
+    final bIsPayment = b.isPaymentRow;
     if (aIsPayment != bIsPayment) {
       return aIsPayment ? 1 : -1;
     }

@@ -70,6 +70,13 @@ class SyncService {
       // 1. PUSH: ALL UNSYNCED LOCAL DATA TO FIRESTORE
       // ============================================
 
+      // Push pending deletions first
+      await _pushDeletions(db, userId, 'products_$activeShopId', 'products');
+      await _pushDeletions(db, userId, 'customers_$activeShopId', 'customers');
+      await _pushDeletions(db, userId, 'sales_$activeShopId', 'sales');
+      await _pushDeletions(db, userId, 'debts_$activeShopId', 'debts');
+      await _pushDeletions(db, userId, 'shop_customers_$activeShopId', 'shop_customers');
+
       // Model-based types (using DataSources)
       final unsyncedProducts = await _productDS.getUnsyncedProducts();
       for (final p in unsyncedProducts) {
@@ -220,7 +227,17 @@ class SyncService {
     }
   }
 
+  Future<void> _pushDeletions(FirebaseFirestore db, String userId, String boxName, String collection) async {
+    final deleteIds = PendingSyncTracker.getPendingDeleteIds(boxName);
+    for (final id in deleteIds) {
+      await db.collection('users').doc(userId).collection(collection).doc(id).delete();
+      PendingSyncTracker.markDeleteSynced(boxName, id);
+    }
+  }
+
   Future<void> _pushHiveNative<T>(FirebaseFirestore db, String userId, String boxName, String collection, Map<String, dynamic> Function(T) toMap) async {
+    await _pushDeletions(db, userId, boxName, collection);
+
     final pendingIds = PendingSyncTracker.getPendingIds(boxName);
     if (pendingIds.isEmpty) return;
 
@@ -230,12 +247,16 @@ class SyncService {
       if (item != null) {
         await db.collection('users').doc(userId).collection(collection).doc(id)
             .set(toMap(item), SetOptions(merge: true));
+      } else {
+        await db.collection('users').doc(userId).collection(collection).doc(id).delete();
       }
       PendingSyncTracker.markSynced(boxName, id);
     }
   }
 
   Future<void> _pushMap(FirebaseFirestore db, String userId, String boxName, String collection) async {
+    await _pushDeletions(db, userId, boxName, collection);
+
     final pendingIds = PendingSyncTracker.getPendingIds(boxName);
     if (pendingIds.isEmpty) return;
 
@@ -246,6 +267,8 @@ class SyncService {
         final data = Map<String, dynamic>.from(itemMap as Map);
         await db.collection('users').doc(userId).collection(collection).doc(id)
             .set(data, SetOptions(merge: true));
+      } else {
+        await db.collection('users').doc(userId).collection(collection).doc(id).delete();
       }
       PendingSyncTracker.markSynced(boxName, id);
     }
@@ -263,11 +286,13 @@ class SyncService {
     final snapshot = await db.collection('users').doc(userId).collection(collection).get();
     
     for (final doc in snapshot.docs) {
+      final id = doc.id;
+      if (PendingSyncTracker.isPendingDelete(boxName, id)) continue;
+
       final remoteData = doc.data();
       if (!remoteData.containsKey('updatedAt') || remoteData['updatedAt'] == null) continue;
       
       final remoteUpdatedAt = DateTime.parse(remoteData['updatedAt']);
-      final id = doc.id;
 
       final localItem = box.get(id);
       if (localItem == null) {
@@ -286,8 +311,10 @@ class SyncService {
     final snapshot = await db.collection('users').doc(userId).collection(collection).get();
     
     for (final doc in snapshot.docs) {
-      final remoteData = doc.data();
       final id = doc.id;
+      if (PendingSyncTracker.isPendingDelete(boxName, id)) continue;
+
+      final remoteData = doc.data();
       final isPending = PendingSyncTracker.getPendingIds(boxName).contains(id);
       
       if (box.get(id) == null || !isPending) {
@@ -301,11 +328,13 @@ class SyncService {
     final snapshot = await db.collection('users').doc(userId).collection(collection).get();
     
     for (final doc in snapshot.docs) {
+      final id = doc.id;
+      if (PendingSyncTracker.isPendingDelete(boxName, id)) continue;
+
       final remoteData = doc.data();
       if (!remoteData.containsKey('updatedAt') || remoteData['updatedAt'] == null) continue;
       
       final remoteUpdatedAt = DateTime.parse(remoteData['updatedAt']);
-      final id = doc.id;
 
       final localItemMap = box.get(id);
       if (localItemMap == null) {

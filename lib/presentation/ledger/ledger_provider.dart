@@ -158,13 +158,44 @@ class CustomerLedgerNotifier extends Notifier<void> {
   }
 
   Future<void> updateEntry(LedgerEntry updated) async {
+    final old = _box.get(updated.id);
+    if (old != null && old.type == LedgerEntryType.sale && updated.type == LedgerEntryType.sale) {
+      final oldQty = old.quantity ?? 0;
+      final newQty = updated.quantity ?? 0;
+      final delta = newQty - oldQty;
+      final itemName = updated.inItem ?? old.inItem;
+      if (delta != 0 && itemName != null && itemName.trim().isNotEmpty) {
+        try {
+          final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+          final matches = allProds.where(
+            (p) => p.name.trim().toLowerCase() == itemName.trim().toLowerCase(),
+          );
+          if (matches.isNotEmpty) {
+            await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, -delta);
+          }
+        } catch (_) {}
+      }
+    }
+
     await _box.put(updated.id, updated);
     PendingSyncTracker.markPending(_box.name, updated.id);
   }
 
   Future<void> deleteEntry(String id) async {
+    final old = _box.get(id);
+    if (old != null && old.type == LedgerEntryType.sale && (old.quantity ?? 0) > 0 && old.inItem != null) {
+      try {
+        final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+        final matches = allProds.where(
+          (p) => p.name.trim().toLowerCase() == old.inItem!.trim().toLowerCase(),
+        );
+        if (matches.isNotEmpty) {
+          await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, old.quantity!);
+        }
+      } catch (_) {}
+    }
     await _box.delete(id);
-    PendingSyncTracker.markPending(_box.name, id);
+    PendingSyncTracker.markPendingDelete(_box.name, id);
   }
 }
 
@@ -196,6 +227,17 @@ class ShopLedgerNotifier extends Notifier<void> {
     );
     await _box.put(entry.id, entry);
     PendingSyncTracker.markPending(_box.name, entry.id);
+
+    // Automatically deduct store product stock if matching product exists
+    try {
+      final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+      final matches = allProds.where(
+        (p) => p.name.trim().toLowerCase() == itemName.trim().toLowerCase(),
+      );
+      if (matches.isNotEmpty) {
+        await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, -quantity);
+      }
+    } catch (_) {}
   }
 
   Future<void> addPaymentEntry({
@@ -219,13 +261,44 @@ class ShopLedgerNotifier extends Notifier<void> {
   }
 
   Future<void> updateEntry(LedgerEntry updated) async {
+    final old = _box.get(updated.id);
+    if (old != null && old.type == LedgerEntryType.sale && updated.type == LedgerEntryType.sale) {
+      final oldQty = old.quantity ?? 0;
+      final newQty = updated.quantity ?? 0;
+      final delta = newQty - oldQty;
+      final itemName = updated.inItem ?? old.inItem;
+      if (delta != 0 && itemName != null && itemName.trim().isNotEmpty) {
+        try {
+          final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+          final matches = allProds.where(
+            (p) => p.name.trim().toLowerCase() == itemName.trim().toLowerCase(),
+          );
+          if (matches.isNotEmpty) {
+            await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, -delta);
+          }
+        } catch (_) {}
+      }
+    }
+
     await _box.put(updated.id, updated);
     PendingSyncTracker.markPending(_box.name, updated.id);
   }
 
   Future<void> deleteEntry(String id) async {
+    final old = _box.get(id);
+    if (old != null && old.type == LedgerEntryType.sale && (old.quantity ?? 0) > 0 && old.inItem != null) {
+      try {
+        final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+        final matches = allProds.where(
+          (p) => p.name.trim().toLowerCase() == old.inItem!.trim().toLowerCase(),
+        );
+        if (matches.isNotEmpty) {
+          await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, old.quantity!);
+        }
+      } catch (_) {}
+    }
     await _box.delete(id);
-    PendingSyncTracker.markPending(_box.name, id);
+    PendingSyncTracker.markPendingDelete(_box.name, id);
   }
 }
 

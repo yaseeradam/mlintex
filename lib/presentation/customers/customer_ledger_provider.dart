@@ -109,6 +109,27 @@ class CustomerLedgerNotifier extends Notifier<AsyncValue<void>> {
   Future<void> updateEntry(CustomerLedgerEntry updated) async {
     state = const AsyncValue.loading();
     try {
+      try {
+        final entries = await _repo.getEntriesForCustomer(updated.customerId);
+        final oldMatches = entries.where((e) => e.id == updated.id);
+        if (oldMatches.isNotEmpty) {
+          final old = oldMatches.first;
+          final oldQty = old.quantity ?? 0;
+          final newQty = updated.quantity ?? 0;
+          final delta = newQty - oldQty;
+          final itemName = updated.outDescription ?? old.outDescription;
+          if (delta != 0 && itemName != null && itemName.trim().isNotEmpty) {
+            final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+            final matches = allProds.where(
+              (p) => p.name.trim().toLowerCase() == itemName.trim().toLowerCase(),
+            );
+            if (matches.isNotEmpty) {
+              await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, -delta);
+            }
+          }
+        }
+      } catch (_) {}
+
       await _repo.updateEntry(updated.copyWith(updatedAt: DateTime.now()));
       state = const AsyncValue.data(null);
     } catch (e, st) {
@@ -116,9 +137,29 @@ class CustomerLedgerNotifier extends Notifier<AsyncValue<void>> {
     }
   }
 
-  Future<void> deleteEntry(String entryId) async {
+  Future<void> deleteEntry(String entryId, {String? customerId}) async {
     state = const AsyncValue.loading();
     try {
+      if (customerId != null) {
+        try {
+          final entries = await _repo.getEntriesForCustomer(customerId);
+          final matches = entries.where((e) => e.id == entryId);
+          if (matches.isNotEmpty) {
+            final entry = matches.first;
+            final qty = entry.quantity ?? 0;
+            if (qty > 0 && entry.outDescription != null && entry.outDescription!.trim().isNotEmpty) {
+              final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+              final prodMatches = allProds.where(
+                (p) => p.name.trim().toLowerCase() == entry.outDescription!.trim().toLowerCase(),
+              );
+              if (prodMatches.isNotEmpty) {
+                await ref.read(productNotifierProvider.notifier).updateQuantity(prodMatches.first.id, qty);
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
       await _repo.deleteEntry(entryId);
       state = const AsyncValue.data(null);
     } catch (e, st) {

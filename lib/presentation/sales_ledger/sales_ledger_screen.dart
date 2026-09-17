@@ -166,7 +166,7 @@ class SalesLedgerNotifier extends Notifier<void> {
       }
     }
     await _box.delete(id);
-    PendingSyncTracker.markPending(_box.name, id);
+    PendingSyncTracker.markPendingDelete(_box.name, id);
   }
 }
 
