@@ -6,6 +6,7 @@ import 'package:shop_manager/data/models/sale_model.dart';
 import 'package:shop_manager/data/models/debt_model.dart';
 import 'package:shop_manager/data/models/customer_ledger_model.dart';
 import 'package:shop_manager/data/models/receive_order_model.dart';
+import 'package:shop_manager/presentation/sales_ledger/sales_ledger_screen.dart';
 
 void main() {
   group('Profit Calculation and Models', () {
@@ -50,17 +51,24 @@ void main() {
       expect(item.profit, 100.0); // (120 - 100) * 5 = 100
     });
 
-    test('SaleItem falls back to 0.0 costPrice if null', () {
-      final legacyItem = SaleItem(
+    test('SaleItem returns 0.0 profit if costPrice is null or zero (prevents false 100% margin)', () {
+      final nullCostItem = SaleItem(
         productId: 'p1',
         productName: 'LIN ROMAN',
         unitPrice: 120.0,
         costPrice: null,
         quantity: 2,
       );
+      expect(nullCostItem.profit, 0.0);
 
-      // (120 - 0) * 2 = 240
-      expect(legacyItem.profit, 240.0);
+      final zeroCostItem = SaleItem(
+        productId: 'p1',
+        productName: 'LIN ROMAN',
+        unitPrice: 120.0,
+        costPrice: 0.0,
+        quantity: 2,
+      );
+      expect(zeroCostItem.profit, 0.0);
     });
 
     test('SaleItemModel retains costPrice across entity and map conversions', () {
@@ -185,6 +193,91 @@ void main() {
       expect(r.totalAmount, 50000.0);
       expect(r.items.first.unitPrice, 5000.0);
       expect(r.items.first.quantity, 10);
+    });
+
+    test('SalesLedgerEntry calculates profit using stored costPrice or catalog fallback', () {
+      final products = [
+        Product(
+          id: 'p1',
+          name: 'ZENITH 150y',
+          price: 2000.0,
+          costPrice: 1500.0,
+          quantity: 20,
+          updatedAt: DateTime(2026, 1, 1),
+        ),
+      ];
+      final productCostByName = <String, double>{
+        for (final p in products) p.name.trim().toLowerCase(): p.costPrice,
+      };
+
+      // Entry 1: Has stored costPrice on entry
+      final e1 = SalesLedgerEntry(
+        id: 'e1',
+        date: DateTime.now(),
+        inItem: 'ZENITH 150y',
+        price: 2000.0,
+        quantity: 5,
+        totalAmount: 10000.0,
+        typeIndex: 1,
+        costPrice: 1400.0, // Historical cost stored
+      );
+
+      // Entry 2: No stored costPrice, falls back to catalog
+      final e2 = SalesLedgerEntry(
+        id: 'e2',
+        date: DateTime.now(),
+        inItem: 'ZENITH 150y',
+        price: 2200.0,
+        quantity: 2,
+        totalAmount: 4400.0,
+        typeIndex: 1,
+      );
+
+      // Entry 3: Uncosted item not in catalog
+      final e3 = SalesLedgerEntry(
+        id: 'e3',
+        date: DateTime.now(),
+        inItem: 'UNREGISTERED ITEM',
+        price: 3000.0,
+        quantity: 1,
+        totalAmount: 3000.0,
+        typeIndex: 1,
+      );
+
+      // Entry 4: Payment entry (typeIndex 0) -> not a sale
+      final e4 = SalesLedgerEntry(
+        id: 'e4',
+        date: DateTime.now(),
+        totalAmount: 5000.0,
+        typeIndex: 0,
+      );
+
+      final entries = [e1, e2, e3, e4];
+
+      double totalProfit = 0.0;
+      for (final entry in entries) {
+        if (entry.typeIndex == 1) {
+          final nameKey = (entry.inItem ?? '').trim().toLowerCase();
+          final cost = (entry.costPrice != null && entry.costPrice! > 0)
+              ? entry.costPrice!
+              : (productCostByName[nameKey] ?? 0.0);
+          final unitPrice = entry.price ??
+              (entry.quantity != null && entry.quantity! > 0
+                  ? entry.totalAmount / entry.quantity!
+                  : entry.totalAmount);
+          final qty = entry.quantity ?? 1;
+          if (cost > 0) {
+            totalProfit += (unitPrice - cost) * qty;
+          }
+        }
+      }
+
+      // e1: (2000 - 1400) * 5 = 600 * 5 = 3000
+      // e2: (2200 - 1500) * 2 = 700 * 2 = 1400
+      // e3: cost is 0 -> profit is 0 (NOT 3000!)
+      // e4: payment -> profit is 0
+      // Total Profit = 3000 + 1400 = 4400
+      expect(totalProfit, 4400.0);
     });
   });
 }

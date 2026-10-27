@@ -414,8 +414,10 @@ class _CartSummary extends StatelessWidget {
                 builder: (context) {
                   double cartProfit = 0.0;
                   for (final item in cart) {
-                    final cost = item.product.costPrice ?? 0.0;
-                    cartProfit += (item.product.price - cost) * item.quantity;
+                    final cost = item.product.costPrice;
+                    if (cost > 0) {
+                      cartProfit += (item.product.price - cost) * item.quantity;
+                    }
                   }
 
                   return Column(

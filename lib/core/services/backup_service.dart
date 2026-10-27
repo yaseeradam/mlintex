@@ -89,6 +89,7 @@ class BackupService {
           'personName': sl.personName,
           'payment': sl.payment,
           'paymentDate': sl.paymentDate?.toIso8601String(),
+          'costPrice': sl.costPrice,
         }).toList(),
       };
 
@@ -356,6 +357,7 @@ class BackupService {
                 paymentDate: m['paymentDate'] != null
                     ? DateTime.parse(m['paymentDate'] as String)
                     : null,
+                costPrice: (m['costPrice'] as num?)?.toDouble(),
               );
               await salesLedgerBox.put(entry.id, entry);
               PendingSyncTracker.markPending('sales_ledger', entry.id);

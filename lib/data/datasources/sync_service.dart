@@ -285,6 +285,7 @@ class SyncService {
         'price': e.price, 'quantity': e.quantity, 'totalAmount': e.totalAmount,
         'runningBalance': e.runningBalance, 'typeIndex': e.typeIndex, 'personName': e.personName,
         'payment': e.payment, 'paymentDate': e.paymentDate?.toIso8601String(),
+        'costPrice': e.costPrice,
         'updatedAt': DateTime.now().toIso8601String(),
       });
 
@@ -406,6 +407,7 @@ class SyncService {
             personName: map['personName']?.toString(),
             payment: _safeDoubleDef(map['payment']),
             paymentDate: map['paymentDate'] != null ? DateTime.tryParse(map['paymentDate'].toString()) : null,
+            costPrice: _safeDouble(map['costPrice']),
           );
         }, force: forcePull);
 

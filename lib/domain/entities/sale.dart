@@ -14,7 +14,9 @@ class SaleItem {
   });
 
   double get subtotal => unitPrice * quantity;
-  double get profit => (unitPrice - (costPrice ?? 0.0)) * quantity;
+  double get profit => (costPrice != null && costPrice! > 0)
+      ? (unitPrice - costPrice!) * quantity
+      : 0.0;
 
   SaleItem copyWith({
     String? productId,

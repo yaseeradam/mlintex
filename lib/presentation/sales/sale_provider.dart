@@ -192,19 +192,24 @@ final totalProfitProvider = Provider<double>((ref) {
   double totalProfit = 0.0;
   for (final sale in sales) {
     for (final item in sale.items) {
-      final cost = item.costPrice ??
-          productCostById[item.productId] ??
-          productCostByName[item.productName.trim().toLowerCase()] ??
-          0.0;
-      totalProfit += (item.unitPrice - cost) * item.quantity;
+      final cost = (item.costPrice != null && item.costPrice! > 0)
+          ? item.costPrice!
+          : (productCostById[item.productId] ??
+              productCostByName[item.productName.trim().toLowerCase()] ??
+              0.0);
+      if (cost > 0) {
+        totalProfit += (item.unitPrice - cost) * item.quantity;
+      }
     }
   }
 
   for (final e in ledgerEntries) {
     if (e.typeIndex == 1) {
-      final cost = (e.inItem != null)
-          ? (productCostByName[e.inItem!.trim().toLowerCase()] ?? 0.0)
-          : 0.0;
+      final cost = (e.costPrice != null && e.costPrice! > 0)
+          ? e.costPrice!
+          : (e.inItem != null
+              ? (productCostByName[e.inItem!.trim().toLowerCase()] ?? 0.0)
+              : 0.0);
       final qty = (e.quantity ?? 1).toDouble();
       final unitPrice = e.price ?? (qty > 0 ? (e.totalAmount / qty) : e.totalAmount);
       if (cost > 0) {
@@ -242,11 +247,14 @@ final todayProfitProvider = Provider<double>((ref) {
     if (sale.saleDate.isAfter(todayStart.subtract(const Duration(milliseconds: 1))) &&
         sale.saleDate.isBefore(todayEnd.add(const Duration(milliseconds: 1)))) {
       for (final item in sale.items) {
-        final cost = item.costPrice ??
-            productCostById[item.productId] ??
-            productCostByName[item.productName.trim().toLowerCase()] ??
-            0.0;
-        todayProfit += (item.unitPrice - cost) * item.quantity;
+        final cost = (item.costPrice != null && item.costPrice! > 0)
+            ? item.costPrice!
+            : (productCostById[item.productId] ??
+                productCostByName[item.productName.trim().toLowerCase()] ??
+                0.0);
+        if (cost > 0) {
+          todayProfit += (item.unitPrice - cost) * item.quantity;
+        }
       }
     }
   }
@@ -255,9 +263,11 @@ final todayProfitProvider = Provider<double>((ref) {
     if (e.typeIndex == 1 &&
         e.date.isAfter(todayStart.subtract(const Duration(milliseconds: 1))) &&
         e.date.isBefore(todayEnd.add(const Duration(milliseconds: 1)))) {
-      final cost = (e.inItem != null)
-          ? (productCostByName[e.inItem!.trim().toLowerCase()] ?? 0.0)
-          : 0.0;
+      final cost = (e.costPrice != null && e.costPrice! > 0)
+          ? e.costPrice!
+          : (e.inItem != null
+              ? (productCostByName[e.inItem!.trim().toLowerCase()] ?? 0.0)
+              : 0.0);
       final qty = (e.quantity ?? 1).toDouble();
       final unitPrice = e.price ?? (qty > 0 ? (e.totalAmount / qty) : e.totalAmount);
       if (cost > 0) {

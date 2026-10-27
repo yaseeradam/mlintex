@@ -33,6 +33,7 @@ class SalesLedgerEntry extends HiveObject {
   @HiveField(9) final String? personName;
   @HiveField(10) final double? payment;
   @HiveField(11) final DateTime? paymentDate;
+  @HiveField(12) final double? costPrice;
 
   SalesLedgerEntry({
     required this.id, required this.date,
@@ -41,6 +42,7 @@ class SalesLedgerEntry extends HiveObject {
     this.personName,
     this.payment = 0.0,
     this.paymentDate,
+    this.costPrice,
   });
 }
 
@@ -59,13 +61,14 @@ class SalesLedgerEntryAdapter extends TypeAdapter<SalesLedgerEntry> {
       personName: f[9] as String?,
       payment: (f[10] as num?)?.toDouble() ?? 0.0,
       paymentDate: f[11] as DateTime?,
+      costPrice: (f[12] as num?)?.toDouble(),
     );
   }
 
   @override
   void write(BinaryWriter writer, SalesLedgerEntry obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)..write(obj.id)
       ..writeByte(1)..write(obj.date)
       ..writeByte(2)..write(obj.inItem)
@@ -77,7 +80,8 @@ class SalesLedgerEntryAdapter extends TypeAdapter<SalesLedgerEntry> {
       ..writeByte(8)..write(obj.typeIndex)
       ..writeByte(9)..write(obj.personName)
       ..writeByte(10)..write(obj.payment)
-      ..writeByte(11)..write(obj.paymentDate);
+      ..writeByte(11)..write(obj.paymentDate)
+      ..writeByte(12)..write(obj.costPrice);
   }
 
   @override bool operator ==(Object other) => identical(this, other) || other is SalesLedgerEntryAdapter && typeId == other.typeId;
@@ -130,7 +134,25 @@ class SalesLedgerNotifier extends Notifier<void> {
     String? paymentMethod,
     String? personName,
     String? productId,
+    double? costPrice,
   }) async {
+    double? resolvedCost = costPrice;
+    String? targetId = productId;
+    if (resolvedCost == null || targetId == null) {
+      final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+      Product? match;
+      if (targetId != null) {
+        match = allProds.where((p) => p.id == targetId).firstOrNull;
+      }
+      if (match == null) {
+        match = allProds.where((p) => p.name.trim().toLowerCase() == item.trim().toLowerCase()).firstOrNull;
+        if (match != null) targetId = match.id;
+      }
+      if (match != null && match.costPrice > 0) {
+        resolvedCost ??= match.costPrice;
+      }
+    }
+
     final e = SalesLedgerEntry(
       id: const Uuid().v4(),
       date: DateTime.now(),
@@ -143,16 +165,11 @@ class SalesLedgerNotifier extends Notifier<void> {
       paymentDate: payment > 0 ? DateTime.now() : null,
       typeIndex: 1,
       personName: personName,
+      costPrice: resolvedCost,
     );
     await _box.put(e.id, e);
     PendingSyncTracker.markPending(_box.name, e.id);
 
-    String? targetId = productId;
-    if (targetId == null) {
-      final allProds = await ref.read(productRepositoryProvider).getAllProducts();
-      final matches = allProds.where((p) => p.name.trim().toLowerCase() == item.trim().toLowerCase());
-      if (matches.isNotEmpty) targetId = matches.first.id;
-    }
     if (targetId != null) {
       await ref.read(productNotifierProvider.notifier).updateQuantity(targetId, -qty);
     }
@@ -287,13 +304,17 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
                   totalOut += (entry.payment ?? 0.0);
 
                   final nameKey = (entry.inItem ?? '').trim().toLowerCase();
-                  final cost = productCostByName[nameKey] ?? 0.0;
+                  final cost = (entry.costPrice != null && entry.costPrice! > 0)
+                      ? entry.costPrice!
+                      : (productCostByName[nameKey] ?? 0.0);
                   final unitPrice = entry.price ??
                       (entry.quantity != null && entry.quantity! > 0
                           ? entry.totalAmount / entry.quantity!
                           : entry.totalAmount);
                   final qty = entry.quantity ?? 1;
-                  totalProfit += (unitPrice - cost) * qty;
+                  if (cost > 0) {
+                    totalProfit += (unitPrice - cost) * qty;
+                  }
                 } else {
                   totalOut += entry.totalAmount;
                 }
@@ -1990,6 +2011,16 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
         final price = CurrencyInputFormatter.parse(_priceCtrl.text);
         final qty = int.tryParse(_qtyCtrl.text) ?? 0;
         final total = price * qty;
+        final products = ref.read(productsProvider).value ?? [];
+        Product? match;
+        if (_selectedProductId != null) {
+          match = products.where((p) => p.id == _selectedProductId).firstOrNull;
+        }
+        if (match == null && _itemCtrl.text.isNotEmpty) {
+          match = products.where((p) => p.name.trim().toLowerCase() == _itemCtrl.text.trim().toLowerCase()).firstOrNull;
+        }
+        final cost = (match != null && match.costPrice > 0) ? match.costPrice : e.costPrice;
+
         await n.update(SalesLedgerEntry(
           id: e.id,
           date: e.date,
@@ -2002,6 +2033,7 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
           paymentDate: paymentVal > 0 ? (e.paymentDate ?? DateTime.now()) : null,
           typeIndex: 1,
           personName: pName,
+          costPrice: cost,
         ), productId: _selectedProductId);
       } else {
         final amount = CurrencyInputFormatter.parse(_amountCtrl.text);
@@ -2023,6 +2055,16 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
       if (_isSale) {
         final price = CurrencyInputFormatter.parse(_priceCtrl.text);
         final qty = int.parse(_qtyCtrl.text.trim());
+        final products = ref.read(productsProvider).value ?? [];
+        Product? match;
+        if (_selectedProductId != null) {
+          match = products.where((p) => p.id == _selectedProductId).firstOrNull;
+        }
+        if (match == null && _itemCtrl.text.isNotEmpty) {
+          match = products.where((p) => p.name.trim().toLowerCase() == _itemCtrl.text.trim().toLowerCase()).firstOrNull;
+        }
+        final cost = (match != null && match.costPrice > 0) ? match.costPrice : null;
+
         await n.addSale(
           item: _itemCtrl.text.trim(),
           price: price,
@@ -2031,6 +2073,7 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
           paymentMethod: paymentMethod,
           personName: pName,
           productId: _selectedProductId,
+          costPrice: cost,
         );
       } else {
         await n.addPayment(
@@ -2271,44 +2314,84 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
                     matched = products.where((item) => item.name.trim().toLowerCase() == _itemCtrl.text.trim().toLowerCase()).firstOrNull;
                   }
 
-                  final cost = matched?.costPrice ?? 0.0;
+                  final cost = (matched != null && matched.costPrice > 0)
+                      ? matched.costPrice
+                      : ((widget.existing?.costPrice != null && widget.existing!.costPrice! > 0)
+                          ? widget.existing!.costPrice!
+                          : 0.0);
+
+                  if (cost <= 0) {
+                    return Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF94A3B8)),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Cost price not set in inventory (profit uncalculated)',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF64748B)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
                   final unitProfit = p - cost;
                   final estProfit = unitProfit * q;
+                  final isPositive = estProfit >= 0;
 
                   return Container(
                     margin: const EdgeInsets.only(top: 10),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFECFDF5),
+                      color: isPositive ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.25)),
+                      border: Border.all(
+                        color: isPositive
+                            ? const Color(0xFF10B981).withOpacity(0.25)
+                            : const Color(0xFFEF4444).withOpacity(0.25),
+                      ),
                     ),
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withOpacity(0.15),
+                            color: isPositive
+                                ? const Color(0xFF10B981).withOpacity(0.15)
+                                : const Color(0xFFEF4444).withOpacity(0.15),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Icon(Icons.trending_up_rounded, size: 14, color: Color(0xFF10B981)),
+                          child: Icon(
+                            isPositive ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                            size: 14,
+                            color: isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Estimated Profit: +₦${_numFmt.format(estProfit)}',
-                          style: const TextStyle(
+                          isPositive
+                              ? 'Estimated Profit: +₦${_numFmt.format(estProfit)}'
+                              : 'Estimated Loss: -₦${_numFmt.format(estProfit.abs())}',
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF047857),
+                            color: isPositive ? const Color(0xFF047857) : const Color(0xFFB91C1C),
                           ),
                         ),
-                        if (cost > 0) ...[
-                          const Spacer(),
-                          Text(
-                            'Cost: ₦${_numFmt.format(cost)}/ea',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF059669)),
-                          ),
-                        ],
+                        const Spacer(),
+                        Text(
+                          'Cost: ₦${_numFmt.format(cost)}/ea',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF059669)),
+                        ),
                       ],
                     ),
                   );
