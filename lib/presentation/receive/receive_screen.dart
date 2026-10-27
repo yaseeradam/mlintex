@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -14,6 +15,7 @@ import '../../core/utils/pdf_theme.dart';
 import '../../core/utils/file_saver.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/pending_sync_tracker.dart';
+import '../../core/services/firestore_service.dart';
 import '../../core/providers/repository_providers.dart';
 import '../products/product_provider.dart';
 
@@ -85,25 +87,74 @@ class ReceiveEntryAdapter extends TypeAdapter<ReceiveEntry> {
 
 // ── Provider ───────────────────────────────────────────────────────────────
 
-final receiveBoxProvider = Provider<Box<ReceiveEntry>>((ref) {
+ReceiveEntry _fromReceiveMap(Map<String, dynamic> map) {
+  final rawPrice = map['price'];
+  final price = (rawPrice is num) ? rawPrice.toDouble() : (double.tryParse(rawPrice?.toString() ?? '') ?? 0.0);
+
+  final rawQty = map['quantity'];
+  final quantity = (rawQty is num) ? rawQty.toInt() : (int.tryParse(rawQty?.toString() ?? '') ?? 0);
+
+  final rawTotal = map['totalAmount'];
+  final totalAmount = (rawTotal is num) ? rawTotal.toDouble() : (double.tryParse(rawTotal?.toString() ?? '') ?? 0.0);
+
+  final rawPay = map['payment'];
+  final payment = (rawPay is num) ? rawPay.toDouble() : double.tryParse(rawPay?.toString() ?? '');
+
+  return ReceiveEntry(
+    id: map['id']?.toString() ?? '',
+    date: DateTime.tryParse(map['date']?.toString() ?? '') ?? DateTime.now(),
+    productName: map['productName']?.toString() ?? '',
+    companyName: map['companyName']?.toString() ?? '',
+    price: price,
+    quantity: quantity,
+    totalAmount: totalAmount,
+    payment: payment,
+    paymentDate: map['paymentDate'] != null ? DateTime.tryParse(map['paymentDate'].toString()) : null,
+    description: map['description']?.toString(),
+  );
+}
+
+Map<String, dynamic> _toReceiveMap(ReceiveEntry r, String shopId) {
+  return {
+    'id': r.id,
+    'date': r.date.toIso8601String(),
+    'productName': r.productName,
+    'companyName': r.companyName,
+    'price': r.price,
+    'quantity': r.quantity,
+    'totalAmount': r.totalAmount,
+    'payment': r.payment,
+    'paymentDate': r.paymentDate?.toIso8601String(),
+    'description': r.description,
+    'shopId': shopId,
+    'updatedAt': DateTime.now().toIso8601String(),
+  };
+}
+
+final receiveEntriesProvider = StreamProvider<List<ReceiveEntry>>((ref) {
   final shopId = ref.watch(activeShopIdProvider);
-  return Hive.box<ReceiveEntry>('receive_entries_$shopId');
-});
+  final col = FirestoreService.userCollection('receive_entries');
 
-final receiveEntriesProvider = StreamProvider<List<ReceiveEntry>>((ref) async* {
-  final box = ref.watch(receiveBoxProvider);
-  yield _sorted(box);
-  await for (final _ in box.watch()) {
-    yield _sorted(box);
-  }
+  return col.snapshots().map((snapshot) {
+    final list = snapshot.docs
+        .where((doc) {
+          final data = doc.data();
+          final sId = data['shopId']?.toString();
+          return shopId == '1' ? (sId == null || sId == '1' || sId == 'default') : sId == shopId;
+        })
+        .map((doc) => _fromReceiveMap(doc.data()))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+    return list;
+  });
 });
-
-List<ReceiveEntry> _sorted(Box<ReceiveEntry> box) =>
-    box.values.toList()..sort((a, b) => a.date.compareTo(b.date));
 
 class ReceiveNotifier extends Notifier<void> {
   @override void build() {}
-  Box<ReceiveEntry> get _box => ref.read(receiveBoxProvider);
+
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      FirestoreService.userCollection('receive_entries');
+  String get _shopId => FirestoreService.activeShopId;
 
   Future<void> add({
     required String product,
@@ -127,8 +178,8 @@ class ReceiveNotifier extends Notifier<void> {
       paymentDate: paymentDate,
       description: description ?? '',
     );
-    await _box.put(e.id, e);
-    PendingSyncTracker.markPending(_box.name, e.id);
+
+    await _collection.doc(e.id).set(_toReceiveMap(e, _shopId), SetOptions(merge: true));
 
     // Increment inventory if matching product exists
     if (qty > 0 && product.trim().isNotEmpty) {
@@ -143,12 +194,15 @@ class ReceiveNotifier extends Notifier<void> {
   }
 
   Future<void> update(ReceiveEntry e) async {
-    final old = _box.get(e.id);
-    final oldQty = old?.quantity ?? 0;
-    final delta = e.quantity - oldQty;
+    final docRef = _collection.doc(e.id);
+    final oldDoc = await docRef.get();
+    int delta = 0;
+    if (oldDoc.exists && oldDoc.data() != null) {
+      final old = _fromReceiveMap(oldDoc.data()!);
+      delta = e.quantity - old.quantity;
+    }
 
-    await _box.put(e.id, e);
-    PendingSyncTracker.markPending(_box.name, e.id);
+    await docRef.set(_toReceiveMap(e, _shopId), SetOptions(merge: true));
 
     if (delta != 0 && e.productName.trim().isNotEmpty) {
       try {
@@ -162,18 +216,21 @@ class ReceiveNotifier extends Notifier<void> {
   }
 
   Future<void> delete(String id) async {
-    final old = _box.get(id);
-    if (old != null && old.quantity > 0 && old.productName.trim().isNotEmpty) {
-      try {
-        final allProds = await ref.read(productRepositoryProvider).getAllProducts();
-        final matches = allProds.where((p) => p.name.trim().toLowerCase() == old.productName.trim().toLowerCase());
-        if (matches.isNotEmpty) {
-          await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, -old.quantity);
-        }
-      } catch (_) {}
+    final docRef = _collection.doc(id);
+    final oldDoc = await docRef.get();
+    if (oldDoc.exists && oldDoc.data() != null) {
+      final old = _fromReceiveMap(oldDoc.data()!);
+      if (old.quantity > 0 && old.productName.trim().isNotEmpty) {
+        try {
+          final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+          final matches = allProds.where((p) => p.name.trim().toLowerCase() == old.productName.trim().toLowerCase());
+          if (matches.isNotEmpty) {
+            await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, -old.quantity);
+          }
+        } catch (_) {}
+      }
     }
-    await _box.delete(id);
-    PendingSyncTracker.markPendingDelete(_box.name, id);
+    await docRef.delete();
   }
 }
 

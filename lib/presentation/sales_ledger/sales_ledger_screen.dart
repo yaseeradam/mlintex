@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -16,6 +17,7 @@ import '../../core/providers/repository_providers.dart';
 import '../../domain/entities/product.dart';
 import '../products/product_provider.dart';
 import '../../core/services/pending_sync_tracker.dart';
+import '../../core/services/firestore_service.dart';
 
 // ── Model ──────────────────────────────────────────────────────────────────
 
@@ -90,18 +92,64 @@ class SalesLedgerEntryAdapter extends TypeAdapter<SalesLedgerEntry> {
 
 // ── Provider ───────────────────────────────────────────────────────────────
 
-final salesLedgerBoxProvider = Provider<Box<SalesLedgerEntry>>((ref) {
-  final shopId = ref.watch(activeShopIdProvider);
-  return Hive.box<SalesLedgerEntry>('sales_ledger_$shopId');
-});
+SalesLedgerEntry _fromSalesLedgerMap(Map<String, dynamic> map) {
+  final rawPrice = map['price'];
+  final price = (rawPrice is num) ? rawPrice.toDouble() : double.tryParse(rawPrice?.toString() ?? '');
 
-final salesLedgerEntriesProvider = StreamProvider<List<SalesLedgerEntry>>((ref) async* {
-  final box = ref.watch(salesLedgerBoxProvider);
-  yield _compute(box);
-  await for (final _ in box.watch()) {
-    yield _compute(box);
-  }
-});
+  final rawQty = map['quantity'];
+  final quantity = (rawQty is num) ? rawQty.toInt() : int.tryParse(rawQty?.toString() ?? '');
+
+  final rawTotal = map['totalAmount'];
+  final totalAmount = (rawTotal is num) ? rawTotal.toDouble() : (double.tryParse(rawTotal?.toString() ?? '') ?? 0.0);
+
+  final rawBal = map['runningBalance'];
+  final runningBalance = (rawBal is num) ? rawBal.toDouble() : (double.tryParse(rawBal?.toString() ?? '') ?? 0.0);
+
+  final rawType = map['typeIndex'];
+  final typeIndex = (rawType is num) ? rawType.toInt() : (int.tryParse(rawType?.toString() ?? '') ?? 1);
+
+  final rawPay = map['payment'];
+  final payment = (rawPay is num) ? rawPay.toDouble() : double.tryParse(rawPay?.toString() ?? '');
+
+  final rawCost = map['costPrice'];
+  final costPrice = (rawCost is num) ? rawCost.toDouble() : double.tryParse(rawCost?.toString() ?? '');
+
+  return SalesLedgerEntry(
+    id: map['id']?.toString() ?? '',
+    date: DateTime.tryParse(map['date']?.toString() ?? '') ?? DateTime.now(),
+    inItem: map['inItem']?.toString(),
+    outItem: map['outItem']?.toString(),
+    price: price,
+    quantity: quantity,
+    totalAmount: totalAmount,
+    runningBalance: runningBalance,
+    typeIndex: typeIndex,
+    personName: map['personName']?.toString(),
+    payment: payment,
+    paymentDate: map['paymentDate'] != null ? DateTime.tryParse(map['paymentDate'].toString()) : null,
+    costPrice: costPrice,
+  );
+}
+
+Map<String, dynamic> _toSalesLedgerMap(SalesLedgerEntry e, String shopId) {
+  return {
+    'id': e.id,
+    'date': e.date.toIso8601String(),
+    'inItem': e.inItem,
+    'outItem': e.outItem,
+    'price': e.price,
+    'quantity': e.quantity,
+    'totalAmount': e.totalAmount,
+    'runningBalance': e.runningBalance,
+    'typeIndex': e.typeIndex,
+    'personName': e.personName,
+    'payment': e.payment,
+    'paymentDate': e.paymentDate?.toIso8601String(),
+    'costPrice': e.costPrice,
+    'shopId': shopId,
+    'updatedAt': DateTime.now().toIso8601String(),
+  };
+}
 
 List<SalesLedgerEntry> computeSalesLedgerBalances(List<SalesLedgerEntry> entries) {
   final list = entries.toList()..sort((a, b) => a.date.compareTo(b.date));
@@ -118,13 +166,29 @@ List<SalesLedgerEntry> computeSalesLedgerBalances(List<SalesLedgerEntry> entries
   return list;
 }
 
-List<SalesLedgerEntry> _compute(Box<SalesLedgerEntry> box) {
-  return computeSalesLedgerBalances(box.values.toList());
-}
+final salesLedgerEntriesProvider = StreamProvider<List<SalesLedgerEntry>>((ref) {
+  final shopId = ref.watch(activeShopIdProvider);
+  final col = FirestoreService.userCollection('sales_ledger');
+
+  return col.snapshots().map((snapshot) {
+    final list = snapshot.docs
+        .where((doc) {
+          final data = doc.data();
+          final sId = data['shopId']?.toString();
+          return shopId == '1' ? (sId == null || sId == '1' || sId == 'default') : sId == shopId;
+        })
+        .map((doc) => _fromSalesLedgerMap(doc.data()))
+        .toList();
+    return computeSalesLedgerBalances(list);
+  });
+});
 
 class SalesLedgerNotifier extends Notifier<void> {
   @override void build() {}
-  Box<SalesLedgerEntry> get _box => ref.read(salesLedgerBoxProvider);
+
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      FirestoreService.userCollection('sales_ledger');
+  String get _shopId => FirestoreService.activeShopId;
 
   Future<void> addSale({
     required String item,
@@ -167,8 +231,8 @@ class SalesLedgerNotifier extends Notifier<void> {
       personName: personName,
       costPrice: resolvedCost,
     );
-    await _box.put(e.id, e);
-    PendingSyncTracker.markPending(_box.name, e.id);
+
+    await _collection.doc(e.id).set(_toSalesLedgerMap(e, _shopId), SetOptions(merge: true));
 
     if (targetId != null) {
       await ref.read(productNotifierProvider.notifier).updateQuantity(targetId, -qty);
@@ -186,46 +250,53 @@ class SalesLedgerNotifier extends Notifier<void> {
       typeIndex: 0,
       personName: personName,
     );
-    await _box.put(e.id, e);
-    PendingSyncTracker.markPending(_box.name, e.id);
+
+    await _collection.doc(e.id).set(_toSalesLedgerMap(e, _shopId), SetOptions(merge: true));
   }
 
   Future<void> update(SalesLedgerEntry e, {String? productId}) async {
-    final oldEntry = _box.get(e.id);
-    if (oldEntry != null && oldEntry.typeIndex == 1) {
-      final oldQty = oldEntry.quantity ?? 0;
-      final newQty = e.quantity ?? 0;
-      final diff = newQty - oldQty;
-      if (diff != 0) {
-        String? targetId = productId;
-        if (targetId == null && e.inItem != null) {
-          final allProds = await ref.read(productRepositoryProvider).getAllProducts();
-          final matches = allProds.where((p) => p.name.trim().toLowerCase() == e.inItem!.trim().toLowerCase());
-          if (matches.isNotEmpty) targetId = matches.first.id;
-        }
-        if (targetId != null) {
-          await ref.read(productNotifierProvider.notifier).updateQuantity(targetId, -diff);
+    final docRef = _collection.doc(e.id);
+    final oldDoc = await docRef.get();
+    if (oldDoc.exists && oldDoc.data() != null) {
+      final oldEntry = _fromSalesLedgerMap(oldDoc.data()!);
+      if (oldEntry.typeIndex == 1) {
+        final oldQty = oldEntry.quantity ?? 0;
+        final newQty = e.quantity ?? 0;
+        final diff = newQty - oldQty;
+        if (diff != 0) {
+          String? targetId = productId;
+          if (targetId == null && e.inItem != null) {
+            final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+            final matches = allProds.where((p) => p.name.trim().toLowerCase() == e.inItem!.trim().toLowerCase());
+            if (matches.isNotEmpty) targetId = matches.first.id;
+          }
+          if (targetId != null) {
+            await ref.read(productNotifierProvider.notifier).updateQuantity(targetId, -diff);
+          }
         }
       }
     }
-    await _box.put(e.id, e);
-    PendingSyncTracker.markPending(_box.name, e.id);
+
+    await docRef.set(_toSalesLedgerMap(e, _shopId), SetOptions(merge: true));
   }
 
   Future<void> delete(String id) async {
-    final entry = _box.get(id);
-    if (entry != null && entry.typeIndex == 1) {
-      final qty = entry.quantity ?? 0;
-      if (qty > 0 && entry.inItem != null) {
-        final allProds = await ref.read(productRepositoryProvider).getAllProducts();
-        final matches = allProds.where((p) => p.name.trim().toLowerCase() == entry.inItem!.trim().toLowerCase());
-        if (matches.isNotEmpty) {
-          await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, qty);
+    final docRef = _collection.doc(id);
+    final oldDoc = await docRef.get();
+    if (oldDoc.exists && oldDoc.data() != null) {
+      final entry = _fromSalesLedgerMap(oldDoc.data()!);
+      if (entry.typeIndex == 1) {
+        final qty = entry.quantity ?? 0;
+        if (qty > 0 && entry.inItem != null) {
+          final allProds = await ref.read(productRepositoryProvider).getAllProducts();
+          final matches = allProds.where((p) => p.name.trim().toLowerCase() == entry.inItem!.trim().toLowerCase());
+          if (matches.isNotEmpty) {
+            await ref.read(productNotifierProvider.notifier).updateQuantity(matches.first.id, qty);
+          }
         }
       }
     }
-    await _box.delete(id);
-    PendingSyncTracker.markPendingDelete(_box.name, id);
+    await docRef.delete();
   }
 }
 

@@ -1,65 +1,62 @@
-import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/sale_model.dart';
-import '../../core/services/pending_sync_tracker.dart';
+import '../../core/services/firestore_service.dart';
 
 class SaleLocalDataSource {
-  static const String _boxName = 'sales';
+  static const String _collectionName = 'sales';
 
-  Future<Box<SaleModel>> get _box async {
-    final authBox = Hive.box('auth');
-    final rawShopId = authBox.get('active_shop_id', defaultValue: '1')?.toString() ?? '1';
-    final shopId = (rawShopId.isEmpty || rawShopId == 'default') ? '1' : rawShopId;
-    return Hive.openBox<SaleModel>('${_boxName}_$shopId');
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      FirestoreService.userCollection(_collectionName);
+
+  String get _activeShopId => FirestoreService.activeShopId;
+
+  bool _matchesShop(Map<String, dynamic> data) {
+    final sId = data['shopId']?.toString();
+    if (_activeShopId == '1') {
+      return sId == null || sId == '1' || sId == 'default';
+    }
+    return sId == _activeShopId;
   }
 
   Future<List<SaleModel>> getAllSales() async {
-    final box = await _box;
-    return box.values.toList();
+    try {
+      final snapshot = await _collection.get();
+      return snapshot.docs
+          .where((doc) => _matchesShop(doc.data()))
+          .map((doc) => SaleModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      return [];
+    }
   }
 
   Future<void> saveSale(SaleModel sale) async {
-    final box = await _box;
-    await box.put(sale.id, sale);
+    final map = sale.toMap();
+    map['shopId'] = _activeShopId;
+    map['updatedAt'] = sale.saleDate.toIso8601String();
+    await _collection.doc(sale.id).set(map, SetOptions(merge: true));
   }
 
   Future<void> deleteSale(String id) async {
-    final box = await _box;
-    await box.delete(id);
-    PendingSyncTracker.markPendingDelete(box.name, id);
+    await _collection.doc(id).delete();
   }
 
-  Stream<List<SaleModel>> watchSales() async* {
-    final box = await _box;
-    yield box.values.toList();
-    yield* box.watch().map((_) => box.values.toList());
+  Stream<List<SaleModel>> watchSales() {
+    return _collection.snapshots().map((snapshot) {
+      return snapshot.docs
+          .where((doc) => _matchesShop(doc.data()))
+          .map((doc) => SaleModel.fromMap(doc.data()))
+          .toList();
+    });
   }
 
-  Future<List<SaleModel>> getUnsyncedSales() async {
-    final box = await _box;
-    return box.values.where((s) => !s.isSynced).toList();
-  }
+  Future<List<SaleModel>> getUnsyncedSales() async => [];
 
   Future<List<SaleModel>> getSalesByDateRange(DateTime start, DateTime end) async {
-    final box = await _box;
-    return box.values
-        .where((s) => s.saleDate.isAfter(start) && s.saleDate.isBefore(end))
-        .toList();
+    final all = await getAllSales();
+    return all.where((s) => s.saleDate.isAfter(start) && s.saleDate.isBefore(end)).toList();
   }
 
-  Future<void> markAsSynced(String id) async {
-    final box = await _box;
-    final sale = box.get(id);
-    if (sale != null) {
-      await box.put(id, SaleModel(
-        id: sale.id,
-        items: sale.items,
-        totalAmount: sale.totalAmount,
-        customerId: sale.customerId,
-        customerName: sale.customerName,
-        saleDate: sale.saleDate,
-        paymentMethod: sale.paymentMethod,
-        isSynced: true,
-      ));
-    }
-  }
+  Future<void> markAsSynced(String id) async {}
 }

@@ -1,65 +1,66 @@
 import 'dart:async';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product_model.dart';
-import '../../core/services/pending_sync_tracker.dart';
+import '../../core/services/firestore_service.dart';
 
 class ProductLocalDataSource {
-  static const String _boxName = 'products';
+  static const String _collectionName = 'products';
 
-  Future<Box<ProductModel>> get _box async {
-    final authBox = Hive.box('auth');
-    final rawShopId = authBox.get('active_shop_id', defaultValue: '1')?.toString() ?? '1';
-    final shopId = (rawShopId.isEmpty || rawShopId == 'default') ? '1' : rawShopId;
-    return Hive.openBox<ProductModel>('${_boxName}_$shopId');
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      FirestoreService.userCollection(_collectionName);
+
+  String get _activeShopId => FirestoreService.activeShopId;
+
+  bool _matchesShop(Map<String, dynamic> data) {
+    final sId = data['shopId']?.toString();
+    if (_activeShopId == '1') {
+      return sId == null || sId == '1' || sId == 'default';
+    }
+    return sId == _activeShopId;
   }
 
   Future<List<ProductModel>> getAllProducts() async {
-    final box = await _box;
-    return box.values.toList();
+    try {
+      final snapshot = await _collection.get();
+      return snapshot.docs
+          .where((doc) => _matchesShop(doc.data()))
+          .map((doc) => ProductModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      return [];
+    }
   }
 
   Future<ProductModel?> getProductById(String id) async {
-    final box = await _box;
-    return box.get(id);
+    try {
+      final doc = await _collection.doc(id).get();
+      if (!doc.exists || doc.data() == null) return null;
+      return ProductModel.fromMap(doc.data()!);
+    } catch (e) {
+      return null;
+    }
   }
 
   Future<void> saveProduct(ProductModel product) async {
-    final box = await _box;
-    await box.put(product.id, product);
+    final map = product.toMap();
+    map['shopId'] = _activeShopId;
+    map['updatedAt'] = product.updatedAt.toIso8601String();
+    await _collection.doc(product.id).set(map, SetOptions(merge: true));
   }
 
   Future<void> deleteProduct(String id) async {
-    final box = await _box;
-    await box.delete(id);
-    PendingSyncTracker.markPendingDelete(box.name, id);
+    await _collection.doc(id).delete();
   }
 
-  Stream<List<ProductModel>> watchProducts() async* {
-    final box = await _box;
-    yield box.values.toList();
-    yield* box.watch().map((_) => box.values.toList());
+  Stream<List<ProductModel>> watchProducts() {
+    return _collection.snapshots().map((snapshot) {
+      return snapshot.docs
+          .where((doc) => _matchesShop(doc.data()))
+          .map((doc) => ProductModel.fromMap(doc.data()))
+          .toList();
+    });
   }
 
-  Future<List<ProductModel>> getUnsyncedProducts() async {
-    final box = await _box;
-    return box.values.where((p) => !p.isSynced).toList();
-  }
-
-  Future<void> markAsSynced(String id) async {
-    final box = await _box;
-    final product = box.get(id);
-    if (product != null) {
-      final synced = ProductModel(
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        quantity: product.quantity,
-        category: product.category,
-        barcode: product.barcode,
-        updatedAt: product.updatedAt,
-        isSynced: true,
-      );
-      await box.put(id, synced);
-    }
-  }
+  Future<List<ProductModel>> getUnsyncedProducts() async => [];
+  Future<void> markAsSynced(String id) async {}
 }

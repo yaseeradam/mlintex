@@ -1,65 +1,61 @@
-import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/debt_model.dart';
-import '../../core/services/pending_sync_tracker.dart';
+import '../../core/services/firestore_service.dart';
 
 class DebtLocalDataSource {
-  static const String _boxName = 'debts';
+  static const String _collectionName = 'debts';
 
-  Future<Box<DebtModel>> get _box async {
-    final authBox = Hive.box('auth');
-    final rawShopId = authBox.get('active_shop_id', defaultValue: '1')?.toString() ?? '1';
-    final shopId = (rawShopId.isEmpty || rawShopId == 'default') ? '1' : rawShopId;
-    return Hive.openBox<DebtModel>('${_boxName}_$shopId');
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      FirestoreService.userCollection(_collectionName);
+
+  String get _activeShopId => FirestoreService.activeShopId;
+
+  bool _matchesShop(Map<String, dynamic> data) {
+    final sId = data['shopId']?.toString();
+    if (_activeShopId == '1') {
+      return sId == null || sId == '1' || sId == 'default';
+    }
+    return sId == _activeShopId;
   }
 
   Future<List<DebtModel>> getAllDebts() async {
-    final box = await _box;
-    return box.values.toList();
+    try {
+      final snapshot = await _collection.get();
+      return snapshot.docs
+          .where((doc) => _matchesShop(doc.data()))
+          .map((doc) => DebtModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      return [];
+    }
   }
 
   Future<List<DebtModel>> getDebtsByCustomer(String customerId) async {
-    final box = await _box;
-    return box.values.where((d) => d.customerId == customerId).toList();
+    final all = await getAllDebts();
+    return all.where((d) => d.customerId == customerId).toList();
   }
 
   Future<void> saveDebt(DebtModel debt) async {
-    final box = await _box;
-    await box.put(debt.id, debt);
+    final map = debt.toMap();
+    map['shopId'] = _activeShopId;
+    map['updatedAt'] = debt.updatedAt.toIso8601String();
+    await _collection.doc(debt.id).set(map, SetOptions(merge: true));
   }
 
   Future<void> deleteDebt(String id) async {
-    final box = await _box;
-    await box.delete(id);
-    PendingSyncTracker.markPendingDelete(box.name, id);
+    await _collection.doc(id).delete();
   }
 
-  Stream<List<DebtModel>> watchDebts() async* {
-    final box = await _box;
-    yield box.values.toList();
-    yield* box.watch().map((_) => box.values.toList());
+  Stream<List<DebtModel>> watchDebts() {
+    return _collection.snapshots().map((snapshot) {
+      return snapshot.docs
+          .where((doc) => _matchesShop(doc.data()))
+          .map((doc) => DebtModel.fromMap(doc.data()))
+          .toList();
+    });
   }
 
-  Future<List<DebtModel>> getUnsyncedDebts() async {
-    final box = await _box;
-    return box.values.where((d) => !d.isSynced).toList();
-  }
-
-  Future<void> markAsSynced(String id) async {
-    final box = await _box;
-    final debt = box.get(id);
-    if (debt != null) {
-      await box.put(id, DebtModel(
-        id: debt.id,
-        customerId: debt.customerId,
-        customerName: debt.customerName,
-        amount: debt.amount,
-        paidAmount: debt.paidAmount,
-        dueDate: debt.dueDate,
-        note: debt.note,
-        isPaid: debt.isPaid,
-        updatedAt: debt.updatedAt,
-        isSynced: true,
-      ));
-    }
-  }
+  Future<List<DebtModel>> getUnsyncedDebts() async => [];
+  Future<void> markAsSynced(String id) async {}
 }

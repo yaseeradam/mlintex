@@ -283,6 +283,8 @@ class AuthNotifier extends Notifier<AuthState> {
       shops: shops,
       activeShopId: actualId,
     );
+
+    _syncShopsToFirestore(shops, actualId);
   }
 
   Future<void> updateActiveShop({
@@ -349,6 +351,25 @@ class AuthNotifier extends Notifier<AuthState> {
         }, SetOptions(merge: true));
       }
     } catch (_) {}
+    _syncShopsToFirestore(shops, activeId);
+  }
+
+  Future<void> _syncShopsToFirestore(List<Map<dynamic, dynamic>> shops, String activeId) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('profile')
+            .doc('shops')
+            .set({
+          'shops': shops,
+          'activeShopId': activeId,
+          'updatedAt': DateTime.now().toIso8601String(),
+        }, SetOptions(merge: true));
+      }
+    } catch (_) {}
   }
 
   Future<bool> updatePassword(String newPassword) async {
@@ -378,6 +399,7 @@ class AuthNotifier extends Notifier<AuthState> {
       await switchShop(shops.first['id'].toString());
     } else {
       state = state.copyWith(shops: shops);
+      _syncShopsToFirestore(shops, state.activeShopId);
     }
   }
 

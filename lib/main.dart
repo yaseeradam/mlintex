@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'core/routes/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/firestore_service.dart';
 import 'data/models/product_model.dart';
 import 'data/models/customer_model.dart';
 import 'data/models/sale_model.dart';
@@ -11,14 +14,10 @@ import 'data/models/debt_model.dart';
 import 'domain/entities/ledger_entry.dart';
 import 'presentation/receive/receive_screen.dart';
 import 'presentation/sales_ledger/sales_ledger_screen.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'core/services/pending_sync_tracker.dart';
-import 'core/services/connectivity_service.dart';
-import 'core/providers/sync_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -27,12 +26,25 @@ Future<void> main() async {
     debugPrint('Firebase.initializeApp error: $e');
   }
 
+  // Pre-authenticate canonical Firebase Auth session so Firestore queries are ready immediately
+  try {
+    await FirestoreService.ensureAuthenticated(
+      canonicalEmail: 'mlintex@gmail.com',
+      canonicalPassword: 'mlintex123',
+    );
+  } catch (e) {
+    debugPrint('Firebase Auth bootstrap error: $e');
+  }
+
   await Hive.initFlutter();
   Hive.registerAdapter(ProductModelAdapter());
   Hive.registerAdapter(CustomerModelAdapter());
   Hive.registerAdapter(SaleItemModelAdapter());
   Hive.registerAdapter(SaleModelAdapter());
   Hive.registerAdapter(DebtModelAdapter());
+  Hive.registerAdapter(LedgerEntryAdapter());
+  Hive.registerAdapter(ReceiveEntryAdapter());
+  Hive.registerAdapter(SalesLedgerEntryAdapter());
 
   await Hive.openBox('auth');
   await Hive.openBox('settings');
@@ -42,54 +54,18 @@ Future<void> main() async {
   final activeShopId = (rawActiveShopId.isEmpty || rawActiveShopId == 'default') ? '1' : rawActiveShopId;
   await authBox.put('active_shop_id', activeShopId);
 
-  // Shop-specific boxes
-  await Hive.openBox<ProductModel>('products_$activeShopId');
-
-  await Hive.openBox<CustomerModel>('customers_$activeShopId');
-  await Hive.openBox<CustomerModel>('shop_customers_$activeShopId');
-
-  await Hive.openBox<DebtModel>('debts_$activeShopId');
-  await Hive.openBox<SaleModel>('sales_$activeShopId');
-  await Hive.openBox('customer_ledger_$activeShopId');
-  await Hive.openBox('receive_orders_$activeShopId');
-
-  // Ledger boxes
-  Hive.registerAdapter(LedgerEntryAdapter());
-  Hive.registerAdapter(ReceiveEntryAdapter());
-  Hive.registerAdapter(SalesLedgerEntryAdapter());
-  await Hive.openBox<LedgerEntry>('ledger_entries_$activeShopId');
-  await Hive.openBox<LedgerEntry>('shop_ledger_entries_$activeShopId');
-  await Hive.openBox<ReceiveEntry>('receive_entries_$activeShopId');
-  await Hive.openBox<SalesLedgerEntry>('sales_ledger_$activeShopId');
-
   await NotificationService.init();
-  await PendingSyncTracker.init();
 
-  final container = ProviderContainer();
-
-  // Set up automatic background sync (on reconnect & every 15 seconds)
-  final connectivityService = ConnectivityService();
-  connectivityService.onReconnect = () {
-    try {
-      container.read(syncServiceProvider).syncAll();
-    } catch (_) {}
-  };
-  connectivityService.onSyncTick = () {
-    try {
-      container.read(syncServiceProvider).syncAll();
-    } catch (_) {}
-  };
-  await connectivityService.init();
-
-  // Initial background sync trigger on app startup (forcePull ensures latest cloud data is pulled)
+  // One-time migration of any legacy Hive records into Firestore
   try {
-    container.read(syncServiceProvider).syncAll(forcePull: true);
-  } catch (_) {}
+    await FirestoreService.migrateLocalHiveToFirestore();
+  } catch (e) {
+    debugPrint('Migration error: $e');
+  }
 
   runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: const ShopManagerApp(),
+    const ProviderScope(
+      child: ShopManagerApp(),
     ),
   );
 }
