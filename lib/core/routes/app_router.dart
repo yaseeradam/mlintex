@@ -5,6 +5,7 @@ import '../../presentation/widgets/app_shell.dart';
 import '../../presentation/auth/login_screen.dart';
 import '../../presentation/settings/profile_screen.dart';
 import '../../presentation/splash/splash_screen.dart';
+import '../../presentation/analytics/weekly_sales_screen.dart';
 import '../providers/auth_provider.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -38,6 +39,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/weekly-sales',
+        builder: (context, state) => const WeeklySalesScreen(),
       ),
     ],
   );

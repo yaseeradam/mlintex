@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -340,6 +341,11 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
               style: TextStyle(color: textPrimary, fontWeight: FontWeight.w900, fontSize: 22, letterSpacing: -0.5),
             ),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.analytics_rounded, color: AppTheme.primaryColor),
+                tooltip: 'Weekly Sales Analytics',
+                onPressed: () => context.push('/weekly-sales'),
+              ),
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf_rounded, color: AppTheme.errorColor),
                 tooltip: 'Export PDF',
