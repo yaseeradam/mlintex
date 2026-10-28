@@ -410,6 +410,13 @@ class _QuickActions extends StatelessWidget {
             onTap: () => showModalBottomSheet(context: context, isScrollControlled: true,
                 backgroundColor: Colors.transparent, builder: (_) => const AddDebtSheet()),
           )),
+          const SizedBox(width: 10),
+          Expanded(child: _ActionTile(
+            label: 'Weekly Sales',
+            icon: Icons.bar_chart_rounded,
+            color: const Color(0xFF6366F1),
+            onTap: () => context.push('/weekly-sales'),
+          )),
         ]),
       ],
     );

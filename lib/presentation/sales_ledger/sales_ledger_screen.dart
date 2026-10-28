@@ -1420,6 +1420,36 @@ class _FinancialSummaryCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          InkWell(
+            onTap: () => context.push('/weekly-sales'),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.bar_chart_rounded, size: 16, color: Color(0xFF4F46E5)),
+                  SizedBox(width: 6),
+                  Text(
+                    'View Weekly Sales & Profit Analytics',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF4F46E5),
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF4F46E5)),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
