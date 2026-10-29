@@ -312,6 +312,40 @@ class _HeroBanner extends StatelessWidget {
               ]),
             ),
           ]),
+
+          const SizedBox(height: 14),
+          InkWell(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WeeklySalesScreen()),
+            ),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.35)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.bar_chart_rounded, size: 18, color: Colors.white),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'View Weekly Sales & Profit Charts',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.white),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
