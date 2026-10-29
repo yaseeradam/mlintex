@@ -16,6 +16,7 @@ import '../widgets/app_feedback.dart';
 import '../../domain/entities/sale.dart';
 import '../widgets/app_shell.dart' show currentTabProvider;
 import '../sales_ledger/sales_ledger_screen.dart' show salesLedgerEntriesProvider, SalesLedgerEntry;
+import '../../core/services/firestore_service.dart';
 import 'package:intl/intl.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -551,7 +552,58 @@ class _RecentActivity extends ConsumerWidget {
         if (salesAsync.isLoading && ledgerAsync.isLoading)
           const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()))
         else if (salesAsync.hasError && ledgerAsync.hasError)
-          Text('Error: ${salesAsync.error ?? ledgerAsync.error}', style: const TextStyle(color: AppTheme.errorColor))
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.cloud_sync_rounded, color: AppTheme.primaryColor, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cloud Database Reconnecting',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Establishing secure live connection to Firestore.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await FirestoreService.ensureAuthenticated();
+                    ref.invalidate(salesProvider);
+                    ref.invalidate(salesLedgerEntriesProvider);
+                  },
+                  child: const Text('Reconnect', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.primaryColor)),
+                ),
+              ],
+            ),
+          )
         else ...[
           _buildSalesList(salesAsync.value ?? [], ledgerAsync.value ?? [], textPrimary, textMuted),
         ],

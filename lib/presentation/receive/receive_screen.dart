@@ -133,6 +133,7 @@ Map<String, dynamic> _toReceiveMap(ReceiveEntry r, String shopId) {
 
 final receiveEntriesProvider = StreamProvider<List<ReceiveEntry>>((ref) {
   final shopId = ref.watch(activeShopIdProvider);
+  ref.watch(firebaseAuthStateProvider);
   final col = FirestoreService.userCollection('receive_entries');
 
   return col.snapshots().map((snapshot) {

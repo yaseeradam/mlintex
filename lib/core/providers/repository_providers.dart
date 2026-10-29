@@ -18,6 +18,7 @@ import '../../domain/repositories/sale_repository.dart';
 import '../../domain/repositories/receive_order_repository.dart';
 import '../../domain/repositories/customer_ledger_repository.dart';
 import 'auth_provider.dart';
+import '../services/firestore_service.dart' show firebaseAuthStateProvider;
 import '../../data/datasources/shop_customer_local_datasource.dart';
 import '../../data/repositories/shop_customer_repository_impl.dart';
 import '../../domain/repositories/shop_customer_repository.dart';
@@ -25,21 +26,25 @@ import '../../domain/repositories/shop_customer_repository.dart';
 // ─── Data Source Providers ───────────────────────────────────────────────────
 final productLocalDataSourceProvider = Provider<ProductLocalDataSource>((ref) {
   ref.watch(activeShopIdProvider);
+  ref.watch(firebaseAuthStateProvider);
   return ProductLocalDataSource();
 });
 
 final customerLocalDataSourceProvider = Provider<CustomerLocalDataSource>((ref) {
   ref.watch(activeShopIdProvider);
+  ref.watch(firebaseAuthStateProvider);
   return CustomerLocalDataSource();
 });
 
 final saleLocalDataSourceProvider = Provider<SaleLocalDataSource>((ref) {
   ref.watch(activeShopIdProvider);
+  ref.watch(firebaseAuthStateProvider);
   return SaleLocalDataSource();
 });
 
 final debtLocalDataSourceProvider = Provider<DebtLocalDataSource>((ref) {
   ref.watch(activeShopIdProvider);
+  ref.watch(firebaseAuthStateProvider);
   return DebtLocalDataSource();
 });
 

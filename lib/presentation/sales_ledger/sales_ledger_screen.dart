@@ -170,6 +170,7 @@ List<SalesLedgerEntry> computeSalesLedgerBalances(List<SalesLedgerEntry> entries
 
 final salesLedgerEntriesProvider = StreamProvider<List<SalesLedgerEntry>>((ref) {
   final shopId = ref.watch(activeShopIdProvider);
+  ref.watch(firebaseAuthStateProvider);
   final col = FirestoreService.userCollection('sales_ledger');
 
   return col.snapshots().map((snapshot) {

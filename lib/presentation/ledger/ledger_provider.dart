@@ -80,6 +80,7 @@ List<LedgerEntry> entriesFor(dynamic boxOrList, String customerId) {
 final customerLedgerProvider =
     StreamProvider.family<List<LedgerEntry>, String>((ref, customerId) {
   final shopId = ref.watch(activeShopIdProvider);
+  ref.watch(firebaseAuthStateProvider);
   final col = FirestoreService.userCollection('ledger_entries');
 
   return col.snapshots().map((snapshot) {
@@ -100,6 +101,7 @@ final customerLedgerProvider =
 
 final customerLedgerBalancesProvider = StreamProvider<Map<String, double>>((ref) {
   final shopId = ref.watch(activeShopIdProvider);
+  ref.watch(firebaseAuthStateProvider);
   final col = FirestoreService.userCollection('ledger_entries');
 
   return col.snapshots().map((snapshot) {
@@ -130,6 +132,7 @@ final customerLedgerBalancesProvider = StreamProvider<Map<String, double>>((ref)
 final shopLedgerProvider =
     StreamProvider.family<List<LedgerEntry>, String>((ref, customerId) {
   final shopId = ref.watch(activeShopIdProvider);
+  ref.watch(firebaseAuthStateProvider);
   final col = FirestoreService.userCollection('shop_ledger_entries');
 
   return col.snapshots().map((snapshot) {
@@ -150,6 +153,7 @@ final shopLedgerProvider =
 
 final shopLedgerBalancesProvider = StreamProvider<Map<String, double>>((ref) {
   final shopId = ref.watch(activeShopIdProvider);
+  ref.watch(firebaseAuthStateProvider);
   final col = FirestoreService.userCollection('shop_ledger_entries');
 
   return col.snapshots().map((snapshot) {

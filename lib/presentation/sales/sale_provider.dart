@@ -8,6 +8,7 @@ import '../../domain/repositories/product_repository.dart';
 import '../../core/providers/repository_providers.dart';
 import '../products/product_provider.dart';
 import '../sales_ledger/sales_ledger_screen.dart' show salesLedgerEntriesProvider;
+import '../../core/services/firestore_service.dart' show firebaseAuthStateProvider;
 
 /// Cart item for active sale
 class CartItem {
@@ -73,6 +74,7 @@ final cartTotalProvider = Provider<double>((ref) {
 
 /// Sales stream
 final salesProvider = StreamProvider<List<Sale>>((ref) {
+  ref.watch(firebaseAuthStateProvider);
   return ref.watch(saleRepositoryProvider).watchSales();
 });
 

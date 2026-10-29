@@ -11,12 +11,25 @@ import '../../domain/entities/ledger_entry.dart';
 import '../../presentation/receive/receive_screen.dart';
 import '../../presentation/sales_ledger/sales_ledger_screen.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final firebaseAuthStateProvider = StreamProvider<User?>((ref) {
+  return FirebaseAuth.instance.authStateChanges();
+});
+
 class FirestoreService {
   static FirebaseFirestore get db => FirebaseFirestore.instance;
 
+  static const String canonicalEmail = 'mlintex@gmail.com';
+  static const String canonicalPassword = 'mlintex123';
+  static const String canonicalUid = 'Db3HvmnLtmRhZ6GivPVTXTqCKVx2';
+
   static String get currentUserId {
     final user = FirebaseAuth.instance.currentUser;
-    return user?.uid ?? '';
+    if (user != null && user.uid.isNotEmpty) {
+      return user.uid;
+    }
+    return canonicalUid;
   }
 
   static String get activeShopId {
@@ -37,32 +50,40 @@ class FirestoreService {
 
   /// Ensures a user is signed in to Firebase Auth with canonical credentials.
   static Future<User?> ensureAuthenticated({
-    required String canonicalEmail,
-    required String canonicalPassword,
+    String? canonicalEmail,
+    String? canonicalPassword,
   }) async {
-    var user = FirebaseAuth.instance.currentUser;
-    if (user != null) return user;
+    final email = canonicalEmail ?? FirestoreService.canonicalEmail;
+    final password = canonicalPassword ?? FirestoreService.canonicalPassword;
 
-    try {
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: canonicalEmail,
-        password: canonicalPassword,
-      );
-      return credential.user;
-    } catch (e) {
-      if (e is FirebaseAuthException &&
-          (e.code == 'user-not-found' || e.code == 'invalid-credential' || e.code == 'channel-error')) {
-        try {
-          final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-            email: canonicalEmail,
-            password: canonicalPassword,
-          );
-          return credential.user;
-        } catch (e2) {
-          debugPrint('[FIRESTORE AUTH ERROR] Create user failed: $e2');
+    var user = FirebaseAuth.instance.currentUser;
+    if (user != null && user.uid.isNotEmpty) return user;
+
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        return credential.user;
+      } catch (e) {
+        if (e is FirebaseAuthException &&
+            (e.code == 'user-not-found' || e.code == 'invalid-credential' || e.code == 'channel-error')) {
+          try {
+            final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+              email: email,
+              password: password,
+            );
+            return credential.user;
+          } catch (e2) {
+            debugPrint('[FIRESTORE AUTH ERROR] Create user attempt $attempt failed: $e2');
+          }
+        } else {
+          debugPrint('[FIRESTORE AUTH ERROR] Sign in attempt $attempt failed: $e');
         }
-      } else {
-        debugPrint('[FIRESTORE AUTH ERROR] Sign in failed: $e');
+        if (attempt < 3) {
+          await Future.delayed(Duration(milliseconds: 400 * attempt));
+        }
       }
     }
     return FirebaseAuth.instance.currentUser;
