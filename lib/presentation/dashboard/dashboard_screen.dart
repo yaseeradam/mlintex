@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../analytics/weekly_sales_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/providers/auth_provider.dart';
@@ -415,7 +416,10 @@ class _QuickActions extends StatelessWidget {
             label: 'Weekly Sales',
             icon: Icons.bar_chart_rounded,
             color: const Color(0xFF6366F1),
-            onTap: () => context.push('/weekly-sales'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WeeklySalesScreen()),
+            ),
           )),
         ]),
       ],
@@ -633,7 +637,10 @@ class _WeeklyAnalyticsBanner extends StatelessWidget {
     const borderColor = Color(0xFFE2E8F0);
 
     return InkWell(
-      onTap: () => context.push('/weekly-sales'),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const WeeklySalesScreen()),
+      ),
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(16),

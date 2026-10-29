@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../analytics/weekly_sales_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -344,7 +345,10 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
               IconButton(
                 icon: const Icon(Icons.analytics_rounded, color: AppTheme.primaryColor),
                 tooltip: 'Weekly Sales Analytics',
-                onPressed: () => context.push('/weekly-sales'),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WeeklySalesScreen()),
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf_rounded, color: AppTheme.errorColor),
@@ -1422,7 +1426,10 @@ class _FinancialSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           InkWell(
-            onTap: () => context.push('/weekly-sales'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WeeklySalesScreen()),
+            ),
             borderRadius: BorderRadius.circular(10),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),

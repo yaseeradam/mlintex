@@ -13,6 +13,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: '/splash',
+    errorBuilder: (context, state) {
+      final loc = state.uri.toString().toLowerCase();
+      if (loc.contains('weekly-sales') || loc.contains('weekly_sales')) {
+        return const WeeklySalesScreen();
+      }
+      if (loc.contains('profile')) {
+        return const ProfileScreen();
+      }
+      return const AppShell();
+    },
     redirect: (BuildContext context, GoRouterState state) {
       final loc = state.matchedLocation;
       final isLoggedIn = authState.isAuthenticated;
@@ -35,6 +45,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/',
         builder: (context, state) => const AppShell(),
+        routes: [
+          GoRoute(
+            path: 'weekly-sales',
+            builder: (context, state) => const WeeklySalesScreen(),
+          ),
+          GoRoute(
+            path: 'profile',
+            builder: (context, state) => const ProfileScreen(),
+          ),
+        ],
       ),
       GoRoute(
         path: '/profile',
