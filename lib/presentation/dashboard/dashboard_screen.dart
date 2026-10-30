@@ -1,7 +1,11 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../analytics/weekly_sales_screen.dart';
+import '../analytics/weekly_sales_provider.dart';
+import '../products/product_provider.dart';
+import '../settings/profile_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/providers/auth_provider.dart';
@@ -17,7 +21,7 @@ import '../../domain/entities/sale.dart';
 import '../widgets/app_shell.dart' show currentTabProvider;
 import '../sales_ledger/sales_ledger_screen.dart' show salesLedgerEntriesProvider, SalesLedgerEntry;
 import '../../core/services/firestore_service.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -25,16 +29,86 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final customersAsync = ref.watch(customersProvider);
+    final productsAsync = ref.watch(productsProvider);
+    final salesAsync = ref.watch(salesProvider);
+    final ledgerAsync = ref.watch(salesLedgerEntriesProvider);
     final todayRevenue = ref.watch(todayRevenueProvider);
-    final totalProfit = ref.watch(totalProfitProvider);
     final todayProfit = ref.watch(todayProfitProvider);
-    final totalDebt = ref.watch(totalOutstandingProvider);
     final syncStatus = ref.watch(syncStatusProvider);
     final authState = ref.watch(authProvider);
 
+    final products = productsAsync.value ?? [];
+    final totalProducts = products.length;
+    final inventoryValue = products.fold<double>(
+      0.0,
+      (sum, p) => sum + (p.quantity * (p.costPrice > 0 ? p.costPrice : p.price)),
+    );
+
     final currency = NumberFormat('#,##0', 'en_US');
     final isSyncing = syncStatus.value == SyncStatus.syncing;
-    const bg = Color(0xFFF1F5F9);
+    const bg = Color(0xFFF8FAFC);
+
+    final now = DateTime.now();
+    final greeting = now.hour < 12
+        ? 'Good Morning'
+        : now.hour < 17
+            ? 'Good Afternoon'
+            : 'Good Evening';
+    final displayName = authState.shopName.isNotEmpty
+        ? authState.shopName
+        : 'Malan';
+
+    // Rolling last 7 days ending today
+    final today = DateTime(now.year, now.month, now.day);
+    final rollingDays = List.generate(7, (i) {
+      return today.subtract(Duration(days: 6 - i));
+    });
+
+    final allPosSales = salesAsync.value ?? [];
+    final allLedgerSales = ledgerAsync.value ?? [];
+
+    final rollingDayPoints = rollingDays.map((d) {
+      final dStart = DateTime(d.year, d.month, d.day);
+      final dEnd = DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
+      double rev = 0.0;
+      double profit = 0.0;
+      int orders = 0;
+
+      for (final s in allPosSales) {
+        if (s.saleDate.isAfter(dStart.subtract(const Duration(milliseconds: 1))) &&
+            s.saleDate.isBefore(dEnd.add(const Duration(milliseconds: 1)))) {
+          rev += s.totalAmount;
+          orders += 1;
+          for (final item in s.items) {
+            final cost = (item.costPrice != null && item.costPrice! > 0) ? item.costPrice! : 0.0;
+            if (cost > 0) profit += (item.unitPrice - cost) * item.quantity;
+          }
+        }
+      }
+
+      for (final e in allLedgerSales) {
+        if (e.typeIndex == 1 &&
+            e.date.isAfter(dStart.subtract(const Duration(milliseconds: 1))) &&
+            e.date.isBefore(dEnd.add(const Duration(milliseconds: 1)))) {
+          rev += e.totalAmount;
+          final qty = (e.quantity ?? 1);
+          final cost = (e.costPrice != null && e.costPrice! > 0) ? e.costPrice! : 0.0;
+          final unitPrice = e.price ?? (qty > 0 ? (e.totalAmount / qty) : e.totalAmount);
+          if (cost > 0) {
+            profit += (unitPrice - cost) * qty;
+          }
+          orders += 1;
+        }
+      }
+
+      return _DailyChartPoint(
+        date: d,
+        dayLabel: DateFormat('EEE').format(d),
+        revenue: rev,
+        profit: profit,
+        ordersCount: orders,
+      );
+    }).toList();
 
     return Container(
       color: bg,
@@ -42,93 +116,253 @@ class DashboardScreen extends ConsumerWidget {
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            // ── Hero Banner ──────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: _HeroBanner(
-                authState: authState,
-                isSyncing: isSyncing,
-                syncStatus: syncStatus.value,
-                onSyncTap: isSyncing
-                    ? null
-                    : () async {
-                        final success = await ref.read(syncServiceProvider).syncAll();
-                        if (context.mounted) {
-                          if (success) {
-                            AppFeedback.showSuccess(
-                              context,
-                              'Sync Successful',
-                              'All data synchronized with cloud database.',
-                            );
-                          } else {
-                            final err = ref.read(syncServiceProvider).lastSyncError ?? 'Unknown error';
-                            AppFeedback.showError(
-                              context,
-                              'Sync Failed',
-                              err,
-                            );
-                          }
-                        }
-                      },
-                todayRevenue: todayRevenue,
-                todayProfit: todayProfit,
-                currency: currency,
-              ),
-            ),
-
-            // ── Stat Cards ───────────────────────────────────────────
+            // ── Top Bar Header (Dashboard + Notification + Profile) ──
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: Column(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(children: [
-                      Expanded(child: _StatCard(
-                        label: 'Total Profit',
-                        value: '₦${currency.format(totalProfit)}',
-                        icon: Icons.trending_up_rounded,
-                        color: const Color(0xFF10B981),
-                        bg: const Color(0xFF10B981).withOpacity(0.1),
-                        small: true,
-                      )),
-                      const SizedBox(width: 12),
-                      Expanded(child: _StatCard(
-                        label: 'Total Debt',
-                        value: '₦${currency.format(totalDebt.value ?? 0)}',
-                        icon: Icons.receipt_long_rounded,
-                        color: AppTheme.errorColor,
-                        bg: AppTheme.errorColor.withOpacity(0.08),
-                        small: true,
-                      )),
-                    ]),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      Expanded(child: _StatCard(
-                        label: 'Customers',
-                        value: (customersAsync.value?.length ?? 0).toString(),
-                        icon: Icons.people_rounded,
-                        color: AppTheme.warningColor,
-                        bg: AppTheme.warningColor.withOpacity(0.08),
-                      )),
-                      const SizedBox(width: 12),
-                      Expanded(child: _StatCard(
-                        label: "Today's Profit",
-                        value: '₦${currency.format(todayProfit)}',
-                        icon: Icons.query_stats_rounded,
-                        color: AppTheme.primaryColor,
-                        bg: AppTheme.primaryColor.withOpacity(0.08),
-                        small: true,
-                      )),
-                    ]),
+                    const Text(
+                      'Dashboard',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        // Sync status badge
+                        GestureDetector(
+                          onTap: isSyncing
+                              ? null
+                              : () async {
+                                  final success = await ref.read(syncServiceProvider).syncAll();
+                                  if (context.mounted) {
+                                    if (success) {
+                                      AppFeedback.showSuccess(
+                                        context,
+                                        'Sync Successful',
+                                        'All data synchronized with cloud database.',
+                                      );
+                                    } else {
+                                      final err = ref.read(syncServiceProvider).lastSyncError ?? 'Unknown error';
+                                      AppFeedback.showError(context, 'Sync Failed', err);
+                                    }
+                                  }
+                                },
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.02),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isSyncing)
+                                  const SizedBox(
+                                    width: 10,
+                                    height: 10,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.5,
+                                      color: Color(0xFF2563EB),
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: syncStatus.value == SyncStatus.error
+                                          ? const Color(0xFFEF4444)
+                                          : (syncStatus.value == SyncStatus.pending
+                                              ? AppTheme.warningColor
+                                              : const Color(0xFF10B981)),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  isSyncing
+                                      ? 'Syncing'
+                                      : (syncStatus.value == SyncStatus.error
+                                          ? 'Failed'
+                                          : (syncStatus.value == SyncStatus.pending ? 'Pending' : 'Synced')),
+                                  style: const TextStyle(
+                                    color: Color(0xFF475569),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Bell Notification Icon
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              const Icon(Icons.notifications_none_rounded, color: Color(0xFF0F172A), size: 20),
+                              Positioned(
+                                top: 9,
+                                right: 9,
+                                child: Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFEF4444),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Profile Avatar Icon
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                          ),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: const Icon(Icons.person_outline_rounded, color: Color(0xFF0F172A), size: 20),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ),
 
-            // ── Weekly Sales Analytics Banner ────────────────────────
-            const SliverToBoxAdapter(
+            // ── Greeting Section ─────────────────────────────────────
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: _WeeklyAnalyticsBanner(),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$greeting, $displayName',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Here is your business summary for today.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── 2x2 Metric Cards Grid ────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _MetricCard(
+                            icon: Icons.trending_up_rounded,
+                            iconColor: const Color(0xFF16A34A),
+                            iconBg: const Color(0xFFDCFCE7),
+                            label: "Today's Sales",
+                            value: '₦${currency.format(todayRevenue)}',
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _MetricCard(
+                            icon: Icons.account_balance_wallet_rounded,
+                            iconColor: const Color(0xFF2563EB),
+                            iconBg: const Color(0xFFDBEAFE),
+                            label: "Today's Profit",
+                            value: '₦${currency.format(todayProfit)}',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _MetricCard(
+                            icon: Icons.category_rounded,
+                            iconColor: const Color(0xFFD97706),
+                            iconBg: const Color(0xFFFEF3C7),
+                            label: 'Total Products',
+                            value: '$totalProducts',
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _MetricCard(
+                            icon: Icons.inventory_2_rounded,
+                            iconColor: const Color(0xFF9333EA),
+                            iconBg: const Color(0xFFF3E8FF),
+                            label: 'Inventory Value',
+                            value: '₦${currency.format(inventoryValue)}',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Weekly Sales Line Chart Card ─────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: _WeeklySalesLineChartCard(
+                  points: rollingDayPoints,
+                  currency: currency,
+                  onViewAllTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const WeeklySalesScreen()),
+                  ),
+                ),
               ),
             ),
 
@@ -156,195 +390,256 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-// ── Hero Banner ──────────────────────────────────────────────────────────────
+// ── Metric Card ──────────────────────────────────────────────────────────────
 
-class _HeroBanner extends StatelessWidget {
-  final AuthState authState;
-  final bool isSyncing;
-  final SyncStatus? syncStatus;
-  final VoidCallback? onSyncTap;
-  final double todayRevenue;
-  final double todayProfit;
-  final NumberFormat currency;
+class _MetricCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final String label;
+  final String value;
 
-  const _HeroBanner({
-    required this.authState,
-    required this.isSyncing,
-    required this.syncStatus,
-    required this.onSyncTap,
-    required this.todayRevenue,
-    required this.todayProfit,
-    required this.currency,
+  const _MetricCard({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.label,
+    required this.value,
   });
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final greeting = now.hour < 12 ? 'Good Morning' : now.hour < 17 ? 'Good Afternoon' : 'Good Evening';
-    final isPending = syncStatus == SyncStatus.pending || syncStatus == SyncStatus.syncing;
-    final initial = authState.shopName.isNotEmpty ? authState.shopName[0].toUpperCase() : 'M';
-
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF6366F1), Color(0xFF4F46E5), Color(0xFF3730A3)],
-        ),
-        borderRadius: BorderRadius.circular(24),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.35),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top row: avatar + greeting + sync
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.4,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Daily Chart Point Data Model ─────────────────────────────────────────────
+
+class _DailyChartPoint {
+  final DateTime date;
+  final String dayLabel;
+  final double revenue;
+  final double profit;
+  final int ordersCount;
+
+  const _DailyChartPoint({
+    required this.date,
+    required this.dayLabel,
+    required this.revenue,
+    required this.profit,
+    required this.ordersCount,
+  });
+}
+
+// ── Weekly Sales Line Chart Card ─────────────────────────────────────────────
+
+class _WeeklySalesLineChartCard extends StatefulWidget {
+  final List<_DailyChartPoint> points;
+  final NumberFormat currency;
+  final VoidCallback onViewAllTap;
+
+  const _WeeklySalesLineChartCard({
+    required this.points,
+    required this.currency,
+    required this.onViewAllTap,
+  });
+
+  @override
+  State<_WeeklySalesLineChartCard> createState() => _WeeklySalesLineChartCardState();
+}
+
+class _WeeklySalesLineChartCardState extends State<_WeeklySalesLineChartCard> {
+  int? _selectedIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    double maxRevenue = 0.0;
+    for (final p in widget.points) {
+      if (p.revenue > maxRevenue) maxRevenue = p.revenue;
+    }
+    // If no sales, use nominal max 1.0 to render clean zero baseline grid
+    final chartMax = maxRevenue > 0 ? maxRevenue * 1.15 : 1.0;
+
+    final selectedPoint = (_selectedIndex != null &&
+            _selectedIndex! >= 0 &&
+            _selectedIndex! < widget.points.length)
+        ? widget.points[_selectedIndex!]
+        : null;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.025),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                width: 46, height: 46,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
-                ),
-                alignment: Alignment.center,
-                child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(greeting, style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12, fontWeight: FontWeight.w500)),
-                    Text(
-                      authState.shopName.isEmpty ? 'M Lin Tex' : authState.shopName,
-                      style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800, letterSpacing: -0.3),
-                    ),
-                  ],
+              const Text(
+                'Weekly Sales',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.3,
                 ),
               ),
-              GestureDetector(
-                onTap: onSyncTap,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white.withOpacity(0.25)),
+              InkWell(
+                onTap: widget.onViewAllTap,
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Details',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF2563EB)),
+                    ],
                   ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (isSyncing)
-                      const SizedBox(width: 10, height: 10,
-                          child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
-                    else
-                      Container(width: 7, height: 7,
-                          decoration: BoxDecoration(
-                            color: syncStatus == SyncStatus.error
-                                ? const Color(0xFFEF4444)
-                                : isPending
-                                    ? AppTheme.warningColor
-                                    : const Color(0xFF4ADE80),
-                            shape: BoxShape.circle,
-                          )),
-                    const SizedBox(width: 6),
-                    Text(
-                      isSyncing
-                          ? 'Syncing'
-                          : syncStatus == SyncStatus.error
-                              ? 'Sync Failed'
-                              : isPending
-                                  ? 'Pending'
-                                  : 'Synced',
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-                    ),
-                  ]),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 20),
-          const Divider(color: Colors.white24, height: 1),
-          const SizedBox(height: 20),
-
-          // Today's revenue
-          Text("Today's Revenue", style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12, fontWeight: FontWeight.w500)),
-          const SizedBox(height: 4),
-          Text(
-            '₦${currency.format(todayRevenue)}',
-            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1),
-          ),
-          const SizedBox(height: 4),
-          Row(children: [
+          // Selected Point Details Banner
+          if (selectedPoint != null) ...[
+            const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(6),
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
               ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.calendar_today_rounded, size: 10, color: Colors.white70),
-                const SizedBox(width: 4),
-                Text(DateFormat('MMM d, yyyy').format(DateTime.now()),
-                    style: const TextStyle(color: Colors.white70, fontSize: 11)),
-              ]),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withOpacity(0.25),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFF34D399).withOpacity(0.4)),
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.trending_up_rounded, size: 12, color: Color(0xFF6EE7B7)),
-                const SizedBox(width: 4),
-                Text("Today's Profit: ₦${currency.format(todayProfit)}",
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-          ]),
-
-          const SizedBox(height: 14),
-          InkWell(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const WeeklySalesScreen()),
-            ),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.35)),
-              ),
-              child: const Row(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.bar_chart_rounded, size: 18, color: Colors.white),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'View Weekly Sales & Profit Charts',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  Text(
+                    DateFormat('EEEE, MMM d').format(selectedPoint.date),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1E40AF),
                     ),
                   ),
-                  Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.white),
+                  Text(
+                    '₦${widget.currency.format(selectedPoint.revenue)} (${selectedPoint.ordersCount} sales)',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E40AF),
+                    ),
+                  ),
                 ],
               ),
+            ),
+          ],
+
+          const SizedBox(height: 16),
+
+          // The Line Chart
+          SizedBox(
+            height: 180,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const leftLabelWidth = 26.0;
+                const bottomLabelHeight = 22.0;
+                final plotWidth = constraints.maxWidth - leftLabelWidth;
+                final stepX = plotWidth / (widget.points.length - 1);
+
+                return GestureDetector(
+                  onTapUp: (details) {
+                    final dx = details.localPosition.dx;
+                    if (dx >= leftLabelWidth) {
+                      final relativeX = dx - leftLabelWidth;
+                      final index = (relativeX / stepX).round().clamp(0, widget.points.length - 1);
+                      setState(() {
+                        _selectedIndex = (_selectedIndex == index) ? null : index;
+                      });
+                    }
+                  },
+                  child: CustomPaint(
+                    size: Size(constraints.maxWidth, 180),
+                    painter: _WeeklyLineChartPainter(
+                      points: widget.points,
+                      maxVal: chartMax,
+                      selectedIndex: _selectedIndex,
+                      lineColor: const Color(0xFF2563EB),
+                      gridColor: const Color(0xFFE2E8F0),
+                      labelColor: const Color(0xFF64748B),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -352,6 +647,167 @@ class _HeroBanner extends StatelessWidget {
     );
   }
 }
+
+// ── Weekly Line Chart Custom Painter ─────────────────────────────────────────
+
+class _WeeklyLineChartPainter extends CustomPainter {
+  final List<_DailyChartPoint> points;
+  final double maxVal;
+  final int? selectedIndex;
+  final Color lineColor;
+  final Color gridColor;
+  final Color labelColor;
+
+  _WeeklyLineChartPainter({
+    required this.points,
+    required this.maxVal,
+    required this.selectedIndex,
+    required this.lineColor,
+    required this.gridColor,
+    required this.labelColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const leftAxisWidth = 26.0;
+    const bottomAxisHeight = 22.0;
+    const topMargin = 10.0;
+
+    final chartWidth = size.width - leftAxisWidth;
+    final chartHeight = size.height - bottomAxisHeight - topMargin;
+    final originY = topMargin + chartHeight;
+    final originX = leftAxisWidth;
+
+    // ── 1. Draw 5 Horizontal Dashed Gridlines & Y-Axis Labels ──
+    const gridLinesCount = 4;
+    final dashPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1.0;
+
+    for (int i = 0; i <= gridLinesCount; i++) {
+      final ratio = i / gridLinesCount;
+      final y = originY - (ratio * chartHeight);
+
+      // Draw dashed horizontal line
+      _drawDashedLine(canvas, originX, size.width, y, dashPaint);
+
+      // Y-axis label text
+      String yLabel;
+      if (maxVal <= 1.0) {
+        yLabel = (i >= 2) ? '1' : '0';
+      } else {
+        final val = (ratio * maxVal).round();
+        if (val >= 1000000) {
+          yLabel = '${(val / 1000000).toStringAsFixed(1)}m';
+        } else if (val >= 1000) {
+          yLabel = '${(val / 1000).round()}k';
+        } else {
+          yLabel = '$val';
+        }
+      }
+
+      final textSpan = TextSpan(
+        text: yLabel,
+        style: TextStyle(
+          color: labelColor,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+      final tp = TextPainter(
+        text: textSpan,
+        textAlign: TextAlign.right,
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(leftAxisWidth - tp.width - 6, y - (tp.height / 2)));
+    }
+
+    if (points.isEmpty) return;
+
+    // ── 2. Compute Points Coordinates ──
+    final stepX = points.length > 1 ? chartWidth / (points.length - 1) : chartWidth;
+    final coords = <Offset>[];
+
+    for (int i = 0; i < points.length; i++) {
+      final x = originX + (i * stepX);
+      final normalizedValue = (points[i].revenue / maxVal).clamp(0.0, 1.0);
+      final y = originY - (normalizedValue * chartHeight);
+      coords.add(Offset(x, y));
+    }
+
+    // ── 3. Draw Connecting Line ──
+    final linePaint = Paint()
+      ..color = lineColor
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final path = Path();
+    path.moveTo(coords[0].dx, coords[0].dy);
+    for (int i = 1; i < coords.length; i++) {
+      path.lineTo(coords[i].dx, coords[i].dy);
+    }
+    canvas.drawPath(path, linePaint);
+
+    // ── 4. Draw Circular Dots & Day Labels at Bottom ──
+    final dotPaint = Paint()..color = lineColor;
+    final whitePaint = Paint()..color = Colors.white;
+
+    for (int i = 0; i < coords.length; i++) {
+      final pt = coords[i];
+      final isSelected = selectedIndex == i;
+
+      // Outer glow/ring if selected
+      if (isSelected) {
+        canvas.drawCircle(pt, 8.0, Paint()..color = lineColor.withOpacity(0.2));
+        canvas.drawCircle(pt, 5.5, dotPaint);
+        canvas.drawCircle(pt, 2.5, whitePaint);
+      } else {
+        canvas.drawCircle(pt, 4.0, dotPaint);
+      }
+
+      // X-Axis Day Label (Tue, Wed, Thu, Fri, Sat, Sun, Mon)
+      final dayLabel = points[i].dayLabel;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: dayLabel,
+          style: TextStyle(
+            color: isSelected ? lineColor : labelColor,
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      tp.paint(canvas, Offset(pt.dx - (tp.width / 2), originY + 8));
+    }
+  }
+
+  void _drawDashedLine(Canvas canvas, double startX, double endX, double y, Paint paint) {
+    const dashWidth = 4.0;
+    const dashSpace = 4.0;
+    double currentX = startX;
+    while (currentX < endX) {
+      canvas.drawLine(
+        Offset(currentX, y),
+        Offset(math.min(currentX + dashWidth, endX), y),
+        paint,
+      );
+      currentX += dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WeeklyLineChartPainter oldDelegate) {
+    return oldDelegate.points != points ||
+        oldDelegate.selectedIndex != selectedIndex ||
+        oldDelegate.maxVal != maxVal;
+  }
+}
+
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
 
