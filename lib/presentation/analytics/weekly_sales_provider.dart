@@ -203,6 +203,10 @@ WeeklySalesSummary calculateWeeklySummary({
 
   // Process Sales Ledger entries (typeIndex == 1 is Sale)
   for (final e in ledgerEntries) {
+    if (e.outItem != null && e.outItem!.startsWith('POS - ')) {
+      // Skip ledger copies of POS sales to avoid double counting with sales loop
+      continue;
+    }
     final d = e.date;
     if (e.typeIndex == 1) {
       if (shouldComputePrev &&

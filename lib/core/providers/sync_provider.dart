@@ -1,6 +1,5 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/datasources/sync_service.dart';
-import 'repository_providers.dart';
 import 'auth_provider.dart';
 import '../../presentation/customers/customer_provider.dart';
 import '../../presentation/shop/shop_customer_provider.dart';
@@ -12,11 +11,6 @@ import '../../presentation/ledger/ledger_provider.dart';
 final syncServiceProvider = Provider<SyncService>(
   (ref) {
     final service = SyncService(
-      ref.watch(productLocalDataSourceProvider),
-      ref.watch(customerLocalDataSourceProvider),
-      ref.watch(saleLocalDataSourceProvider),
-      ref.watch(debtLocalDataSourceProvider),
-      ref.watch(shopCustomerLocalDataSourceProvider),
       ref.watch(activeShopIdProvider),
     );
 
@@ -39,5 +33,6 @@ final syncServiceProvider = Provider<SyncService>(
 );
 
 final syncStatusProvider = StreamProvider<SyncStatus>((ref) {
-  return ref.watch(syncServiceProvider).statusStream;
+  final service = ref.watch(syncServiceProvider);
+  return service.statusStream;
 });

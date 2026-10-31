@@ -1230,7 +1230,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                             final i = e.key;
                             final entry = e.value;
                             final rowBg = i.isEven ? bg : (isDark ? const Color(0xFF1A2535) : const Color(0xFFF8FAFC));
-                            final unitCost = (entry.costPrice != null && entry.costPrice > 0) ? entry.costPrice : entry.price;
+                            final unitCost = entry.costPrice > 0 ? entry.costPrice : entry.price;
                             return TableRow(
                               decoration: BoxDecoration(color: rowBg),
                               children: [

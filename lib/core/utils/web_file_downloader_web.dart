@@ -20,8 +20,9 @@ void downloadFileWeb(Uint8List bytes, String filename, String mimeType) {
       // iOS WebKit does not honor the 'download' attribute on <a> tags for Blobs.
       // Opening the PDF / file Blob URL in a new window/tab enables iOS Safari's native viewer,
       // where the user can view, print, or tap Share -> "Save to Files".
-      final opened = html.window.open(url, '_blank');
-      if (opened == null) {
+      try {
+        html.window.open(url, '_blank');
+      } catch (_) {
         // Fallback if popup blocker intercepted window.open
         final anchor = html.AnchorElement(href: url)
           ..target = '_blank'

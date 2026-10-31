@@ -14,7 +14,6 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/pdf_theme.dart';
 import '../../core/utils/file_saver.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../core/services/pending_sync_tracker.dart';
 import '../../core/services/firestore_service.dart';
 import '../../core/providers/repository_providers.dart';
 import '../products/product_provider.dart';
@@ -1325,88 +1324,6 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
     child: Text(text, style: TextStyle(fontSize: size, color: color, fontWeight: bold ? FontWeight.w700 : FontWeight.w400)),
   );
-}
-
-class _HeaderCard extends StatelessWidget {
-  final String shopName;
-  final Color cardBg;
-  final Color borderColor;
-  final Color textPrimary;
-  final Color textMuted;
-
-  const _HeaderCard({
-    required this.shopName,
-    required this.cardBg,
-    required this.borderColor,
-    required this.textPrimary,
-    required this.textMuted,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final displayShop = (shopName.isEmpty || shopName.toLowerCase() == 'admin')
-        ? 'M Lin Tex'
-        : shopName;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF059669), Color(0xFF10B981)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Text(
-            displayShop,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.75),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.2),
-              border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.inventory_2_rounded,
-              color: Colors.white,
-              size: 26,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Supplier Stock Deliveries',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Global bookkeeping of received goods & stock',
-            style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 11,
-                fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _FinancialSummaryCard extends StatelessWidget {

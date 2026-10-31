@@ -27,8 +27,19 @@ class FirestoreService {
   static String get currentUserId {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null && user.uid.isNotEmpty) {
+      try {
+        if (Hive.isBoxOpen('auth')) {
+          Hive.box('auth').put('cached_uid', user.uid);
+        }
+      } catch (_) {}
       return user.uid;
     }
+    try {
+      if (Hive.isBoxOpen('auth')) {
+        final cached = Hive.box('auth').get('cached_uid')?.toString();
+        if (cached != null && cached.isNotEmpty) return cached;
+      }
+    } catch (_) {}
     return canonicalUid;
   }
 
@@ -57,7 +68,14 @@ class FirestoreService {
     final password = canonicalPassword ?? FirestoreService.canonicalPassword;
 
     var user = FirebaseAuth.instance.currentUser;
-    if (user != null && user.uid.isNotEmpty) return user;
+    if (user != null && user.uid.isNotEmpty) {
+      try {
+        if (Hive.isBoxOpen('auth')) {
+          Hive.box('auth').put('cached_uid', user.uid);
+        }
+      } catch (_) {}
+      return user;
+    }
 
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
@@ -65,6 +83,13 @@ class FirestoreService {
           email: email,
           password: password,
         );
+        if (credential.user != null) {
+          try {
+            if (Hive.isBoxOpen('auth')) {
+              Hive.box('auth').put('cached_uid', credential.user!.uid);
+            }
+          } catch (_) {}
+        }
         return credential.user;
       } catch (e) {
         if (e is FirebaseAuthException &&

@@ -1,18 +1,15 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../analytics/weekly_sales_screen.dart';
-import '../analytics/weekly_sales_provider.dart';
 import '../products/product_provider.dart';
 import '../settings/profile_screen.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../data/datasources/sync_service.dart';
-import '../customers/customer_provider.dart';
+import '../sales/sales_screen.dart';
 import '../sales/sale_provider.dart';
-import 'debt_provider.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/quick_add_customer_sheet.dart';
 import '../widgets/add_debt_sheet.dart';
@@ -28,7 +25,6 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final customersAsync = ref.watch(customersProvider);
     final productsAsync = ref.watch(productsProvider);
     final salesAsync = ref.watch(salesProvider);
     final ledgerAsync = ref.watch(salesLedgerEntriesProvider);
@@ -612,7 +608,6 @@ class _WeeklySalesLineChartCardState extends State<_WeeklySalesLineChartCard> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 const leftLabelWidth = 26.0;
-                const bottomLabelHeight = 22.0;
                 final plotWidth = constraints.maxWidth - leftLabelWidth;
                 final stepX = plotWidth / (widget.points.length - 1);
 
@@ -809,68 +804,6 @@ class _WeeklyLineChartPainter extends CustomPainter {
 }
 
 
-// ── Stat Card ────────────────────────────────────────────────────────────────
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final Color bg;
-  final bool small;
-
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.bg,
-    this.small = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const cardBg = Colors.white;
-    const textPrimary = Color(0xFF0F172A);
-    const textMuted = Color(0xFF64748B);
-    const borderColor = Color(0xFFE2E8F0);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: borderColor),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: small ? 14 : 20,
-              fontWeight: FontWeight.w800,
-              color: textPrimary,
-              letterSpacing: -0.5,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 11, color: textMuted, fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Quick Actions ────────────────────────────────────────────────────────────
 
 class _QuickActions extends StatelessWidget {
@@ -884,9 +817,19 @@ class _QuickActions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Quick Actions', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textPrimary)),
+        const Text('Quick Actions', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textPrimary)),
         const SizedBox(height: 12),
         Row(children: [
+          Expanded(child: _ActionTile(
+            label: 'Ring Sale',
+            icon: Icons.point_of_sale_rounded,
+            color: const Color(0xFF16A34A),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SalesScreen()),
+            ),
+          )),
+          const SizedBox(width: 8),
           Expanded(child: _ActionTile(
             label: 'Add Customer',
             icon: Icons.person_add_rounded,
@@ -894,7 +837,7 @@ class _QuickActions extends StatelessWidget {
             onTap: () => showModalBottomSheet(context: context, isScrollControlled: true,
                 backgroundColor: Colors.transparent, builder: (_) => const QuickAddCustomerSheet()),
           )),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(child: _ActionTile(
             label: 'New Debt',
             icon: Icons.receipt_long_rounded,
@@ -902,7 +845,7 @@ class _QuickActions extends StatelessWidget {
             onTap: () => showModalBottomSheet(context: context, isScrollControlled: true,
                 backgroundColor: Colors.transparent, builder: (_) => const AddDebtSheet()),
           )),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(child: _ActionTile(
             label: 'Weekly Sales',
             icon: Icons.bar_chart_rounded,
@@ -1162,122 +1105,6 @@ class _RecentActivity extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-}
-
-// ── Weekly Analytics Banner ──────────────────────────────────────────────────
-
-class _WeeklyAnalyticsBanner extends StatelessWidget {
-  const _WeeklyAnalyticsBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    const cardBg = Colors.white;
-    const textPrimary = Color(0xFF0F172A);
-    const textMuted = Color(0xFF64748B);
-    const borderColor = Color(0xFFE2E8F0);
-
-    return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const WeeklySalesScreen()),
-      ),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: borderColor),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
-                ),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF6366F1).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.analytics_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 14),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Weekly Sales & Profit',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: textPrimary,
-                    ),
-                  ),
-                  SizedBox(height: 3),
-                  Text(
-                    'Charts, daily breakdown & top products',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: textMuted,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withOpacity(0.08),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'View',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF4F46E5),
-                    ),
-                  ),
-                  SizedBox(width: 4),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 14,
-                    color: Color(0xFF4F46E5),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

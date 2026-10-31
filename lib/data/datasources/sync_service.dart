@@ -1,24 +1,12 @@
-import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
-import '../datasources/product_local_datasource.dart';
-import '../datasources/customer_local_datasource.dart';
-import '../datasources/sale_local_datasource.dart';
-import '../datasources/debt_local_datasource.dart';
-import '../datasources/shop_customer_local_datasource.dart';
 import '../../core/services/firestore_service.dart';
 
 enum SyncStatus { synced, syncing, pending, error }
 
 class SyncService {
-  final ProductLocalDataSource _productDS;
-  final CustomerLocalDataSource _customerDS;
-  final SaleLocalDataSource _saleDS;
-  final DebtLocalDataSource _debtDS;
-  final ShopCustomerLocalDataSource _shopCustomerDS;
   final String activeShopId;
 
   VoidCallback? onSyncCompleted;
@@ -34,14 +22,7 @@ class SyncService {
   final _statusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get statusStream => _statusController.stream;
 
-  SyncService(
-    this._productDS,
-    this._customerDS,
-    this._saleDS,
-    this._debtDS,
-    this._shopCustomerDS,
-    this.activeShopId,
-  );
+  SyncService(this.activeShopId);
 
   void dispose() {
     _statusController.close();
@@ -91,7 +72,7 @@ class SyncService {
       _isSyncing = false;
       return true;
     } catch (e) {
-      debugPrint('[SYNC ERROR] $e');
+      debugPrint('[SYNC ERROR] ');
       _lastSyncError = e.toString();
       _setStatus(SyncStatus.error);
       _isSyncing = false;

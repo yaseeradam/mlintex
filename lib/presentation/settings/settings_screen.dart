@@ -188,6 +188,7 @@ class _SettingsContentState extends ConsumerState<_SettingsContent> {
               icon: Icons.notifications_outlined,
               iconColor: AppTheme.warningColor,
               title: 'Notifications',
+              subtitle: 'Daily reminders for overdue customer debts',
               value: _notificationsEnabled,
               onChanged: (v) => setState(() => _notificationsEnabled = v),
             ),

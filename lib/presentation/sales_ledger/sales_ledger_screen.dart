@@ -2,8 +2,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../analytics/weekly_sales_screen.dart';
+import '../sales/sales_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -18,7 +18,6 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/repository_providers.dart';
 import '../../domain/entities/product.dart';
 import '../products/product_provider.dart';
-import '../../core/services/pending_sync_tracker.dart';
 import '../../core/services/firestore_service.dart';
 
 // ── Model ──────────────────────────────────────────────────────────────────
@@ -344,6 +343,14 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
             ),
             actions: [
               IconButton(
+                icon: const Icon(Icons.point_of_sale_rounded, color: Color(0xFF16A34A)),
+                tooltip: 'POS Ring Sale',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SalesScreen()),
+                ),
+              ),
+              IconButton(
                 icon: const Icon(Icons.analytics_rounded, color: AppTheme.primaryColor),
                 tooltip: 'Weekly Sales Analytics',
                 onPressed: () => Navigator.push(
@@ -417,6 +424,10 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
                     ),
                     const SizedBox(height: 16),
                     _QuickActionButtons(
+                      onOpenPos: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SalesScreen()),
+                      ),
                       onAddSale: () => _showAddEntrySheet(context, isSale: true),
                       onAddPayment: () => _showAddEntrySheet(context, isSale: false),
                     ),
@@ -1221,88 +1232,6 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
   );
 }
 
-class _HeaderCard extends StatelessWidget {
-  final String shopName;
-  final Color cardBg;
-  final Color borderColor;
-  final Color textPrimary;
-  final Color textMuted;
-
-  const _HeaderCard({
-    required this.shopName,
-    required this.cardBg,
-    required this.borderColor,
-    required this.textPrimary,
-    required this.textMuted,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final displayShop = (shopName.isEmpty || shopName.toLowerCase() == 'admin')
-        ? 'M Lin Tex'
-        : shopName;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF6366F1), Color(0xFF4F46E5), Color(0xFF3730A3)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Text(
-            displayShop,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.75),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.2),
-              border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.receipt_long_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Sales & Payments Ledger',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Global bookkeeping of shop transactions',
-            style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 11,
-                fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _FinancialSummaryCard extends StatelessWidget {
   final double totalIn;
   final double totalOut;
@@ -1465,10 +1394,12 @@ class _FinancialSummaryCard extends StatelessWidget {
 }
 
 class _QuickActionButtons extends StatelessWidget {
+  final VoidCallback onOpenPos;
   final VoidCallback onAddSale;
   final VoidCallback onAddPayment;
 
   const _QuickActionButtons({
+    required this.onOpenPos,
     required this.onAddSale,
     required this.onAddPayment,
   });
@@ -1485,17 +1416,17 @@ class _QuickActionButtons extends StatelessWidget {
             decoration: BoxDecoration(
               color: bgColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.2)),
+              border: Border.all(color: color.withValues(alpha: 0.2)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(icon, size: 16, color: color),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: color,
                   ),
@@ -1509,9 +1440,11 @@ class _QuickActionButtons extends StatelessWidget {
 
     return Row(
       children: [
-        buildBtn('Record Sale (IN)', Icons.add_circle_outline_rounded, const Color(0xFF3B82F6), const Color(0xFFEFF6FF), onAddSale),
-        const SizedBox(width: 10),
-        buildBtn('Record Payment (OUT)', Icons.check_circle_outline_rounded, const Color(0xFF10B981), const Color(0xFFECFDF5), onAddPayment),
+        buildBtn('Ring POS', Icons.point_of_sale_rounded, const Color(0xFF16A34A), const Color(0xFFDCFCE7), onOpenPos),
+        const SizedBox(width: 8),
+        buildBtn('Sale (IN)', Icons.add_circle_outline_rounded, const Color(0xFF3B82F6), const Color(0xFFEFF6FF), onAddSale),
+        const SizedBox(width: 8),
+        buildBtn('Payment (OUT)', Icons.check_circle_outline_rounded, const Color(0xFF10B981), const Color(0xFFECFDF5), onAddPayment),
       ],
     );
   }

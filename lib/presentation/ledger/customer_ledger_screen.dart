@@ -452,19 +452,6 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
     final balancePosColor = const Color(0xFFDC2626);
     final balanceNegColor = const Color(0xFF16A34A);
 
-    double totalIn = 0;
-    double totalOut = 0;
-    for (final entry in entries) {
-      if (entry.type == LedgerEntryType.sale) {
-        totalIn += entry.totalAmount;
-      } else {
-        totalOut += entry.totalAmount;
-      }
-    }
-    final double remainingDebt = entries.isEmpty ? 0 : entries.last.runningBalance;
-
-
-
     int totalQty = 0;
     double totalInSum = 0;
     double totalOutSum = 0;
@@ -476,6 +463,9 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
         totalOutSum += entry.totalAmount;
       }
     }
+    final double totalIn = totalInSum;
+    final double totalOut = totalOutSum;
+    final double remainingDebt = entries.isEmpty ? 0 : entries.last.runningBalance;
 
     // Scrollable width constants matching UI
     const double dateWidth = 65;
@@ -1702,19 +1692,6 @@ class _LedgerFeed extends StatelessWidget {
     final balanceNegColor = const Color(0xFF16A34A);
 
 
-
-    // Calculate footer visible sums
-    int totalQty = 0;
-    double totalInSum = 0;
-    double totalOutSum = 0;
-    for (final entry in entries) {
-      if (entry.type == LedgerEntryType.sale) {
-        totalQty += entry.quantity ?? 0;
-        totalInSum += entry.totalAmount;
-      } else {
-        totalOutSum += entry.totalAmount;
-      }
-    }
 
     // Scrollable width constants
     const double dateWidth = 65;

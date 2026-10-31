@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'core/routes/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -17,24 +19,6 @@ import 'presentation/sales_ledger/sales_ledger_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e) {
-    debugPrint('Firebase.initializeApp error: $e');
-  }
-
-  // Pre-authenticate canonical Firebase Auth session so Firestore queries are ready immediately
-  try {
-    await FirestoreService.ensureAuthenticated(
-      canonicalEmail: 'mlintex@gmail.com',
-      canonicalPassword: 'mlintex123',
-    );
-  } catch (e) {
-    debugPrint('Firebase Auth bootstrap error: $e');
-  }
 
   await Hive.initFlutter();
   Hive.registerAdapter(ProductModelAdapter());
@@ -56,12 +40,33 @@ Future<void> main() async {
 
   await NotificationService.init();
 
-  // One-time migration of any legacy Hive records into Firestore
   try {
-    await FirestoreService.migrateLocalHiveToFirestore();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
   } catch (e) {
-    debugPrint('Migration error: $e');
+    debugPrint('Firebase.initializeApp error: $e');
   }
+
+  // Pre-authenticate canonical Firebase Auth and migrate legacy Hive records in background
+  unawaited(
+    FirestoreService.ensureAuthenticated(
+      canonicalEmail: 'mlintex@gmail.com',
+      canonicalPassword: 'mlintex123',
+    ).then((_) async {
+      try {
+        await FirestoreService.migrateLocalHiveToFirestore();
+      } catch (e) {
+        debugPrint('Migration error: $e');
+      }
+    }).catchError((e) {
+      debugPrint('Firebase Auth bootstrap error: $e');
+    }),
+  );
 
   runApp(
     const ProviderScope(

@@ -6,6 +6,7 @@ import '../../presentation/auth/login_screen.dart';
 import '../../presentation/settings/profile_screen.dart';
 import '../../presentation/splash/splash_screen.dart';
 import '../../presentation/analytics/weekly_sales_screen.dart';
+import '../../presentation/sales/sales_screen.dart';
 import '../providers/auth_provider.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -17,6 +18,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loc = state.uri.toString().toLowerCase();
       if (loc.contains('weekly-sales') || loc.contains('weekly_sales')) {
         return const WeeklySalesScreen();
+      }
+      if (loc.contains('pos')) {
+        return const SalesScreen();
       }
       if (loc.contains('profile')) {
         return const ProfileScreen();
@@ -51,10 +55,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const WeeklySalesScreen(),
           ),
           GoRoute(
+            path: 'pos',
+            builder: (context, state) => const SalesScreen(),
+          ),
+          GoRoute(
             path: 'profile',
             builder: (context, state) => const ProfileScreen(),
           ),
         ],
+      ),
+      GoRoute(
+        path: '/pos',
+        builder: (context, state) => const SalesScreen(),
       ),
       GoRoute(
         path: '/profile',

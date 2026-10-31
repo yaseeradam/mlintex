@@ -3,11 +3,10 @@ import 'package:uuid/uuid.dart';
 import '../../domain/entities/sale.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/customer.dart';
-import '../../domain/repositories/sale_repository.dart';
-import '../../domain/repositories/product_repository.dart';
 import '../../core/providers/repository_providers.dart';
 import '../products/product_provider.dart';
-import '../sales_ledger/sales_ledger_screen.dart' show salesLedgerEntriesProvider;
+import '../sales_ledger/sales_ledger_screen.dart' show salesLedgerEntriesProvider, salesLedgerNotifierProvider;
+import '../dashboard/debt_provider.dart';
 import '../../core/services/firestore_service.dart' show firebaseAuthStateProvider;
 
 /// Cart item for active sale
@@ -95,6 +94,9 @@ final todayRevenueProvider = Provider<double>((ref) {
   }
 
   for (final e in ledgerEntries) {
+    if (e.outItem != null && e.outItem!.startsWith('POS - ')) {
+      continue;
+    }
     if (e.typeIndex == 1 &&
         e.date.isAfter(todayStart.subtract(const Duration(milliseconds: 1))) &&
         e.date.isBefore(todayEnd.add(const Duration(milliseconds: 1)))) {
@@ -112,7 +114,10 @@ class SaleNotifier extends Notifier<AsyncValue<void>> {
   @override
   AsyncValue<void> build() => const AsyncValue.data(null);
 
-  Future<bool> completeSale({Customer? customer}) async {
+  Future<bool> completeSale({
+    Customer? customer,
+    String paymentMethod = 'Cash',
+  }) async {
     state = const AsyncValue.loading();
     try {
       final cart = ref.read(cartProvider);
@@ -134,29 +139,47 @@ class SaleNotifier extends Notifier<AsyncValue<void>> {
           .toList();
 
       final total = cart.fold<double>(0.0, (sum, item) => sum + item.subtotal);
+      final isCredit = paymentMethod.trim().toLowerCase() == 'credit';
+      final saleId = _uuid.v4();
 
       final sale = Sale(
-        id: _uuid.v4(),
+        id: saleId,
         items: saleItems,
         totalAmount: total,
         customerId: customer?.id,
-        customerName: customer?.name,
+        customerName: customer?.name ?? 'Walk-in Customer',
         saleDate: DateTime.now(),
+        paymentMethod: paymentMethod,
         isSynced: false,
       );
 
+      // 1. Record in POS sales collection
       await ref.read(saleRepositoryProvider).addSale(sale);
 
-      // Deduct stock
-      final productRepo = ref.read(productRepositoryProvider);
+      // 2. Synchronize each item with the Sales Ledger & deduct product stock
       for (final item in cart) {
-        final product = await productRepo.getProductById(item.product.id);
-        if (product != null) {
-          await productRepo.updateQuantity(
-            product.id,
-            (product.quantity - item.quantity).clamp(0, 999999),
-          );
-        }
+        final itemTotal = item.product.price * item.quantity;
+        await ref.read(salesLedgerNotifierProvider.notifier).addSale(
+          item: item.product.name,
+          paymentMethod: 'POS - $paymentMethod',
+          price: item.product.price,
+          qty: item.quantity,
+          personName: customer?.name ?? 'Walk-in Customer',
+          productId: item.product.id,
+          costPrice: item.product.costPrice,
+          payment: isCredit ? 0.0 : itemTotal,
+        );
+      }
+
+      // 3. If credit sale and customer is selected, record a Debt
+      if (isCredit && customer != null) {
+        await ref.read(debtNotifierProvider.notifier).addDebt(
+          customerId: customer.id,
+          customerName: customer.name,
+          amount: total,
+          dueDate: DateTime.now().add(const Duration(days: 14)),
+          note: 'POS Credit Sale: ${cart.map((c) => "${c.product.name} x${c.quantity}").join(", ")}',
+        );
       }
 
       ref.read(cartProvider.notifier).clear();
@@ -174,7 +197,6 @@ final saleNotifierProvider = NotifierProvider<SaleNotifier, AsyncValue<void>>(
 );
 
 /// Total Profit calculated across all sales.
-/// Uses each SaleItem / Ledger item's price minus product costPrice.
 final totalProfitProvider = Provider<double>((ref) {
   final salesAsync = ref.watch(salesProvider);
   final ledgerAsync = ref.watch(salesLedgerEntriesProvider);
@@ -206,6 +228,9 @@ final totalProfitProvider = Provider<double>((ref) {
   }
 
   for (final e in ledgerEntries) {
+    if (e.outItem != null && e.outItem!.startsWith('POS - ')) {
+      continue;
+    }
     if (e.typeIndex == 1) {
       final cost = (e.costPrice != null && e.costPrice! > 0)
           ? e.costPrice!
@@ -262,6 +287,9 @@ final todayProfitProvider = Provider<double>((ref) {
   }
 
   for (final e in ledgerEntries) {
+    if (e.outItem != null && e.outItem!.startsWith('POS - ')) {
+      continue;
+    }
     if (e.typeIndex == 1 &&
         e.date.isAfter(todayStart.subtract(const Duration(milliseconds: 1))) &&
         e.date.isBefore(todayEnd.add(const Duration(milliseconds: 1)))) {
