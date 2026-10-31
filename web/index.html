@@ -8,6 +8,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="M Lin Tex - Modern Store & Bookkeeping Management System">
 
+  <!-- Force Auto-Clear Cache & Auto-Update System -->
+  <script>
+    (function() {
+      // 1. Instantly purge all CacheStorage so stale flutter files cannot be served
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          names.forEach(function(name) { caches.delete(name); });
+        });
+      }
+
+      // 2. Unregister any existing service workers to disable stale offline caching
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          registrations.forEach(function(reg) { reg.unregister(); });
+        });
+      }
+
+      // 3. Compare server version and auto-refresh if a newer build exists
+      fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var serverVersion = data.build_number || data.version || 'latest';
+          var localVersion = localStorage.getItem('app_build_version');
+          if (localVersion && localVersion !== serverVersion) {
+            localStorage.setItem('app_build_version', serverVersion);
+            window.location.reload(true);
+          } else {
+            localStorage.setItem('app_build_version', serverVersion);
+          }
+        })
+        .catch(function() {});
+    })();
+  </script>
+
   <!-- PWA & Theme color -->
   <meta name="theme-color" content="#0F172A">
   <meta name="mobile-web-app-capable" content="yes">
@@ -176,6 +210,12 @@
     setTimeout(dismissSplash, 3500);
   </script>
 
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Dynamically load flutter_bootstrap.js with cache-busting timestamp
+    var bootstrapScript = document.createElement('script');
+    bootstrapScript.src = 'flutter_bootstrap.js?v=' + Date.now();
+    bootstrapScript.async = true;
+    document.body.appendChild(bootstrapScript);
+  </script>
 </body>
 </html>
