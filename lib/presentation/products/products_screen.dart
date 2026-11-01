@@ -830,7 +830,10 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     AuthState auth,
     NumberFormat fmt,
   ) async {
-    final pdf = pw.Document(theme: await PdfTheme.load());
+    final pdf = pw.Document(
+      theme: await PdfTheme.load(),
+      title: 'Product Specification',
+    );
 
     pw.Widget hCell(String t, {pw.Alignment alignment = pw.Alignment.centerLeft}) => pw.Container(
       alignment: alignment,
@@ -1100,7 +1103,10 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   }
 
   Future<void> _exportPdf(List<dynamic> products, NumberFormat fmt) async {
-    final pdf = pw.Document(theme: await PdfTheme.load());
+    final pdf = pw.Document(
+      theme: await PdfTheme.load(),
+      title: 'Products Catalog',
+    );
     final auth = ref.read(authProvider);
     final shopName = auth.shopName.isEmpty || auth.shopName.toLowerCase() == 'admin' ? 'M Lin Tex' : auth.shopName;
 

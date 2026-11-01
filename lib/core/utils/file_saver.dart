@@ -34,38 +34,53 @@ class FileSaver {
       } catch (_) {}
     }
 
+    if (kIsWeb) {
+      final xFile = XFile.fromData(
+        u8bytes,
+        name: filename,
+        mimeType: 'application/pdf',
+      );
+      try {
+        final result = await Share.shareXFiles(
+          [xFile],
+          sharePositionOrigin: origin,
+        );
+        if (result.status == ShareResultStatus.dismissed) {
+          // User dismissed the share sheet cleanly
+          return;
+        }
+        if (result.status == ShareResultStatus.unavailable) {
+          // Desktop browser without Web Share API -> trigger clean download
+          downloadFileWebPlatform(u8bytes, filename, 'application/pdf');
+        }
+        return;
+      } catch (e) {
+        debugPrint('[FileSaver] Web share error: $e');
+        downloadFileWebPlatform(u8bytes, filename, 'application/pdf');
+        return;
+      }
+    }
+
     try {
-      // On Web, iOS, and Android, Printing.sharePdf provides the cleanest native experience:
-      // - Web (Safari / Chrome): downloads the PDF or opens Web Share
-      // - iOS: opens native UIActivityViewController with AirDrop, Save to Files, Print, Share
-      // - Android: opens Android Sharesheet
-      final shared = await Printing.sharePdf(
+      // On native iOS and Android, Printing.sharePdf provides the native UIActivityViewController/Sharesheet:
+      await Printing.sharePdf(
         bytes: u8bytes,
         filename: filename,
         bounds: origin,
       );
-
-      if (!shared && kIsWeb) {
-        downloadFileWebPlatform(u8bytes, filename, 'application/pdf');
-      }
     } catch (e) {
       debugPrint('[FileSaver] Printing.sharePdf error: $e');
-      // Secondary fallback using in-memory XFile.fromData (no path_provider / temporary file required)
+      // Secondary fallback using in-memory XFile.fromData
       try {
         final xFile = XFile.fromData(
           u8bytes,
           name: filename,
           mimeType: 'application/pdf',
         );
-        final result = await Share.shareXFiles([xFile], text: filename, sharePositionOrigin: origin);
-        if (kIsWeb && result.status == ShareResultStatus.unavailable) {
-          downloadFileWebPlatform(u8bytes, filename, 'application/pdf');
-        }
+        await Share.shareXFiles([xFile], sharePositionOrigin: origin);
       } catch (fallbackError) {
         debugPrint('[FileSaver] Fallback share error: $fallbackError');
-        if (kIsWeb) {
-          downloadFileWebPlatform(u8bytes, filename, 'application/pdf');
-        } else if (context.mounted) {
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Failed to save PDF: $e'),
             backgroundColor: const Color(0xFFEF4444),
@@ -117,7 +132,7 @@ class FileSaver {
       try {
         final result = await Share.shareXFiles(
           [xFile],
-          text: shareText ?? filename,
+          text: shareText,
           subject: subject,
           sharePositionOrigin: origin,
         );

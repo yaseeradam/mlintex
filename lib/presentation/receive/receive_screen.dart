@@ -636,7 +636,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
     NumberFormat fmt,
     DateFormat dateFmt,
   ) async {
-    final pdf = pw.Document(theme: await PdfTheme.load());
+    final pdf = pw.Document(
+      theme: await PdfTheme.load(),
+      title: 'Stock Inward Receipt',
+    );
 
     pw.Widget hCell(String t, {pw.Alignment alignment = pw.Alignment.centerLeft}) => pw.Container(
       alignment: alignment,
@@ -933,7 +936,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
   }
 
   Future<void> _exportPdf(List<ReceiveEntry> entries, NumberFormat fmt, DateFormat dateFmt) async {
-    final pdf = pw.Document(theme: await PdfTheme.load());
+    final pdf = pw.Document(
+      theme: await PdfTheme.load(),
+      title: 'Stock Inward Ledger',
+    );
     final auth = ref.read(authProvider);
     final shopName = auth.shopName.isEmpty || auth.shopName.toLowerCase() == 'admin' ? 'M Lin Tex' : auth.shopName;
 

@@ -640,7 +640,10 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
     DateFormat dateFmt,
   ) async {
     final isSale = entry.typeIndex == 1;
-    final pdf = pw.Document(theme: await PdfTheme.load());
+    final pdf = pw.Document(
+      theme: await PdfTheme.load(),
+      title: 'Sales Receipt',
+    );
 
     pw.Widget hCell(String t, {pw.Alignment alignment = pw.Alignment.centerLeft}) => pw.Container(
       alignment: alignment,
@@ -996,7 +999,10 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
   }
 
   Future<void> _exportPdf(List<SalesLedgerEntry> entries, NumberFormat fmt, DateFormat dateFmt) async {
-    final pdf = pw.Document(theme: await PdfTheme.load());
+    final pdf = pw.Document(
+      theme: await PdfTheme.load(),
+      title: 'Sales Ledger',
+    );
     pdf.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4.landscape,
       margin: const pw.EdgeInsets.all(20),

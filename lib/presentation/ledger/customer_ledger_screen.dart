@@ -291,7 +291,10 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
   }
 
   Future<void> _exportPdf(List<LedgerEntry> entries, AuthState auth) async {
-    final pdf = pw.Document(theme: await PdfTheme.load());
+    final pdf = pw.Document(
+      theme: await PdfTheme.load(),
+      title: '${widget.customerName} - Customer Statement',
+    );
     final fmt = NumberFormat('#,##0', 'en_US');
     final dateFmt = DateFormat('yyyy-MM-dd HH:mm:ss');
 
@@ -980,7 +983,10 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
     DateFormat dateFmt,
   ) async {
     final isSale = entry.type == LedgerEntryType.sale;
-    final pdf = pw.Document(theme: await PdfTheme.load());
+    final pdf = pw.Document(
+      theme: await PdfTheme.load(),
+      title: '${widget.customerName} - Transaction Receipt',
+    );
 
     pw.Widget hCell(String t, {pw.Alignment alignment = pw.Alignment.centerLeft}) => pw.Container(
       alignment: alignment,
