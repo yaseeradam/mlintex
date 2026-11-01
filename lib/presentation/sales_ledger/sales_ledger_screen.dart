@@ -656,13 +656,13 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
       child: child ?? pw.Text(t, style: pw.TextStyle(fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
     );
 
-    final name = entry.personName ?? '—';
+    final name = entry.personName ?? '-';
     final desc = isSale ? (entry.inItem ?? '') : (entry.outItem ?? 'PAYMENT');
-    final priceStr = isSale && entry.price != null ? fmt.format(entry.price) : '—';
-    final qtyStr = isSale && entry.quantity != null ? entry.quantity.toString() : '—';
-    final goodsTotal = isSale ? '${PdfTheme.naira}${fmt.format(entry.totalAmount)}' : '—';
+    final priceStr = isSale && entry.price != null ? fmt.format(entry.price) : '-';
+    final qtyStr = isSale && entry.quantity != null ? entry.quantity.toString() : '-';
+    final goodsTotal = isSale ? '${PdfTheme.naira}${fmt.format(entry.totalAmount)}' : '-';
     final double outVal = isSale ? (entry.payment ?? 0.0) : entry.totalAmount;
-    final paymentReceived = outVal > 0 ? fmt.format(outVal) : '—';
+    final paymentReceived = outVal > 0 ? fmt.format(outVal) : '-';
     final outDesc = !isSale ? (entry.outItem ?? 'PAYMENT') : (entry.outItem ?? '');
 
     pdf.addPage(pw.Page(
@@ -683,11 +683,11 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
               0: const pw.FixedColumnWidth(80),   // Date
               1: const pw.FlexColumnWidth(1.8),  // Buyer Name
               2: const pw.FlexColumnWidth(2.0),  // Item/Desc
-              3: const pw.FlexColumnWidth(1.2),  // Price (₦)
+              3: const pw.FlexColumnWidth(1.2),  // Price
               4: const pw.FlexColumnWidth(0.8),  // Qty
-              5: const pw.FlexColumnWidth(1.3),  // IN (₦)
-              6: const pw.FlexColumnWidth(1.3),  // OUT (₦)
-              7: const pw.FlexColumnWidth(1.5),  // Balance (₦)
+              5: const pw.FlexColumnWidth(1.3),  // IN
+              6: const pw.FlexColumnWidth(1.3),  // OUT
+              7: const pw.FlexColumnWidth(1.5),  // Balance
             },
             children: [
               pw.TableRow(
@@ -696,11 +696,11 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
                   hCell('Date'),
                   hCell('Buyer Name'),
                   hCell('Item/Desc'),
-                  hCell('Price (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Price (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
                   hCell('Qty', alignment: pw.Alignment.center),
-                  hCell('IN (₦)', alignment: pw.Alignment.centerRight),
-                  hCell('OUT (₦)', alignment: pw.Alignment.centerRight),
-                  hCell('Balance (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('IN (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
+                  hCell('OUT (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
+                  hCell('Balance (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
                 ],
               ),
               pw.TableRow(
@@ -712,7 +712,7 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
                   dCell(qtyStr, alignment: pw.Alignment.center),
                   dCell(goodsTotal, bold: isSale, alignment: pw.Alignment.centerRight),
                   dCell(
-                    paymentReceived != '—' ? '' : '—',
+                    paymentReceived != '-' ? '' : '-',
                     bold: outVal > 0,
                     alignment: pw.Alignment.centerRight,
                     child: outVal > 0
@@ -1033,7 +1033,7 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
               return pw.TableRow(children: [
                 _c('${e.key + 1}'),
                 _c(dateFmt.format(entry.date)),
-                _c(entry.personName ?? '—'),
+                _c(entry.personName ?? '-'),
                 _c(isSale ? (entry.inItem ?? '') : ''),
                 outVal > 0
                     ? pw.Padding(
@@ -1062,9 +1062,9 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
                           ],
                         ),
                       )
-                    : _c('—'),
-                _c(isSale && entry.price != null ? '${PdfTheme.naira}${fmt.format(entry.price)}' : '—'),
-                _c(isSale && entry.quantity != null ? '${entry.quantity}' : '—'),
+                    : _c('-'),
+                _c(isSale && entry.price != null ? '${PdfTheme.naira}${fmt.format(entry.price)}' : '-'),
+                _c(isSale && entry.quantity != null ? '${entry.quantity}' : '-'),
                 _c('${PdfTheme.naira}${fmt.format(entry.totalAmount)}'),
                 _c('${PdfTheme.naira}${fmt.format(entry.runningBalance)}'),
               ]);

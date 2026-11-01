@@ -387,10 +387,10 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
                   hCell('Date'),
                   hCell('Item/Desc'),
                   hCell('Qty', alignment: pw.Alignment.center),
-                  hCell('Price (₦)', alignment: pw.Alignment.centerRight),
-                  hCell('OUT (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Price (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
+                  hCell('OUT (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
                   hCell('Total Amt', alignment: pw.Alignment.centerRight),
-                  hCell('Balance (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Balance (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
                 ],
               ),
               ...entries.asMap().entries.map((e) {
@@ -401,15 +401,15 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
 
                 // Same logic as UI table
                 final desc = isSale ? (entry.inItem ?? '') : '';
-                final qtyStr = isSale ? (entry.quantity?.toString() ?? '1') : '—';
+                final qtyStr = isSale ? (entry.quantity?.toString() ?? '1') : '-';
                 // Price col: unit price for sales, payment method name for payments
                 final priceStr = isSale
                     ? fmt.format(entry.price)
                     : (entry.outItem ?? '');
-                // OUT col: payment amount for payments, — for sales
+                // OUT col: payment amount for payments, - for sales
                 final outStr = !isSale
                     ? '${PdfTheme.naira}${fmt.format(entry.totalAmount)}'
-                    : '—';
+                    : '-';
                 // Total Amt col: always the total
                 final totalAmtStr = '${PdfTheme.naira}${fmt.format(entry.totalAmount)}';
 
@@ -1000,10 +1000,10 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
     );
 
     final desc = isSale ? (entry.inItem ?? '') : '';
-    final qtyStr = isSale ? entry.quantity?.toString() ?? '1' : '—';
+    final qtyStr = isSale ? entry.quantity?.toString() ?? '1' : '-';
     final priceStr = isSale ? fmt.format(entry.price) : (entry.outItem ?? '');
     final goodsTotal = '${PdfTheme.naira}${fmt.format(entry.totalAmount)}';
-    final paymentReceived = !isSale ? fmt.format(entry.totalAmount) : '—';
+    final paymentReceived = !isSale ? fmt.format(entry.totalAmount) : '-';
 
     pdf.addPage(pw.Page(
       pageFormat: PdfPageFormat.a4.landscape,
@@ -1041,10 +1041,10 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
                   hCell('Date'),
                   hCell('Item/Desc'),
                   hCell('Qty', alignment: pw.Alignment.center),
-                  hCell('Price (₦)', alignment: pw.Alignment.centerRight),
-                  hCell('OUT (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Price (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
+                  hCell('OUT (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
                   hCell('Total Amt', alignment: pw.Alignment.centerRight),
-                  hCell('Balance (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Balance (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
                 ],
               ),
               pw.TableRow(
@@ -1054,7 +1054,7 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
                   dCell(qtyStr, alignment: pw.Alignment.center),
                   dCell(priceStr, alignment: pw.Alignment.centerRight),
                   dCell(
-                    !isSale ? '${PdfTheme.naira}$paymentReceived' : '—',
+                    !isSale ? '${PdfTheme.naira}$paymentReceived' : '-',
                     bold: !isSale,
                     alignment: pw.Alignment.centerRight,
                   ),

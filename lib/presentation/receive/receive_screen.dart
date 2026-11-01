@@ -681,11 +681,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                 children: [
                   hCell('Date'),
                   hCell('Product Name'),
-                  hCell('Price (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Price (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
                   hCell('Qty', alignment: pw.Alignment.center),
                   hCell('Total Value', alignment: pw.Alignment.centerRight),
-                  hCell('Paid (₦)', alignment: pw.Alignment.centerRight),
-                  hCell('Balance (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Paid (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
+                  hCell('Balance (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
                 ],
               ),
               pw.TableRow(
@@ -701,13 +701,13 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
                   ),
                   dCell(
                     entry.price == 0.0
-                        ? (entry.description?.trim().isNotEmpty == true ? entry.description!.trim() : '—')
+                        ? (entry.description?.trim().isNotEmpty == true ? entry.description!.trim() : '-')
                         : (entry.description?.trim().isNotEmpty == true
                             ? '${PdfTheme.naira}${fmt.format(entry.price)}\n${entry.description!.trim()}'
                             : '${PdfTheme.naira}${fmt.format(entry.price)}'),
                     alignment: pw.Alignment.centerRight,
                   ),
-                  dCell(entry.quantity == 0 ? '—' : '${entry.quantity}', alignment: pw.Alignment.center),
+                  dCell(entry.quantity == 0 ? '-' : '${entry.quantity}', alignment: pw.Alignment.center),
                   dCell('${PdfTheme.naira}${fmt.format(entry.totalAmount)}', bold: true, alignment: pw.Alignment.centerRight),
                   dCell('${PdfTheme.naira}${fmt.format(entry.payment ?? 0.0)}', alignment: pw.Alignment.centerRight),
                   dCell('${PdfTheme.naira}${fmt.format(entry.totalAmount - (entry.payment ?? 0.0))}', alignment: pw.Alignment.centerRight),

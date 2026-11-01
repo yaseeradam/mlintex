@@ -875,7 +875,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                 children: [
                   hCell('Product Name'),
                   hCell('Category'),
-                  hCell('Cost Price (₦)', alignment: pw.Alignment.centerRight),
+                  hCell('Cost Price (${PdfTheme.naira})', alignment: pw.Alignment.centerRight),
                   hCell('Qty in Stock', alignment: pw.Alignment.center),
                   hCell('Asset Value', alignment: pw.Alignment.centerRight),
                 ],
@@ -1154,7 +1154,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                 _cCell('Totals', bold: true),
                 _cCell(''),
                 _cCell(''),
-                _cCell('—'),
+                _cCell('-'),
                 _cCell('$totalQty', bold: true),
                 _cCell('${PdfTheme.naira}${fmt.format(totalAssetValue)}', bold: true),
               ],
