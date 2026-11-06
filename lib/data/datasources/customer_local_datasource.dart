@@ -19,15 +19,29 @@ class CustomerLocalDataSource {
     return sId == _activeShopId;
   }
 
+  bool _firstFetchDone = false;
+
   Future<List<CustomerModel>> getAllCustomers() async {
     try {
-      final snapshot = await _collection.get();
+      final source = (!_firstFetchDone && FirestoreService.isAuthReady)
+          ? Source.server
+          : Source.serverAndCache;
+      _firstFetchDone = true;
+      final snapshot = await _collection.get(GetOptions(source: source));
       return snapshot.docs
           .where((doc) => _matchesShop(doc.data()))
           .map((doc) => CustomerModel.fromMap(doc.data()))
           .toList();
     } catch (e) {
-      return [];
+      try {
+        final snapshot = await _collection.get(const GetOptions(source: Source.cache));
+        return snapshot.docs
+            .where((doc) => _matchesShop(doc.data()))
+            .map((doc) => CustomerModel.fromMap(doc.data()))
+            .toList();
+      } catch (_) {
+        return [];
+      }
     }
   }
 

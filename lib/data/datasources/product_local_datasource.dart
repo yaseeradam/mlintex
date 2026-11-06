@@ -19,15 +19,32 @@ class ProductLocalDataSource {
     return sId == _activeShopId;
   }
 
+  bool _firstFetchDone = false;
+
   Future<List<ProductModel>> getAllProducts() async {
     try {
-      final snapshot = await _collection.get();
+      // On first load after auth resolves, force a server fetch to bypass
+      // stale iOS Safari offline Firestore cache (which shows empty data).
+      final source = (!_firstFetchDone && FirestoreService.isAuthReady)
+          ? Source.server
+          : Source.serverAndCache;
+      _firstFetchDone = true;
+      final snapshot = await _collection.get(GetOptions(source: source));
       return snapshot.docs
           .where((doc) => _matchesShop(doc.data()))
           .map((doc) => ProductModel.fromMap(doc.data()))
           .toList();
     } catch (e) {
-      return [];
+      // If server fetch fails (offline), fall back to cache
+      try {
+        final snapshot = await _collection.get(const GetOptions(source: Source.cache));
+        return snapshot.docs
+            .where((doc) => _matchesShop(doc.data()))
+            .map((doc) => ProductModel.fromMap(doc.data()))
+            .toList();
+      } catch (_) {
+        return [];
+      }
     }
   }
 

@@ -52,19 +52,23 @@ Future<void> main() async {
     debugPrint('Firebase.initializeApp error: $e');
   }
 
-  // Pre-authenticate canonical Firebase Auth and migrate legacy Hive records in background
-  unawaited(
-    FirestoreService.ensureAuthenticated(
+  // Await Firebase Auth before runApp() so all Firestore queries have a valid
+  // currentUser.uid from the very first render. This fixes the iPhone/Safari
+  // issue where data appeared missing because auth resolved after the first
+  // Firestore queries had already fired with a null user (empty results).
+  try {
+    await FirestoreService.ensureAuthenticated(
       canonicalEmail: 'mlintex@gmail.com',
       canonicalPassword: 'mlintex123',
-    ).then((_) async {
-      try {
-        await FirestoreService.migrateLocalHiveToFirestore();
-      } catch (e) {
-        debugPrint('Migration error: $e');
-      }
-    }).catchError((e) {
-      debugPrint('Firebase Auth bootstrap error: $e');
+    ).timeout(const Duration(seconds: 8));
+  } catch (e) {
+    debugPrint('Firebase Auth bootstrap error (continuing offline): $e');
+  }
+
+  // Run migration in background after auth — does not block the UI
+  unawaited(
+    FirestoreService.migrateLocalHiveToFirestore().catchError((e) {
+      debugPrint('Migration error: $e');
     }),
   );
 
