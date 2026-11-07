@@ -61,7 +61,14 @@
   <link rel="manifest" href="manifest.json">
 
   <style>
-    html, body {
+    html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #0F172A;
+    }
+    body {
       margin: 0;
       padding: 0;
       width: 100%;
@@ -69,10 +76,14 @@
       background-color: #0F172A;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       overflow: hidden;
-      /* NOTE: touch-action: manipulation removed — it blocks tap events on iOS Safari PWA */
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
+      /* iOS PWA FIX: Do NOT apply -webkit-user-select:none or -webkit-touch-callout:none
+         on html/body — it swallows all tap/click events on iOS Safari standalone mode.
+         Flutter sets these on its own canvas element as needed. */
+    }
+    /* Flutter engine root - ensure pointer events are always enabled */
+    flt-glass-pane, flt-scene-host, flutter-view, flt-glass-pane * {
+      pointer-events: auto !important;
+      touch-action: auto !important;
     }
     #loading-splash {
       position: fixed;
@@ -203,11 +214,40 @@
           }
         }, 350);
       }
+      // iOS PWA standalone fix: re-enable touch events on Flutter canvas
+      // iOS Safari standalone mode sometimes resets pointer-events after first render
+      repairIosTouchEvents();
+    }
+
+    function repairIosTouchEvents() {
+      // Applies only when running as installed PWA on iOS (home screen)
+      var isIosPwa = (window.navigator.standalone === true) ||
+                     (window.matchMedia('(display-mode: standalone)').matches &&
+                      /iPad|iPhone|iPod/.test(navigator.userAgent));
+      if (!isIosPwa) return;
+
+      // Force pointer-events and touch-action on the Flutter rendering elements
+      var selectors = ['flt-glass-pane', 'flt-scene-host', 'flutter-view', 'canvas'];
+      selectors.forEach(function(sel) {
+        document.querySelectorAll(sel).forEach(function(el) {
+          el.style.pointerEvents = 'auto';
+          el.style.touchAction = 'auto';
+        });
+      });
+
+      // Also ensure document.body and html have no blocking styles
+      document.body.style.webkitUserSelect = 'auto';
+      document.body.style.webkitTouchCallout = 'default';
+      document.documentElement.style.webkitUserSelect = 'auto';
     }
 
     window.addEventListener('flutter-first-frame', dismissSplash);
     // Fallback: Ensure splash is removed after 3.5s so touches can never be trapped
     setTimeout(dismissSplash, 3500);
+    // Extra safety: re-run touch repair 1s after first frame fires
+    window.addEventListener('flutter-first-frame', function() {
+      setTimeout(repairIosTouchEvents, 1000);
+    });
   </script>
 
   <script>
