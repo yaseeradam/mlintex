@@ -21,6 +21,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen>
     with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
   bool _isGridView = false;
+  bool _isBalanceVisible = false;
   late AnimationController _fabAnim;
 
   @override
@@ -148,6 +149,8 @@ class _ShopScreenState extends ConsumerState<ShopScreen>
                         totalOwed: totalOwed,
                         totalDebts: totalDebts,
                         fmt: fmt,
+                        isBalanceVisible: _isBalanceVisible,
+                        onToggleVisibility: () => setState(() => _isBalanceVisible = !_isBalanceVisible),
                       ),
                     );
                   },
@@ -310,11 +313,15 @@ class _OwedHeaderCard extends StatelessWidget {
   final double totalOwed;
   final int totalDebts;
   final NumberFormat fmt;
+  final bool isBalanceVisible;
+  final VoidCallback onToggleVisibility;
 
   const _OwedHeaderCard({
     required this.totalOwed,
     required this.totalDebts,
     required this.fmt,
+    required this.isBalanceVisible,
+    required this.onToggleVisibility,
   });
 
   @override
@@ -370,14 +377,40 @@ class _OwedHeaderCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            '₦${fmt.format(totalOwed)}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -1,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: onToggleVisibility,
+                  behavior: HitTestBehavior.opaque,
+                  child: Text(
+                    isBalanceVisible ? '₦${fmt.format(totalOwed)}' : '₦ ••••••••',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: onToggleVisibility,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    isBalanceVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 6),
           Text(
