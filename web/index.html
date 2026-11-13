@@ -8,37 +8,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="M Lin Tex - Modern Store & Bookkeeping Management System">
 
-  <!-- Force Auto-Clear Cache & Auto-Update System -->
+  <!-- Smart Version-Aware Cache Invalidation -->
   <script>
     (function() {
-      // 1. Instantly purge all CacheStorage so stale flutter files cannot be served
-      if ('caches' in window) {
-        caches.keys().then(function(names) {
-          names.forEach(function(name) { caches.delete(name); });
-        });
-      }
-
-      // 2. Unregister any existing service workers to disable stale offline caching
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          registrations.forEach(function(reg) { reg.unregister(); });
-        });
-      }
-
-      // 3. Compare server version and auto-refresh if a newer build exists
+      // Only purge caches when the build version actually changes.
+      // Fetching version.json is fast (~50 bytes). If the version matches
+      // what we stored last visit, we skip ALL cache deletion so the browser
+      // can serve main.dart.js and other large assets from cache instantly.
       fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
         .then(function(res) { return res.json(); })
         .then(function(data) {
           var serverVersion = data.build_number || data.version || 'latest';
           var localVersion = localStorage.getItem('app_build_version');
-          if (localVersion && localVersion !== serverVersion) {
+          if (localVersion !== serverVersion) {
+            // New build detected — clear old caches so stale assets are evicted
             localStorage.setItem('app_build_version', serverVersion);
-            window.location.reload(true);
-          } else {
-            localStorage.setItem('app_build_version', serverVersion);
+            var clearPromises = [];
+            if ('caches' in window) {
+              clearPromises.push(
+                caches.keys().then(function(names) {
+                  return Promise.all(names.map(function(name) { return caches.delete(name); }));
+                })
+              );
+            }
+            if ('serviceWorker' in navigator) {
+              clearPromises.push(
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                  return Promise.all(regs.map(function(reg) { return reg.unregister(); }));
+                })
+              );
+            }
+            // Reload once after clearing so the fresh assets are fetched
+            if (localVersion !== null) {
+              Promise.all(clearPromises).then(function() {
+                window.location.reload(true);
+              });
+            }
           }
+          // Same version → do nothing, let the browser use its cache
         })
-        .catch(function() {});
+        .catch(function() {
+          // version.json unreachable (offline) — just continue loading from cache
+        });
     })();
   </script>
 
