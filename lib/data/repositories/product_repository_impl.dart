@@ -14,7 +14,7 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<List<Product>> getAllProducts() async {
     final models = await _localDataSource.getAllProducts();
     return models.map((m) => m.toEntity()).toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
   }
 
   @override
@@ -46,7 +46,7 @@ class ProductRepositoryImpl implements ProductRepository {
   Stream<List<Product>> watchProducts() {
     return _localDataSource.watchProducts().map(
       (models) => models.map((m) => m.toEntity()).toList()
-        ..sort((a, b) => a.name.compareTo(b.name)),
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)),
     );
   }
 

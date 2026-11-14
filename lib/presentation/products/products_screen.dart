@@ -97,10 +97,11 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               final lowStock = products.where((p) => p.quantity < 5).length;
 
               final query = ref.watch(productSearchProvider).toLowerCase();
-              var filtered = query.isEmpty ? products : products.where((p) => p.name.toLowerCase().contains(query)).toList();
+              var filtered = (query.isEmpty ? products : products.where((p) => p.name.toLowerCase().contains(query)).toList()).toList();
               if (_selectedCategory != 'All') {
                 filtered = filtered.where((p) => (p.category ?? 'Other') == _selectedCategory).toList();
               }
+              filtered.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
               return SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -344,12 +345,13 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       );
     }
 
+    const double dateWidth = 85;
     const double productWidth = 150;
     const double categoryWidth = 85;
     const double priceWidth = 105;
     const double qtyWidth = 60;
     const double totalWidth = 120;
-    const double totalTableWidth = productWidth + categoryWidth + priceWidth + qtyWidth + totalWidth;
+    const double totalTableWidth = dateWidth + productWidth + categoryWidth + priceWidth + qtyWidth + totalWidth;
 
     const accentColor = Color(0xFF10B981);
     const borderColor = Color(0xFFE2E8F0);
@@ -396,6 +398,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        _buildHeaderCell('Date', width: dateWidth),
                         _buildHeaderCell('Product', width: productWidth),
                         _buildHeaderCell('Category', width: categoryWidth),
                         _buildHeaderCell('Cost Price (₦)', width: priceWidth, alignment: Alignment.centerRight),
@@ -413,6 +416,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     final style = ProductStyleUtil.getStyle(product.category, product.name);
                     final rowAccentColor = style.colors.first;
 
+                    final dateStr = DateFormat('dd/MM/yy').format(product.updatedAt);
                     final unitCost = product.costPrice > 0 ? product.costPrice : product.price;
                     final priceStr = '₦${_fmt.format(unitCost)}';
                     final qtyStr = product.quantity.toString();
@@ -433,6 +437,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                _buildCell(dateStr, width: dateWidth, fontSize: 10),
                                 _buildCell(product.name, width: productWidth, bold: true),
                                 _buildCell(product.category ?? 'Other', width: categoryWidth),
                                 _buildCell(priceStr, width: priceWidth, alignment: Alignment.centerRight),
@@ -464,7 +469,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildCell('Totals', width: productWidth, bold: true, textColor: const Color(0xFF475569)),
+                        _buildCell('Totals', width: dateWidth, bold: true, textColor: const Color(0xFF475569)),
+                        _buildCell('', width: productWidth),
                         _buildCell('', width: categoryWidth),
                         _buildCell('—', width: priceWidth, alignment: Alignment.centerRight, textColor: const Color(0xFF94A3B8)),
                         _buildCell('$totalQty', width: qtyWidth, bold: true, alignment: Alignment.center, textColor: const Color(0xFF0F172A)),
@@ -1110,9 +1116,11 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     final auth = ref.read(authProvider);
     final shopName = auth.shopName.isEmpty || auth.shopName.toLowerCase() == 'admin' ? 'M Lin Tex' : auth.shopName;
 
+    final sortedProducts = products.toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
     double totalAssetValue = 0;
     int totalQty = 0;
-    for (final p in products) {
+    for (final p in sortedProducts) {
       final unitCost = (p.costPrice != null && p.costPrice > 0) ? p.costPrice : p.price;
       totalAssetValue += unitCost * p.quantity;
       totalQty += p.quantity as int;
@@ -1133,19 +1141,21 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           children: [
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-              children: ['S/N', 'Product Name', 'Category', 'Cost Price', 'Qty', 'Stock Value']
+              children: ['Date', 'Product Name', 'Category', 'Cost Price', 'Qty', 'Stock Value']
                   .map((h) => pw.Padding(padding: const pw.EdgeInsets.all(4),
                       child: pw.Text(h, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold))))
                   .toList(),
             ),
-            ...products.asMap().entries.map((e) {
-              final unitCost = (e.value.costPrice != null && e.value.costPrice > 0) ? e.value.costPrice : e.value.price;
+            ...sortedProducts.map((p) {
+              final unitCost = (p.costPrice != null && p.costPrice > 0) ? p.costPrice : p.price;
+              final dateStr = DateFormat('dd/MM/yy').format(p.updatedAt);
               return pw.TableRow(children: [
-                _cCell('${e.key + 1}'), _cCell(e.value.name),
-                _cCell(e.value.category ?? 'Other'),
+                _cCell(dateStr),
+                _cCell(p.name),
+                _cCell(p.category ?? 'Other'),
                 _cCell('${PdfTheme.naira}${fmt.format(unitCost)}'),
-                _cCell('${e.value.quantity}'),
-                _cCell('${PdfTheme.naira}${fmt.format(unitCost * e.value.quantity)}'),
+                _cCell('${p.quantity}'),
+                _cCell('${PdfTheme.naira}${fmt.format(unitCost * p.quantity)}'),
               ]);
             }),
             pw.TableRow(
@@ -1181,8 +1191,9 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     final overlayState = Overlay.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final products = await ref.read(productsProvider.future);
+    final productsRaw = await ref.read(productsProvider.future);
     if (!mounted) return;
+    final products = productsRaw.toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
     final fmt = NumberFormat('#,##0', 'en_US');
     final bg = isDark ? const Color(0xFF1E293B) : Colors.white;
@@ -1225,7 +1236,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                         children: [
                           TableRow(
                             decoration: BoxDecoration(color: headerBg),
-                            children: ['S/N', 'Product Name', 'Category', 'Cost Price', 'Qty', 'Stock Value']
+                            children: ['Date', 'Product Name', 'Category', 'Cost Price', 'Qty', 'Stock Value']
                                 .map((h) => Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                       child: Text(h, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: textColor)),
@@ -1237,10 +1248,11 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                             final entry = e.value;
                             final rowBg = i.isEven ? bg : (isDark ? const Color(0xFF1A2535) : const Color(0xFFF8FAFC));
                             final unitCost = entry.costPrice > 0 ? entry.costPrice : entry.price;
+                            final dateStr = DateFormat('dd/MM/yy').format(entry.updatedAt);
                             return TableRow(
                               decoration: BoxDecoration(color: rowBg),
                               children: [
-                                _tCell('${i + 1}', mutedColor),
+                                _tCell(dateStr, mutedColor),
                                 _tCell(entry.name, textColor, bold: true),
                                 _tCell(entry.category ?? 'Other', AppTheme.primaryColor),
                                 _tCell('\u20a6${fmt.format(unitCost)}', textColor),

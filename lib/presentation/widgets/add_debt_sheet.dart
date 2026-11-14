@@ -54,7 +54,10 @@ class _AddDebtSheetState extends ConsumerState<AddDebtSheet> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      AppFeedback.showError(context, 'Invalid Input', 'Please check the entered amount and details.');
+      return;
+    }
     if (_selectedCustomerId == null) {
       AppFeedback.showError(context, 'Missing', 'Please select a customer.');
       return;

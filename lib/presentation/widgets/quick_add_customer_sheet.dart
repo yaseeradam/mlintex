@@ -66,7 +66,10 @@ class _QuickAddCustomerSheetState extends ConsumerState<QuickAddCustomerSheet> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      AppFeedback.showError(context, 'Invalid Input', 'Please check customer details and fill in all required fields.');
+      return;
+    }
     AppFeedback.showLoading(context);
     try {
       final name = _nameController.text.trim();

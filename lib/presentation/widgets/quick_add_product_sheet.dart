@@ -76,7 +76,10 @@ class _QuickAddProductSheetState extends ConsumerState<QuickAddProductSheet> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      AppFeedback.showError(context, 'Invalid Input', 'Please check your inputs and fill in all required fields.');
+      return;
+    }
     AppFeedback.showLoading(context);
     try {
       final name = _nameController.text.trim();

@@ -19,6 +19,7 @@ import '../../core/providers/repository_providers.dart';
 import '../../domain/entities/product.dart';
 import '../products/product_provider.dart';
 import '../../core/services/firestore_service.dart';
+import '../widgets/app_feedback.dart';
 
 // ── Model ──────────────────────────────────────────────────────────────────
 
@@ -561,7 +562,16 @@ class _SalesLedgerScreenState extends ConsumerState<SalesLedgerScreen> {
       ),
     );
     if (confirm == true) {
-      await ref.read(salesLedgerNotifierProvider.notifier).delete(entry.id);
+      try {
+        await ref.read(salesLedgerNotifierProvider.notifier).delete(entry.id);
+        if (context.mounted) {
+          AppFeedback.showSuccess(context, 'Deleted', 'Sales ledger entry has been deleted.');
+        }
+      } catch (e) {
+        if (context.mounted) {
+          AppFeedback.showError(context, 'Error', 'Failed to delete entry: $e');
+        }
+      }
     }
   }
 
@@ -2053,91 +2063,117 @@ class _SalesEntrySheetState extends ConsumerState<_SalesEntrySheet> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    final n = ref.read(salesLedgerNotifierProvider.notifier);
-    final pName = _personCtrl.text.trim().isEmpty ? null : _personCtrl.text.trim();
-    final paymentVal = CurrencyInputFormatter.parse(_paymentCtrl.text);
-    final paymentMethod = _outItemCtrl.text.trim().isEmpty ? null : _outItemCtrl.text.trim();
+    if (!_formKey.currentState!.validate()) {
+      AppFeedback.showError(context, 'Invalid Input', 'Please fill in all required fields properly.');
+      return;
+    }
 
-    if (widget.existing != null) {
-      final e = widget.existing!;
-      if (_isSale) {
-        final price = CurrencyInputFormatter.parse(_priceCtrl.text);
-        final qty = int.tryParse(_qtyCtrl.text) ?? 0;
-        final total = price * qty;
-        final products = ref.read(productsProvider).value ?? [];
-        Product? match;
-        if (_selectedProductId != null) {
-          match = products.where((p) => p.id == _selectedProductId).firstOrNull;
-        }
-        if (match == null && _itemCtrl.text.isNotEmpty) {
-          match = products.where((p) => p.name.trim().toLowerCase() == _itemCtrl.text.trim().toLowerCase()).firstOrNull;
-        }
-        final cost = (match != null && match.costPrice > 0) ? match.costPrice : e.costPrice;
+    AppFeedback.showLoading(context);
+    try {
+      final n = ref.read(salesLedgerNotifierProvider.notifier);
+      final pName = _personCtrl.text.trim().isEmpty ? null : _personCtrl.text.trim();
+      final paymentVal = CurrencyInputFormatter.parse(_paymentCtrl.text);
+      final paymentMethod = _outItemCtrl.text.trim().isEmpty ? null : _outItemCtrl.text.trim();
+      final isEdit = widget.existing != null;
 
-        await n.update(SalesLedgerEntry(
-          id: e.id,
-          date: e.date,
-          inItem: _itemCtrl.text.trim(),
-          outItem: paymentMethod,
-          price: price,
-          quantity: qty,
-          totalAmount: total,
-          payment: paymentVal,
-          paymentDate: paymentVal > 0 ? (e.paymentDate ?? DateTime.now()) : null,
-          typeIndex: 1,
-          personName: pName,
-          costPrice: cost,
-        ), productId: _selectedProductId);
+      if (isEdit) {
+        final e = widget.existing!;
+        if (_isSale) {
+          final price = CurrencyInputFormatter.parse(_priceCtrl.text);
+          final qty = int.tryParse(_qtyCtrl.text) ?? 0;
+          final total = price * qty;
+          final products = ref.read(productsProvider).value ?? [];
+          Product? match;
+          if (_selectedProductId != null) {
+            match = products.where((p) => p.id == _selectedProductId).firstOrNull;
+          }
+          if (match == null && _itemCtrl.text.isNotEmpty) {
+            match = products.where((p) => p.name.trim().toLowerCase() == _itemCtrl.text.trim().toLowerCase()).firstOrNull;
+          }
+          final cost = (match != null && match.costPrice > 0) ? match.costPrice : e.costPrice;
+
+          await n.update(SalesLedgerEntry(
+            id: e.id,
+            date: e.date,
+            inItem: _itemCtrl.text.trim(),
+            outItem: paymentMethod,
+            price: price,
+            quantity: qty,
+            totalAmount: total,
+            payment: paymentVal,
+            paymentDate: paymentVal > 0 ? (e.paymentDate ?? DateTime.now()) : null,
+            typeIndex: 1,
+            personName: pName,
+            costPrice: cost,
+          ), productId: _selectedProductId);
+        } else {
+          final amount = CurrencyInputFormatter.parse(_amountCtrl.text);
+          await n.update(SalesLedgerEntry(
+            id: e.id,
+            date: e.date,
+            inItem: null,
+            outItem: _outItemCtrl.text.trim().isNotEmpty ? _outItemCtrl.text.trim() : _itemCtrl.text.trim(),
+            price: null,
+            quantity: null,
+            totalAmount: amount,
+            payment: amount,
+            paymentDate: e.paymentDate ?? DateTime.now(),
+            typeIndex: 0,
+            personName: pName,
+          ));
+        }
       } else {
-        final amount = CurrencyInputFormatter.parse(_amountCtrl.text);
-        await n.update(SalesLedgerEntry(
-          id: e.id,
-          date: e.date,
-          inItem: null,
-          outItem: _outItemCtrl.text.trim().isNotEmpty ? _outItemCtrl.text.trim() : _itemCtrl.text.trim(),
-          price: null,
-          quantity: null,
-          totalAmount: amount,
-          payment: amount,
-          paymentDate: e.paymentDate ?? DateTime.now(),
-          typeIndex: 0,
-          personName: pName,
-        ));
+        if (_isSale) {
+          final price = CurrencyInputFormatter.parse(_priceCtrl.text);
+          final qty = int.parse(_qtyCtrl.text.trim());
+          final products = ref.read(productsProvider).value ?? [];
+          Product? match;
+          if (_selectedProductId != null) {
+            match = products.where((p) => p.id == _selectedProductId).firstOrNull;
+          }
+          if (match == null && _itemCtrl.text.isNotEmpty) {
+            match = products.where((p) => p.name.trim().toLowerCase() == _itemCtrl.text.trim().toLowerCase()).firstOrNull;
+          }
+          final cost = (match != null && match.costPrice > 0) ? match.costPrice : null;
+
+          await n.addSale(
+            item: _itemCtrl.text.trim(),
+            price: price,
+            qty: qty,
+            payment: paymentVal,
+            paymentMethod: paymentMethod,
+            personName: pName,
+            productId: _selectedProductId,
+            costPrice: cost,
+          );
+        } else {
+          await n.addPayment(
+            bankOrCash: _outItemCtrl.text.trim().isNotEmpty ? _outItemCtrl.text.trim() : _itemCtrl.text.trim(),
+            amount: CurrencyInputFormatter.parse(_amountCtrl.text),
+            personName: pName,
+          );
+        }
       }
-    } else {
-      if (_isSale) {
-        final price = CurrencyInputFormatter.parse(_priceCtrl.text);
-        final qty = int.parse(_qtyCtrl.text.trim());
-        final products = ref.read(productsProvider).value ?? [];
-        Product? match;
-        if (_selectedProductId != null) {
-          match = products.where((p) => p.id == _selectedProductId).firstOrNull;
-        }
-        if (match == null && _itemCtrl.text.isNotEmpty) {
-          match = products.where((p) => p.name.trim().toLowerCase() == _itemCtrl.text.trim().toLowerCase()).firstOrNull;
-        }
-        final cost = (match != null && match.costPrice > 0) ? match.costPrice : null;
 
-        await n.addSale(
-          item: _itemCtrl.text.trim(),
-          price: price,
-          qty: qty,
-          payment: paymentVal,
-          paymentMethod: paymentMethod,
-          personName: pName,
-          productId: _selectedProductId,
-          costPrice: cost,
+      if (mounted) {
+        AppFeedback.hideLoading(context);
+        Navigator.pop(context);
+        AppFeedback.showSuccess(
+          context,
+          isEdit ? 'Entry Updated' : (_isSale ? 'Sale Recorded' : 'Payment Recorded'),
+          isEdit
+              ? 'The sales ledger entry was successfully updated.'
+              : (_isSale
+                  ? 'Sale was successfully recorded and stock updated.'
+                  : 'Payment record was successfully saved.'),
         );
-      } else {
-        await n.addPayment(
-          bankOrCash: _outItemCtrl.text.trim().isNotEmpty ? _outItemCtrl.text.trim() : _itemCtrl.text.trim(),
-          amount: CurrencyInputFormatter.parse(_amountCtrl.text),
-          personName: pName,
-        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.hideLoading(context);
+        AppFeedback.showError(context, 'Error', 'Failed to save entry: $e');
       }
     }
-    if (mounted) Navigator.pop(context);
   }
 
   @override

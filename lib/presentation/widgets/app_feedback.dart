@@ -4,8 +4,10 @@ import '../../core/theme/app_theme.dart';
 
 class AppFeedback {
   static void showLoading(BuildContext context) {
+    if (!context.mounted) return;
     showDialog(
       context: context,
+      useRootNavigator: true,
       barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.6),
       builder: (ctx) => Center(
@@ -58,7 +60,11 @@ class AppFeedback {
   }
 
   static void hideLoading(BuildContext context) {
-    Navigator.of(context, rootNavigator: true).pop();
+    if (!context.mounted) return;
+    final nav = Navigator.of(context, rootNavigator: true);
+    if (nav.canPop()) {
+      nav.pop();
+    }
   }
 
   static void showSuccess(BuildContext context, String title, String message) {
@@ -88,8 +94,10 @@ class AppFeedback {
     required IconData icon,
     required Color color,
   }) {
+    if (!context.mounted) return;
     showDialog(
       context: context,
+      useRootNavigator: true,
       barrierColor: Colors.black.withOpacity(0.7),
       builder: (ctx) => Center(
         child: BackdropFilter(
@@ -97,7 +105,7 @@ class AppFeedback {
           child: Material(
             color: Colors.transparent,
             child: Container(
-              width: MediaQuery.of(context).size.width * 0.82,
+              width: MediaQuery.of(ctx).size.width * 0.82,
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
                 color: AppTheme.surfaceColor.withOpacity(0.95),
@@ -150,7 +158,7 @@ class AppFeedback {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(ctx),
+                      onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: color,
                         foregroundColor: Colors.white,

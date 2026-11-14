@@ -14,6 +14,7 @@ import '../../domain/entities/ledger_entry.dart';
 import '../../core/providers/auth_provider.dart';
 import 'ledger_provider.dart';
 import '../../core/utils/file_saver.dart';
+import '../widgets/app_feedback.dart';
 
 class CustomerLedgerScreen extends ConsumerStatefulWidget {
   final String customerId;
@@ -282,10 +283,19 @@ class _CustomerLedgerScreenState extends ConsumerState<CustomerLedgerScreen> {
       ),
     );
     if (confirm == true) {
-      if (widget.isShop) {
-        await ref.read(shopLedgerNotifierProvider.notifier).deleteEntry(entry.id);
-      } else {
-        await ref.read(customerLedgerNotifierProvider.notifier).deleteEntry(entry.id);
+      try {
+        if (widget.isShop) {
+          await ref.read(shopLedgerNotifierProvider.notifier).deleteEntry(entry.id);
+        } else {
+          await ref.read(customerLedgerNotifierProvider.notifier).deleteEntry(entry.id);
+        }
+        if (context.mounted) {
+          AppFeedback.showSuccess(context, 'Deleted', 'Ledger entry has been deleted.');
+        }
+      } catch (e) {
+        if (context.mounted) {
+          AppFeedback.showError(context, 'Error', 'Failed to delete entry: $e');
+        }
       }
     }
   }
@@ -1977,65 +1987,90 @@ class _AddEntrySheetState extends ConsumerState<_AddEntrySheet> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    final dynamic notifier = widget.isShop
-        ? ref.read(shopLedgerNotifierProvider.notifier)
-        : ref.read(customerLedgerNotifierProvider.notifier);
-
-    if (widget.existing != null) {
-      final e = widget.existing!;
-      if (_isSale) {
-        final price = CurrencyInputFormatter.parse(_priceController.text);
-        final qty = int.tryParse(_qtyController.text) ?? 1;
-        final total = CurrencyInputFormatter.parse(_amountController.text);
-        final updated = LedgerEntry(
-          id: e.id,
-          customerId: e.customerId,
-          date: e.date,
-          inItem: _inItemController.text.trim(),
-          outItem: null,
-          price: price,
-          quantity: qty,
-          totalAmount: total > 0 ? total : price * qty,
-          typeIndex: LedgerEntryType.sale.index,
-        );
-        await notifier.updateEntry(updated);
-      } else {
-        final amount = CurrencyInputFormatter.parse(_outAmountController.text);
-        final outDesc = _outItemController.text.trim();
-        final updated = LedgerEntry(
-          id: e.id,
-          customerId: e.customerId,
-          date: e.date,
-          inItem: null,
-          outItem: outDesc.isEmpty ? 'PAYMENT' : outDesc,
-          price: amount,
-          quantity: null,
-          totalAmount: amount,
-          typeIndex: LedgerEntryType.payment.index,
-        );
-        await notifier.updateEntry(updated);
-      }
-    } else {
-      if (_isSale) {
-        await notifier.addSaleEntry(
-          customerId: widget.customerId,
-          itemName: _inItemController.text.trim(),
-          price: CurrencyInputFormatter.parse(_priceController.text),
-          quantity: int.parse(_qtyController.text.trim()),
-        );
-      } else {
-        final amount = CurrencyInputFormatter.parse(_outAmountController.text);
-        final outDesc = _outItemController.text.trim();
-        await notifier.addPaymentEntry(
-          customerId: widget.customerId,
-          bankOrCash: outDesc.isEmpty ? 'PAYMENT' : outDesc,
-          amount: amount,
-        );
-      }
+    if (!_formKey.currentState!.validate()) {
+      AppFeedback.showError(context, 'Invalid Input', 'Please check all required fields.');
+      return;
     }
 
-    if (mounted) Navigator.pop(context);
+    AppFeedback.showLoading(context);
+    try {
+      final dynamic notifier = widget.isShop
+          ? ref.read(shopLedgerNotifierProvider.notifier)
+          : ref.read(customerLedgerNotifierProvider.notifier);
+      final isEdit = widget.existing != null;
+
+      if (isEdit) {
+        final e = widget.existing!;
+        if (_isSale) {
+          final price = CurrencyInputFormatter.parse(_priceController.text);
+          final qty = int.tryParse(_qtyController.text) ?? 1;
+          final total = CurrencyInputFormatter.parse(_amountController.text);
+          final updated = LedgerEntry(
+            id: e.id,
+            customerId: e.customerId,
+            date: e.date,
+            inItem: _inItemController.text.trim(),
+            outItem: null,
+            price: price,
+            quantity: qty,
+            totalAmount: total > 0 ? total : price * qty,
+            typeIndex: LedgerEntryType.sale.index,
+          );
+          await notifier.updateEntry(updated);
+        } else {
+          final amount = CurrencyInputFormatter.parse(_outAmountController.text);
+          final outDesc = _outItemController.text.trim();
+          final updated = LedgerEntry(
+            id: e.id,
+            customerId: e.customerId,
+            date: e.date,
+            inItem: null,
+            outItem: outDesc.isEmpty ? 'PAYMENT' : outDesc,
+            price: amount,
+            quantity: null,
+            totalAmount: amount,
+            typeIndex: LedgerEntryType.payment.index,
+          );
+          await notifier.updateEntry(updated);
+        }
+      } else {
+        if (_isSale) {
+          await notifier.addSaleEntry(
+            customerId: widget.customerId,
+            itemName: _inItemController.text.trim(),
+            price: CurrencyInputFormatter.parse(_priceController.text),
+            quantity: int.parse(_qtyController.text.trim()),
+          );
+        } else {
+          final amount = CurrencyInputFormatter.parse(_outAmountController.text);
+          final outDesc = _outItemController.text.trim();
+          await notifier.addPaymentEntry(
+            customerId: widget.customerId,
+            bankOrCash: outDesc.isEmpty ? 'PAYMENT' : outDesc,
+            amount: amount,
+          );
+        }
+      }
+
+      if (mounted) {
+        AppFeedback.hideLoading(context);
+        Navigator.pop(context);
+        AppFeedback.showSuccess(
+          context,
+          isEdit ? 'Entry Updated' : (_isSale ? 'Credit Recorded' : 'Payment Recorded'),
+          isEdit
+              ? 'The customer ledger entry was successfully updated.'
+              : (_isSale
+                  ? 'Credit sale was recorded in customer ledger.'
+                  : 'Payment was recorded in customer ledger.'),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.hideLoading(context);
+        AppFeedback.showError(context, 'Error', 'Failed to save entry: $e');
+      }
+    }
   }
 
   @override

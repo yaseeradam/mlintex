@@ -17,6 +17,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/services/firestore_service.dart';
 import '../../core/providers/repository_providers.dart';
 import '../products/product_provider.dart';
+import '../widgets/app_feedback.dart';
 
 // ── Model ──────────────────────────────────────────────────────────────────
 
@@ -559,7 +560,16 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen> {
       ),
     );
     if (confirm == true) {
-      await ref.read(receiveNotifierProvider.notifier).delete(entry.id);
+      try {
+        await ref.read(receiveNotifierProvider.notifier).delete(entry.id);
+        if (context.mounted) {
+          AppFeedback.showSuccess(context, 'Deleted', 'Stock entry has been deleted.');
+        }
+      } catch (e) {
+        if (context.mounted) {
+          AppFeedback.showError(context, 'Error', 'Failed to delete entry: $e');
+        }
+      }
     }
   }
 
@@ -2150,75 +2160,100 @@ class _ReceiveEntrySheetState extends ConsumerState<_ReceiveEntrySheet> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    final notifier = ref.read(receiveNotifierProvider.notifier);
-
-    if (widget.existing != null) {
-      final e = widget.existing!;
-      if (_isStock) {
-        final price = CurrencyInputFormatter.parse(_priceController.text);
-        final qty = int.tryParse(_qtyController.text) ?? 1;
-        final total = CurrencyInputFormatter.parse(_amountController.text);
-        final updated = ReceiveEntry(
-          id: e.id,
-          date: e.date,
-          productName: _productController.text.trim(),
-          companyName: e.companyName,
-          price: price,
-          quantity: qty,
-          totalAmount: total > 0 ? total : price * qty,
-          payment: e.payment ?? 0.0,
-          paymentDate: e.paymentDate,
-          description: e.description ?? '',
-        );
-        await notifier.update(updated);
-      } else {
-        final amount = CurrencyInputFormatter.parse(_outAmountController.text);
-        final outDesc = _outItemController.text.trim();
-        final updated = ReceiveEntry(
-          id: e.id,
-          date: e.date,
-          productName: '',
-          companyName: e.companyName,
-          price: 0.0,
-          quantity: 0,
-          totalAmount: 0.0,
-          payment: amount,
-          paymentDate: e.paymentDate ?? DateTime.now(),
-          description: outDesc.isEmpty ? 'PAYMENT' : outDesc,
-        );
-        await notifier.update(updated);
-      }
-    } else {
-      if (_isStock) {
-        final price = CurrencyInputFormatter.parse(_priceController.text);
-        final qty = int.parse(_qtyController.text.trim());
-        final total = CurrencyInputFormatter.parse(_amountController.text);
-        await notifier.add(
-          product: _productController.text.trim(),
-          price: price,
-          qty: qty,
-          totalAmount: total > 0 ? total : price * qty,
-          payment: 0.0,
-          paymentDate: null,
-          description: '',
-        );
-      } else {
-        final amount = CurrencyInputFormatter.parse(_outAmountController.text);
-        final outDesc = _outItemController.text.trim();
-        await notifier.add(
-          product: '',
-          price: 0.0,
-          qty: 0,
-          totalAmount: 0.0,
-          payment: amount,
-          paymentDate: DateTime.now(),
-          description: outDesc.isEmpty ? 'PAYMENT' : outDesc,
-        );
-      }
+    if (!_formKey.currentState!.validate()) {
+      AppFeedback.showError(context, 'Invalid Input', 'Please check your inputs and fill in all required fields.');
+      return;
     }
 
-    if (mounted) Navigator.pop(context);
+    AppFeedback.showLoading(context);
+    try {
+      final notifier = ref.read(receiveNotifierProvider.notifier);
+      final isEdit = widget.existing != null;
+
+      if (isEdit) {
+        final e = widget.existing!;
+        if (_isStock) {
+          final price = CurrencyInputFormatter.parse(_priceController.text);
+          final qty = int.tryParse(_qtyController.text) ?? 1;
+          final total = CurrencyInputFormatter.parse(_amountController.text);
+          final updated = ReceiveEntry(
+            id: e.id,
+            date: e.date,
+            productName: _productController.text.trim(),
+            companyName: e.companyName,
+            price: price,
+            quantity: qty,
+            totalAmount: total > 0 ? total : price * qty,
+            payment: e.payment ?? 0.0,
+            paymentDate: e.paymentDate,
+            description: e.description ?? '',
+          );
+          await notifier.update(updated);
+        } else {
+          final amount = CurrencyInputFormatter.parse(_outAmountController.text);
+          final outDesc = _outItemController.text.trim();
+          final updated = ReceiveEntry(
+            id: e.id,
+            date: e.date,
+            productName: '',
+            companyName: e.companyName,
+            price: 0.0,
+            quantity: 0,
+            totalAmount: 0.0,
+            payment: amount,
+            paymentDate: e.paymentDate ?? DateTime.now(),
+            description: outDesc.isEmpty ? 'PAYMENT' : outDesc,
+          );
+          await notifier.update(updated);
+        }
+      } else {
+        if (_isStock) {
+          final price = CurrencyInputFormatter.parse(_priceController.text);
+          final qty = int.parse(_qtyController.text.trim());
+          final total = CurrencyInputFormatter.parse(_amountController.text);
+          await notifier.add(
+            product: _productController.text.trim(),
+            price: price,
+            qty: qty,
+            totalAmount: total > 0 ? total : price * qty,
+            payment: 0.0,
+            paymentDate: null,
+            description: '',
+          );
+        } else {
+          final amount = CurrencyInputFormatter.parse(_outAmountController.text);
+          final outDesc = _outItemController.text.trim();
+          await notifier.add(
+            product: '',
+            price: 0.0,
+            qty: 0,
+            totalAmount: 0.0,
+            payment: amount,
+            paymentDate: DateTime.now(),
+            description: outDesc.isEmpty ? 'PAYMENT' : outDesc,
+          );
+        }
+      }
+
+      if (mounted) {
+        AppFeedback.hideLoading(context);
+        Navigator.pop(context);
+        AppFeedback.showSuccess(
+          context,
+          isEdit ? 'Entry Updated' : (_isStock ? 'Stock Recorded' : 'Payment Recorded'),
+          isEdit
+              ? 'The entry was successfully updated.'
+              : (_isStock
+                  ? 'New stock entry was added to inventory.'
+                  : 'Payment record was successfully saved.'),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.hideLoading(context);
+        AppFeedback.showError(context, 'Error', 'Failed to save entry: $e');
+      }
+    }
   }
 
   @override
